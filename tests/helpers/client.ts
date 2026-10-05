@@ -5,12 +5,13 @@ import type { Ctx } from '@orvia/core';
 
 export class Client {
   cookies: Record<string, string> = {};
+  remoteAddress?: string;
   constructor(private app: FastifyInstance, private headers: Record<string, string> = {}) {}
 
   async req<T = any>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', url: string, body?: unknown, extra: Record<string, string> = {}) {
     const cookie = Object.entries(this.cookies).map(([k, v]) => `${k}=${v}`).join('; ');
     const res = await this.app.inject({
-      method, url, payload: body as object | undefined,
+      method, url, payload: body as object | undefined, remoteAddress: this.remoteAddress,
       headers: { 'x-requested-with': 'orvia', ...(cookie ? { cookie } : {}), ...(body !== undefined ? { 'content-type': 'application/json' } : {}), ...this.headers, ...extra },
     });
     for (const c of res.cookies) {

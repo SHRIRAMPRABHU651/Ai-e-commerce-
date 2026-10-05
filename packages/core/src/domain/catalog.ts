@@ -121,10 +121,8 @@ export interface StoreProduct {
   createdAt: string;
 }
 
-type LeanProduct = Awaited<ReturnType<typeof loadLean>>;
-async function loadLean(id: string) {
-  return Product.findById(id).lean();
-}
+export const loadLeanProduct = (id: string) => Product.findById(id).lean();
+type LeanProduct = Awaited<ReturnType<typeof loadLeanProduct>>;
 
 /** Customer-facing projection for a country. Never exposes cost, supplier or margin data. */
 export function toStoreProduct(p: NonNullable<LeanProduct>, country: CountryCode, returnWindowDays?: number): StoreProduct {

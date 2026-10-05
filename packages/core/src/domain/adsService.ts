@@ -9,7 +9,6 @@ import { aiActor, DomainError, notFound } from '../infra/context';
 import type { Actor, Ctx } from '../infra/context';
 import { proposeOrExecute, registerExecutor } from './automation';
 import { isSellable, transitionProduct } from './catalog';
-import { raiseException } from './exceptions';
 
 const oid = (s: string) => new mongoose.Types.ObjectId(s);
 const day = (d: Date) => d.toISOString().slice(0, 10);

@@ -253,7 +253,8 @@ export async function selectSupplierLive(
   const meta = new Map(rankable.map((r) => [r.supplierId, r]));
   const rec = recommendSupplier(ranked);
   const rows = ranked.map((r) => ({ ...r, supplierCode: meta.get(r.supplierId)!.code, currency: meta.get(r.supplierId)!.cur }));
-  if (!rec.best) throw Object.assign(new DomainError(rec.reason, 'NO_ELIGIBLE_SUPPLIER', 409), { retryable: false });
+  // if some suppliers errored we could not evaluate them: that is transient, not a definitive 'no supplier'
+  if (!rec.best) throw Object.assign(new DomainError(failures.length ? `${rec.reason} (${failures.length} supplier API(s) failed)` : rec.reason, failures.length ? 'SUPPLIERS_UNAVAILABLE' : 'NO_ELIGIBLE_SUPPLIER', failures.length ? 503 : 409), { retryable: failures.length > 0 });
   const b = rows.find((r) => r.supplierId === rec.best!.supplierId)!;
   const m = meta.get(b.supplierId)!;
   return { best: { ...b, externalId: m.externalId, sku: m.sku }, all: rows, reason: rec.reason, failures };

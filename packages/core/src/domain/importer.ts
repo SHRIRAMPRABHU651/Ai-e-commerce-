@@ -3,7 +3,7 @@ import { scoreOpportunity } from '@orvia/analytics';
 import { MOCK_MARKET_SIGNALS } from '@orvia/suppliers';
 import type { SupplierProductSummary } from '@orvia/suppliers';
 import { convertMinor, DEFAULT_COUNTRIES, slugify } from '@orvia/types';
-import type { CountryCode, Role } from '@orvia/types';
+import type { CountryCode } from '@orvia/types';
 import { audit } from '../infra/audit';
 import { DomainError, notFound } from '../infra/context';
 import type { Actor, Ctx } from '../infra/context';

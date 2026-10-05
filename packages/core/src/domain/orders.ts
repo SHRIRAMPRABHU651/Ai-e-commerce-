@@ -2,7 +2,6 @@ import { randomBytes } from 'node:crypto';
 import { calcPaymentFee, paymentFeeModelFor } from '@orvia/analytics';
 import { Cart, Customer, Order, OrderItem, Payment, Product, ProductVariant, AnalyticsEvent, WebhookEvent, Shipment, Supplier, Refund } from '@orvia/database';
 import { metrics } from '@orvia/config';
-import { WebhookSignatureError } from '@orvia/payments';
 import { convertMinor } from '@orvia/types';
 import type { CheckoutInput, CountryCode, Currency } from '@orvia/types';
 import { audit } from '../infra/audit';
@@ -419,6 +418,11 @@ export async function retrySupplierOrder(ctx: Ctx, orderId: string, actor: Actor
   if (!order) throw notFound('Order');
   if (order.payment?.status !== 'succeeded') throw new DomainError('Order is not paid', 'NOT_PAID', 409);
   await audit(ctx, actor, { action: 'order.retry_fulfillment', resource: 'order', resourceId: orderId, reason: opts.force ? 'forced past exception' : 'manual retry' });
+  const { ExceptionModel: Ex } = await import('@orvia/database');
+  // a retry is the resolution of supplier-failure exceptions; fraud / margin holds still need explicit approval
+  await Ex.updateMany({ orderId, kind: 'SUPPLIER_FAILURE', status: { $in: ['open', 'in_progress'] } }, { $set: { status: 'resolved', resolution: `Retried by ${actor.id}`, resolvedBy: actor.id, resolvedAt: new Date() } });
+  const stillOpen = await Ex.countDocuments({ orderId, status: { $in: ['open', 'in_progress'] } });
+  if (!stillOpen) await Order.updateOne({ _id: orderId }, { $set: { exceptionOpen: false } });
   if (opts.force) {
     const { ExceptionModel } = await import('@orvia/database');
     await ExceptionModel.updateMany({ orderId, status: { $in: ['open', 'in_progress'] } }, { $set: { status: 'resolved', resolution: `Approved by ${actor.id}`, resolvedBy: actor.id, resolvedAt: new Date() } });

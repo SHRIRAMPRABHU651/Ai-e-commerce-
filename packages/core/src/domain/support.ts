@@ -116,7 +116,10 @@ export async function handleSupport(ctx: Ctx, a: Ask): Promise<SupportReply> {
     grounded.push('country_config');
     reply = `In ${cfg.name}: ${cfg.shippingMethods.map((m) => `${m.label} ${m.minDays}–${m.maxDays} days after processing (${m.fee === 0 ? 'free' : (m.fee / 100).toFixed(2) + ' ' + cfg.currency}${m.freeOver ? `, free over ${(m.freeOver / 100).toFixed(0)}` : ''})`).join('; ')}. The exact estimate for each product depends on the fulfilling warehouse and is shown on the product page. ${cfg.legalNotice}`;
   } else if (intent === 'product') {
-    const r = await searchProducts({ q: a.message.replace(/\b(does it|is it|what is|what are|the|a|an|come with|safe for)\b/gi, ' '), page: 1, pageSize: 1, sort: 'relevance' }, a.country);
+    const q = a.message
+      .replace(/\b(size|dimensions?|compatible|compatibility|warranty|weight|battery|material|capacity|colou?rs?|does|it|is|what|are|the|a|an|and|of|have|has|come|with|safe|for|how|much|big|large|tell|me|about)\b/gi, ' ')
+      .replace(/[?.!,]/g, ' ');
+    const r = await searchProducts({ q, page: 1, pageSize: 1, sort: 'relevance' }, a.country);
     const p = r.items[0];
     if (!p) {
       reply = 'I couldn’t find that product. Which item are you asking about?';
@@ -126,7 +129,9 @@ export async function handleSupport(ctx: Ctx, a: Ask): Promise<SupportReply> {
       const attrs = Object.entries((full?.attributes as unknown as Record<string, string>) ?? {}).filter(([k]) => k !== 'Top category').map(([k, v]) => `${k}: ${v}`);
       reply = `${p.title}: ${(full?.bullets ?? []).slice(0, 3).join(' ')} ${attrs.length ? `Details — ${attrs.join('; ')}.` : ''} I only have the details above; if you need a specific measurement or compatibility detail that isn’t listed, I’ll ask our team rather than guess.`;
       actions.push({ label: 'View product', href: `/p/${p.slug}` });
-      if (/\b(size|dimension|compatible|warranty|weight|battery)\b/i.test(a.message) && !attrs.some((x) => /size|dimension|weight|battery|compat|warranty/i.test(x))) escalate = true;
+      const asked = [...a.message.toLowerCase().matchAll(/\b(size|dimensions?|compatible|compatibility|warranty|weight|battery|capacity|material)\b/g)].map((m) => m[1]!);
+      const has = (w: string) => attrs.some((x) => x.toLowerCase().includes(w.replace(/s$/, '').replace('dimension', 'size').replace('compatibility', 'compatible')));
+      if (asked.some((w) => !has(w))) escalate = true;
     }
   } else if (intent === 'general' && !reply) {
     reply = 'I can track an order, start a return, check a refund, answer shipping questions or tell you about a product. What do you need? You can also ask for a human at any time.';

@@ -20,7 +20,7 @@ export const COUNTRY_COOKIE = 'orvia_country';
 const hasForbiddenKey = (v: unknown, depth = 0): boolean => {
   if (depth > 8 || v === null || typeof v !== 'object') return false;
   for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
-    if (k.startsWith('$') || k.includes('.')) return true;
+    if (k.includes('$') || k.includes('.')) return true;
     if (hasForbiddenKey(val, depth + 1)) return true;
   }
   return false;

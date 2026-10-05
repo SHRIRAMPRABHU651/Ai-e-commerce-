@@ -14,5 +14,5 @@ export default tseslint.config(
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
-  { files: ['scripts/**', 'tests/**', '**/*.test.ts', '**/*.spec.ts'], rules: { 'no-console': 'off' } },
+  { files: ['scripts/**', 'tests/**', '**/*.test.ts', '**/*.spec.ts'], rules: { 'no-console': 'off', '@typescript-eslint/no-explicit-any': 'off' } },
 );
