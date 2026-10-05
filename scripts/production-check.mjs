@@ -33,9 +33,12 @@ step('production config guard rejects mock providers', () => {
 // Secrets must never reach the browser bundle or the repo.
 const SECRET_NAMES = ['GEMINI_API_KEY', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'RAZORPAY_KEY_SECRET', 'CJ_API_KEY', 'META_ACCESS_TOKEN', 'JWT_SECRET', 'TWILIO_AUTH_TOKEN', 'GOOGLE_ADS_DEVELOPER_TOKEN'];
 const walk = (dir, out = []) => { for (const f of readdirSync(dir)) { const p = join(dir, f); const st = statSync(p); if (st.isDirectory()) walk(p, out); else out.push(p); } return out; };
-step('no secret names in browser bundle', () => {
+// Variable *names* may appear as admin UI hints; what must never ship is a read of the variable or a key-shaped value.
+step('no secret values or env reads in browser bundle', () => {
   const files = walk('apps/web/.next/static').filter((f) => /\.(js|css|html)$/.test(f));
-  const hits = files.filter((f) => { const t = readFileSync(f, 'utf8'); return SECRET_NAMES.some((n) => t.includes(n)); });
+  const names = SECRET_NAMES.join('|');
+  const rx = new RegExp(`process\\.env\\.(${names})|(${names})["']?\\s*[:=]\\s*["'][^"']{8,}|sk_live_[0-9a-zA-Z]{10,}|sk_test_[0-9a-zA-Z]{10,}|whsec_[0-9a-zA-Z]{10,}|AIza[0-9A-Za-z_-]{35}|AKIA[0-9A-Z]{16}`);
+  const hits = files.filter((f) => rx.test(readFileSync(f, 'utf8')));
   return { ok: hits.length === 0, note: hits.length ? `found in ${hits.slice(0, 3).join(', ')}` : `${files.length} files scanned` };
 });
 step('no NEXT_PUBLIC_ variable carries a secret', () => {
