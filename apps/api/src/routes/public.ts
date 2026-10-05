@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { Category, Product, ProductVariant, SupplierOffer } from '@orvia/database';
+import { Category, Product, ProductVariant, Promotion, Review } from '@orvia/database';
 import {
   bestSellers, countryTrending, deals, frequentlyBoughtTogether, getCountry, getCountryConfigs, listReviews, newArrivals, recentlyViewed, recommendedForYou,
   searchProducts, similar, suggest, toStoreProduct, trackEvent, trending, DomainError, isSellable,
@@ -46,7 +46,13 @@ export function publicRoutes(app: FastifyInstance, ctx: Ctx): void {
       ]);
       const cats = await Product.aggregate<{ _id: string; n: number }>([{ $match: { state: { $in: ['PUBLISHED', 'TESTING', 'WINNER', 'SCALING', 'DECLINING'] }, 'markets.country': c } }, { $group: { _id: '$topCategory', n: { $sum: 1 } } }]);
       const cfg = await getCountry(c);
+      const now = new Date();
+      const promos = await Promotion.find({ public: true, active: true, $and: [{ $or: [{ startsAt: null }, { startsAt: { $lte: now } }] }, { $or: [{ endsAt: null }, { endsAt: { $gte: now } }] }, { $or: [{ countries: { $size: 0 } }, { countries: c }] }] }).limit(4).select('name type percent code endsAt').lean();
+      const topReviews = await Review.find({ status: 'published', rating: 5, verifiedPurchase: true }).sort({ helpfulVotes: -1, createdAt: -1 }).limit(3).select('rating title body authorName productId').lean();
+      const rp = new Map((await Product.find({ _id: { $in: topReviews.map((r) => r.productId) } }).select('title').lean()).map((p) => [String(p._id), p.title]));
       return {
+        testimonials: topReviews.map((r) => ({ rating: r.rating, title: r.title ?? '', body: r.body ?? '', authorName: r.authorName ?? 'Customer', product: rp.get(String(r.productId)) ?? '', verifiedPurchase: true })),
+        promotions: promos.map((p) => ({ id: String(p._id), name: p.name, type: p.type, percent: p.percent, code: p.code ?? undefined, endsAt: p.endsAt })),
         country: c, currency: cfg.currency, trending: trendingNow, recommended: forYou, deals: dealsList, newArrivals: fresh, bestSellers: best, countryTrending: local, recentlyViewed: recents,
         categories: CATEGORY_TREE.filter((t) => !('dynamic' in t && t.dynamic)).map((t) => ({ slug: t.slug, name: t.name, count: cats.find((x) => x._id === t.slug)?.n ?? 0 })),
       };
@@ -79,7 +85,6 @@ export function publicRoutes(app: FastifyInstance, ctx: Ctx): void {
       const availableIn = p.markets.filter((x) => x.enabled && x.price > 0 && x.stock > 0).map((x) => x.country);
       const [reviews, sim, fbt] = await Promise.all([listReviews(String(p._id), 1, 5), similar(String(p._id), country, 8), frequentlyBoughtTogether(String(p._id), country, 4)]);
       const top = (CATEGORY_TREE.find((t) => t.slug === p.topCategory)) ?? null;
-      void SupplierOffer;
       return {
         product: sp, variants: variants.map((v) => ({ sku: v.sku, label: v.label ?? 'Default', options: v.options ?? {}, image: v.image })),
         delivery, shipsFrom: m?.shipsFrom ?? null, availableIn, paymentMethods: cfg.paymentMethods, legalNotice: cfg.legalNotice,

@@ -94,9 +94,9 @@ export async function runSeed(ctx: Ctx, opts: SeedOptions = {}) {
   // promotions
   await Promotion.deleteMany({ recommendedBy: 'seed' });
   await Promotion.insertMany([
-    { name: 'Welcome 10%', type: 'first_order', code: 'WELCOME10', percent: 0.1, perUserLimit: 1, active: true, recommendedBy: 'seed' },
-    { name: 'Free shipping over threshold', type: 'free_shipping', code: 'SHIPFREE', minSubtotal: { US: 3000, CA: 4000, IN: 30000 }, active: true, recommendedBy: 'seed' },
-    { name: 'Summer flash sale', type: 'flash_sale', percent: 0.05, endsAt: new Date(Date.now() + 5 * 86_400_000), startsAt: new Date(Date.now() - 86_400_000), active: true, recommendedBy: 'seed' },
+    { name: 'Welcome 10%', type: 'first_order', code: 'WELCOME10', percent: 0.1, perUserLimit: 1, active: true, public: true, recommendedBy: 'seed' },
+    { name: 'Free shipping over threshold', type: 'free_shipping', code: 'SHIPFREE', minSubtotal: { US: 3000, CA: 4000, IN: 30000 }, active: true, public: true, recommendedBy: 'seed' },
+    { name: 'Summer flash sale', type: 'flash_sale', percent: 0.05, endsAt: new Date(Date.now() + 5 * 86_400_000), startsAt: new Date(Date.now() - 86_400_000), active: true, public: true, recommendedBy: 'seed' },
     { name: 'Buy 2 get 1', type: 'bxgy', code: 'BUY2GET1', bxgy: { buy: 2, get: 1, productIds: [] }, active: true, recommendedBy: 'seed' },
   ]);
 

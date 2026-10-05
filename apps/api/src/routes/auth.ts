@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { ROLE_PERMISSIONS } from '@orvia/auth';
 import { forgotSchema, loginSchema, registerSchema, resetSchema, verifyEmailSchema } from '@orvia/types';
 import { DomainError, listSessions, login, logout, registerCustomer, requestPasswordReset, resetPassword, revokeAllSessions, revokeSession, verifyEmail } from '@orvia/core';
 import type { Ctx } from '@orvia/core';
@@ -50,7 +51,7 @@ export function authRoutes(app: FastifyInstance, ctx: Ctx): void {
     },
   });
 
-  route(app, ctx, { method: 'GET', url: '/auth/me', summary: 'Current user', tags: ['Auth'], auth: 'optional', handler: async ({ req }) => ({ user: req.user ?? null }) });
+  route(app, ctx, { method: 'GET', url: '/auth/me', summary: 'Current user', tags: ['Auth'], auth: 'optional', handler: async ({ req }) => ({ user: req.user ?? null, permissions: req.user ? ROLE_PERMISSIONS[req.user.role] : [] }) });
 
   route(app, ctx, {
     method: 'POST', url: '/auth/forgot-password', summary: 'Request a password reset email', tags: ['Auth'], body: forgotSchema, rateLimit: { max: 5, timeWindow: '1 minute' },

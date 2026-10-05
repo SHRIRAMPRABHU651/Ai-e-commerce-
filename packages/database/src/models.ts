@@ -522,6 +522,8 @@ const promotionSchema = new Schema({
   perUserLimit: { type: Number, default: 1 },
   active: { type: Boolean, default: true },
   automated: { type: Boolean, default: false },
+  /** Shown in storefront banners (code is only revealed when public). */
+  public: { type: Boolean, default: false },
   recommendedBy: String,
 }, schemaOpts);
 promotionSchema.index({ code: 1 }, { unique: true, partialFilterExpression: { code: { $type: 'string' } } });

@@ -7,6 +7,7 @@ import { getCountry } from '../infra/countries';
 
 interface IndexDoc {
   id: string;
+  slug: string;
   title: string;
   tokens: string[];
   category: string;
@@ -53,11 +54,12 @@ export function invalidateSearchIndex(): void {
 async function getIndex() {
   if (index && Date.now() - index.at < TTL) return index;
   const rows = await Product.find({ state: { $in: SELLABLE_STATES } })
-    .select('title seo tags category topCategory brand state createdAt stats markets')
+    .select('title slug seo tags category topCategory brand state createdAt stats markets')
     .limit(MAX_DOCS)
     .lean();
   const docs: IndexDoc[] = rows.map((p) => ({
     id: String(p._id),
+    slug: p.slug,
     title: p.title,
     tokens: tokenize([p.title, ...(p.tags ?? []), ...(p.seo?.keywords ?? []), p.category ?? '', p.topCategory ?? '', p.brand ?? ''].join(' ')),
     category: p.category ?? '',
@@ -154,5 +156,5 @@ export async function suggest(prefix: string, country: CountryCode, limit = 8): 
   const t = tokenize(prefix);
   if (!t.length) return [];
   const docs = idx.docs.filter((d) => d.prices[country]?.price).map((d) => ({ d, s: scoreDoc(d, t, idx.vocab) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s || b.d.sold - a.d.sold).slice(0, limit);
-  return docs.map((x) => ({ type: 'product' as const, label: x.d.title, slug: x.d.id }));
+  return docs.map((x) => ({ type: 'product' as const, label: x.d.title, slug: x.d.slug }));
 }
