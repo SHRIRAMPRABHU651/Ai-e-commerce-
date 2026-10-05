@@ -311,7 +311,7 @@ export class MockSupplierProvider implements SupplierProvider {
     const rec = await this.load(supplierOrderId);
     const status = this.stage(rec);
     const created = Date.parse(rec.createdAt);
-    const at = (days: number) => new Date(created + (days * 86_400_000) / (this.opts.timeScale ?? 600) * 1000).toISOString();
+    const at = (days: number) => new Date(created + ((days * 86_400) / (this.opts.timeScale ?? 600)) * 1000).toISOString();
     const deliver = (rec.route.minDays + rec.route.maxDays) / 2;
     const all: TrackingEvent[] = [
       { status: 'CREATED', description: 'Order received by supplier', at: at(0) },

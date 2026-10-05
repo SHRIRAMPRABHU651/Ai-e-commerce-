@@ -1,0 +1,35 @@
+{
+  "name": "@orvia/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "build": "node build.mjs",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/helmet": "^13.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "@fastify/swagger": "^9.0.0",
+    "@fastify/swagger-ui": "^5.0.0",
+    "@orvia/ads": "*",
+    "@orvia/ai": "*",
+    "@orvia/analytics": "*",
+    "@orvia/auth": "*",
+    "@orvia/config": "*",
+    "@orvia/core": "*",
+    "@orvia/database": "*",
+    "@orvia/payments": "*",
+    "@orvia/shipping": "*",
+    "@orvia/suppliers": "*",
+    "@orvia/types": "*",
+    "fastify": "^5.0.0",
+    "ioredis": "^5.4.0",
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.0"
+  }
+}

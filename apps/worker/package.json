@@ -1,0 +1,17 @@
+{
+  "name": "@orvia/worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "build": "node build.mjs",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@orvia/config": "*",
+    "@orvia/core": "*",
+    "@orvia/database": "*"
+  }
+}

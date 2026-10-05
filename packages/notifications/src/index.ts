@@ -120,7 +120,8 @@ export type TemplateName =
   | 'abandoned_cart_1'
   | 'abandoned_cart_2'
   | 'abandoned_cart_3'
-  | 'review_request';
+  | 'review_request'
+  | 'custom';
 
 export interface TemplateData {
   name?: string;
@@ -136,6 +137,8 @@ export interface TemplateData {
   amount?: string;
   productTitle?: string;
   benefits?: string;
+  subject?: string;
+  message?: string;
 }
 
 const hi = (d: TemplateData) => `Hi ${d.name?.split(' ')[0] || 'there'},`;
@@ -178,6 +181,8 @@ export function renderTemplate(name: TemplateName, d: TemplateData): { subject: 
       return mk(`Why customers pick ${d.productTitle ?? 'this'}`, [hi(d), d.benefits ?? 'Easy returns and tracked delivery on every order.'], { label: 'Return to cart', url: d.url ?? '' });
     case 'abandoned_cart_3':
       return mk(`Here’s ${d.discount ?? 'a little discount'} on your cart`, [hi(d), `Use code ${d.code} at checkout. It expires soon.`], { label: 'Use my discount', url: d.url ?? '' });
+    case 'custom':
+      return mk(d.subject ?? 'A message from Orvia', [hi(d), d.message ?? ''], d.url ? { label: 'View order', url: d.url } : undefined);
     case 'review_request':
       return mk(`How was your ${d.productTitle ?? 'order'}?`, [hi(d), 'Your feedback helps other shoppers.'], { label: 'Write a review', url: d.url ?? '' });
   }

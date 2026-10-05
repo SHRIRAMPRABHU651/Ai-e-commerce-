@@ -120,3 +120,12 @@ export async function rejectDecision(ctx: Ctx, id: string, actor: Actor, reason:
 }
 
 export const isAutomationKey = (k: string): k is AutomationKey => (AUTOMATION_KEYS as readonly string[]).includes(k);
+
+/** A human admin action that reuses a decision executor directly (not gated by automation mode; still audited). */
+export async function executeNow(ctx: Ctx, kind: string, payload: Record<string, unknown>, actor: Actor): Promise<unknown> {
+  const exec = executors.get(kind);
+  if (!exec) throw new DomainError(`Unknown action ${kind}`, 'BAD_ACTION', 422);
+  const result = await exec(ctx, payload, actor);
+  await audit(ctx, actor, { action: `manual.${kind}`, newValue: payload, reason: 'manual admin action' });
+  return result;
+}
