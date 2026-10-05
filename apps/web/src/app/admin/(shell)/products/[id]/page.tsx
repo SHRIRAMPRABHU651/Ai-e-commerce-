@@ -2,7 +2,7 @@
 import { useParams } from 'next/navigation';
 import * as React from 'react';
 import { Badge, Button, Card, Field, Input, Modal, ProductArt, Select, StatusBadge, Tabs } from '@orvia/ui';
-import { ErrorBox, Loading, PageHeader, Panel, cur, pctf, useAction, useAdmin, useFetch, usd, when } from '@/components/admin/kit';
+import { ErrorBox, Loading, PageHeader, Panel, cur, pctf, useAction, useAdmin, useFetch, when } from '@/components/admin/kit';
 import { api } from '@/lib/api';
 
 interface CmpRow { supplierId: string; supplierName: string; supplierCode: string; warehouseCountry: string; productCost: number; shippingCost: number; duties: number; landedCost: number; minDays: number; maxDays: number; stock: number; reliability: number; rating: number; expectedProfit: number; margin: number; cxScore: number; finalScore: number; eligible: boolean; ineligibleReason?: string; currency: string }
@@ -91,5 +91,4 @@ export default function ProductDetail() {
       </Modal>
     </>
   );
-  void usd;
 }

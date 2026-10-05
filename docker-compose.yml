@@ -1,0 +1,45 @@
+# Local full stack (development defaults: mock providers, demo data). NOT for production — see docker-compose.prod.yml.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports: ['27017:27017']
+    volumes: ['mongo-data:/data/db']
+    healthcheck: { test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"], interval: 5s, timeout: 5s, retries: 20 }
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports: ['6379:6379']
+    healthcheck: { test: ['CMD', 'redis-cli', 'ping'], interval: 5s, timeout: 3s, retries: 20 }
+  seed:
+    build: { context: ., dockerfile: infra/docker/Dockerfile, target: seed }
+    profiles: ['seed']
+    depends_on: { mongo: { condition: service_healthy } }
+    environment: &common
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongo:27017/orvia
+      REDIS_URL: redis://redis:6379
+      API_URL: http://api:4000
+      WEB_URL: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000
+      MOCK_TIME_SCALE: '600'
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  api:
+    build: { context: ., dockerfile: infra/docker/Dockerfile, target: api }
+    restart: unless-stopped
+    depends_on: { mongo: { condition: service_healthy }, redis: { condition: service_healthy } }
+    environment: *common
+    ports: ['4000:4000']
+  worker:
+    build: { context: ., dockerfile: infra/docker/Dockerfile, target: worker }
+    restart: unless-stopped
+    depends_on: { mongo: { condition: service_healthy }, redis: { condition: service_healthy } }
+    environment: *common
+  web:
+    build: { context: ., dockerfile: infra/docker/Dockerfile, target: web }
+    restart: unless-stopped
+    depends_on: [api]
+    environment: { API_URL: 'http://api:4000' }
+    ports: ['3000:3000']
+volumes:
+  mongo-data: {}

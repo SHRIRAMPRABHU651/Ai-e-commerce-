@@ -13,7 +13,7 @@ export function CatalogControls({ categories, currency, total, hideCategoryFilte
   const filters: FilterState = { category: sp.get('category') ?? undefined, minPrice: sp.get('minPrice') ?? undefined, maxPrice: sp.get('maxPrice') ?? undefined, minRating: sp.get('minRating') ?? undefined, inStock: sp.get('inStock') === 'true' || undefined };
   const push = (next: Record<string, string | undefined>) => {
     const q = new URLSearchParams(sp.toString());
-    for (const [k, v] of Object.entries(next)) v === undefined || v === '' ? q.delete(k) : q.set(k, v);
+    for (const [k, v] of Object.entries(next)) { if (v === undefined || v === '') q.delete(k); else q.set(k, v); }
     q.delete('page');
     router.push(`${path}?${q.toString()}`, { scroll: false });
   };

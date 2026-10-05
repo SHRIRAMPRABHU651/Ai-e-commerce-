@@ -1,0 +1,18 @@
+environment            = "staging"
+region                 = "us-east-1"
+domain_name            = "shop.example.com"
+hosted_zone_id         = "Z0000000000000"
+api_image              = "123456789012.dkr.ecr.us-east-1.amazonaws.com/orvia-api:TAG"
+worker_image           = "123456789012.dkr.ecr.us-east-1.amazonaws.com/orvia-worker:TAG"
+web_image              = "123456789012.dkr.ecr.us-east-1.amazonaws.com/orvia-web:TAG"
+mongodb_uri_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:orvia/mongodb-AbCdEf"
+secret_arns = {
+  JWT_SECRET             = "arn:aws:secretsmanager:...:secret:orvia/jwt"
+  ENCRYPTION_KEY         = "arn:aws:secretsmanager:...:secret:orvia/enc"
+  GEMINI_API_KEY         = "arn:aws:secretsmanager:...:secret:orvia/gemini"
+  STRIPE_SECRET_KEY      = "arn:aws:secretsmanager:...:secret:orvia/stripe"
+  STRIPE_WEBHOOK_SECRET  = "arn:aws:secretsmanager:...:secret:orvia/stripe-wh"
+  CJ_API_KEY             = "arn:aws:secretsmanager:...:secret:orvia/cj"
+  EMAIL_PROVIDER_KEY     = "arn:aws:secretsmanager:...:secret:orvia/email"
+}
+alarm_email = "ops@example.com"

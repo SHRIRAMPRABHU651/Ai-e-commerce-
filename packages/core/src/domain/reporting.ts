@@ -239,11 +239,10 @@ export async function supplierHealth() {
     return {
       id: String(s._id), code: s.code, name: s.name, provider: s.provider, country: s.country ?? null, rating: s.rating, reliability: s.reliability, returnPolicyDays: s.returnPolicyDays, trackingAvailable: s.trackingAvailable,
       active: s.active, apiStatus: s.apiStatus, apiStatusMessage: s.apiStatusMessage ?? null, lastSyncAt: s.lastSyncAt ?? null, ordersTotal: total, failRate: total ? (s.stats?.ordersFailed ?? 0) / total : 0, lateRate: total ? (s.stats?.ordersLate ?? 0) / total : 0,
-      offers: oc.get(String(s._id))?.n ?? 0, offersAvailable: oc.get(String(s._id))?.avail ?? 0, avgDeliveryDays: dm.get(String(s._id)) ? Math.round(((dm.get(String(s._id))!.avgMs / 86_400_000) * ctx_scale()) * 10) / 10 : null,
+      offers: oc.get(String(s._id))?.n ?? 0, offersAvailable: oc.get(String(s._id))?.avail ?? 0, avgDeliveryDays: dm.get(String(s._id)) ? Math.round((dm.get(String(s._id))!.avgMs / 86_400_000) * 10) / 10 : null,
     };
   });
 }
-const ctx_scale = () => 1;
 
 /** Reliability from our own shipment history, blended with the prior so small samples do not swing wildly. */
 export async function refreshSupplierReliability(): Promise<number> {

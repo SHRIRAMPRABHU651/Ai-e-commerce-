@@ -1,0 +1,20 @@
+# Production-shaped compose for a single host / staging. Real providers only: the API refuses to start with mock modes.
+# Provide secrets through the environment (or Docker/Swarm secrets) — never commit them.
+services:
+  api:
+    image: ${REGISTRY:-ghcr.io/your-org}/orvia-api:${TAG:-latest}
+    restart: always
+    env_file: .env.production
+    environment: { NODE_ENV: production, TRUST_PROXY: 'true' }
+    ports: ['4000:4000']
+  worker:
+    image: ${REGISTRY:-ghcr.io/your-org}/orvia-worker:${TAG:-latest}
+    restart: always
+    env_file: .env.production
+    environment: { NODE_ENV: production }
+  web:
+    image: ${REGISTRY:-ghcr.io/your-org}/orvia-web:${TAG:-latest}
+    restart: always
+    environment: { API_URL: 'http://api:4000' }
+    ports: ['3000:3000']
+    depends_on: [api]

@@ -29,7 +29,6 @@ export default function CustomersPage() {
       <Drawer open={!!sel} onClose={() => setSel(null)} title="Customer">
         {!det.data ? <div className="p-5"><Loading /></div> : <div className="space-y-4 p-5"><div><p className="text-lg font-bold">{det.data.customer.name}</p><p className="text-sm text-ink-3">{det.data.customer.email}</p></div><h3 className="text-sm font-bold">Orders</h3><ul className="divide-y divide-line">{det.data.orders.map((o) => <li key={o._id} className="flex items-center justify-between py-2.5 text-sm"><span><b>{o.orderNumber}</b> <span className="text-ink-3">{when(o.createdAt)}</span></span><span className="flex items-center gap-2"><b className="tabular-nums">{cur(o.amounts.total, o.currency)}</b><StatusBadge status={o.status} /></span></li>)}</ul></div>}
       </Drawer>
-      <span className="hidden">{String(!!reload)}</span>
     </>
   );
 }

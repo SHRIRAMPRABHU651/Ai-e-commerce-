@@ -10,7 +10,7 @@ export default function CartPage() {
   const [code, setCode] = React.useState('');
   const cfg = meta.countries.find((c) => c.code === country)!;
   if (cartLoading) return <div className="mx-auto max-w-7xl px-4 py-10"><Skeleton className="h-64" /></div>;
-  if (!cart || !cart.lines.length) return <div className="mx-auto max-w-3xl px-4 py-16"><EmptyState icon={<ShoppingBag className="size-6" />} title="Your cart is empty" body="Add a few things you love and they’ll show up here." action={<Button href="/">Continue shopping</Button>} /></div>;
+  if (!cart || !cart.lines.length) return <div className="mx-auto max-w-3xl px-4 py-16"><EmptyState icon={<ShoppingBag className="size-6" />} level={1} title="Your cart is empty" body="Add a few things you love and they’ll show up here." action={<Button href="/">Continue shopping</Button>} /></div>;
   const std = cfg.shippingMethods.find((m) => m.code === 'standard');
   const progress = std?.freeOver ? Math.min(100, ((cart.subtotal - cart.discount) / std.freeOver) * 100) : 100;
   return (

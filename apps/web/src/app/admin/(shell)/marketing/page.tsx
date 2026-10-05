@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { BarList, Button, Card, DataTable, Field, MetricCard, Modal, Select, StatusBadge, Tabs, Textarea } from '@orvia/ui';
 import type { Column } from '@orvia/ui';
-import { ErrorBox, Loading, PageHeader, Panel, RangeSelect, pctf, rangeQs, useAction, useAdmin, useFetch, usd, when } from '@/components/admin/kit';
+import { ErrorBox, Loading, PageHeader, Panel, RangeSelect, pctf, rangeQs, useAction, useAdmin, useFetch, usd } from '@/components/admin/kit';
 import { api } from '@/lib/api';
 
 interface Row { campaignId: string; name: string; platform: string; status: string; country: string; product: string; dailyBudget: number; impressions: number; clicks: number; spend: number; purchases: number; revenue: number; ctr: number; cpc: number; cpm: number; cpa: number | null; roas: number; recommendation: string; reason: string }
@@ -51,7 +51,6 @@ export default function MarketingPage() {
       </div>
       {d.campaigns.some((c) => c.status === 'failed') && <Panel className="mt-4" title="Failed launches"><ul className="space-y-2 text-sm">{d.campaigns.filter((c) => c.status === 'failed').map((c) => <li key={c._id}><b>{c.name}</b> — <span className="text-coral-500">{c.failureReason}</span> <span className="text-ink-3">(never shown as live)</span></li>)}</ul></Panel>}
       <ContentModal open={gen} onClose={() => setGen(false)} />
-      <span className="hidden">{when(null)}</span>
     </>
   );
 }

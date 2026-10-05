@@ -1,8 +1,9 @@
 import { createServer } from 'node:http';
-import { loadConfig, metrics } from '@orvia/config';
+import { loadConfig, loadDotEnv, metrics } from '@orvia/config';
 import { connectDb, disconnectDb, dbReady } from '@orvia/database';
 import { buildCtx, createScheduler, ensureCategories, registerJobs } from '@orvia/core';
 
+loadDotEnv();
 const cfg = loadConfig();
 const ctx = buildCtx({ cfg, service: 'worker' });
 await connectDb({ uri: cfg.MONGODB_URI, autoIndex: !cfg.isProduction });

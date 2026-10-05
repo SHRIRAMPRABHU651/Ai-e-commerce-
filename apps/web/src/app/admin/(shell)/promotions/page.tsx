@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { Badge, Button, Card, Checkbox, DataTable, Field, Input, Modal, Select, StatusBadge } from '@orvia/ui';
+import { Button, Card, Checkbox, DataTable, Field, Input, Modal, Select, StatusBadge } from '@orvia/ui';
 import type { Column } from '@orvia/ui';
 import { ErrorBox, PageHeader, Panel, useAction, useAdmin, useFetch, when } from '@/components/admin/kit';
 import { api } from '@/lib/api';
@@ -54,7 +54,6 @@ export default function PromotionsPage() {
         </div>
         <Checkbox className="mt-3" checked disabled label="Discounts are capped at 50% and never below landed cost" readOnly />
       </Modal>
-      <span className="hidden"><Badge>{''}</Badge></span>
     </>
   );
 }

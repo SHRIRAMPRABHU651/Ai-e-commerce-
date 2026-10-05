@@ -1,7 +1,7 @@
 'use client';
 import { CheckCircle2, ExternalLink, Package } from 'lucide-react';
 import * as React from 'react';
-import { Badge, Button, Card, Field, Input, Link, OrderTimeline, ProductArt, StatusBadge, useToast, Skeleton, Modal, Select, Textarea } from '@orvia/ui';
+import { Button, Card, Field, Input, Link, OrderTimeline, ProductArt, StatusBadge, useToast, Skeleton, Modal, Select, Textarea } from '@orvia/ui';
 import { api, ApiError, money } from '@/lib/api';
 import type { OrderView } from '@/lib/types';
 import { useStore } from './providers';
@@ -111,7 +111,7 @@ function ReturnModal({ open, onClose, order, onDone }: { open: boolean; onClose:
   return (
     <Modal open={open} onClose={onClose} title="Return items" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button loading={busy} disabled={!skus.size} onClick={() => void submit()}>Request return</Button></>}>
       <div className="space-y-4">
-        <fieldset><legend className="mb-2 text-sm font-bold">Items</legend>{order.items.map((i) => (<label key={i.sku} className="flex items-center gap-3 py-1.5 text-sm"><input type="checkbox" checked={skus.has(i.sku)} onChange={() => setSkus((s) => { const n = new Set(s); n.has(i.sku) ? n.delete(i.sku) : n.add(i.sku); return n; })} className="size-4.5 accent-[var(--pine-600)]" />{i.title}</label>))}</fieldset>
+        <fieldset><legend className="mb-2 text-sm font-bold">Items</legend>{order.items.map((i) => (<label key={i.sku} className="flex items-center gap-3 py-1.5 text-sm"><input type="checkbox" checked={skus.has(i.sku)} onChange={() => setSkus((s) => { const n = new Set(s); if (n.has(i.sku)) n.delete(i.sku); else n.add(i.sku); return n; })} className="size-4.5 accent-[var(--pine-600)]" />{i.title}</label>))}</fieldset>
         <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)}><option value="changed_mind">Changed my mind</option><option value="damaged">Arrived damaged</option><option value="not_as_described">Not as described</option><option value="wrong_item">Wrong item</option><option value="not_delivered">Not delivered</option><option value="other">Other</option></Select></Field>
         <Field label="Details (optional)"><Textarea value={details} onChange={(e) => setDetails(e.target.value)} maxLength={2000} /></Field>
       </div>

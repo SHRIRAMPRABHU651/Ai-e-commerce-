@@ -42,7 +42,7 @@ export async function registerPlugins(app: FastifyInstance, ctx: Ctx, opts: { re
   await app.register(cookie);
   await app.register(rateLimit, {
     global: true,
-    max: 600,
+    max: cfg.RATE_LIMIT_PER_MINUTE,
     timeWindow: '1 minute',
     redis: opts.redis ?? undefined,
     skipOnError: true, // Redis down => fall back to allowing, never take the API down

@@ -1,9 +1,10 @@
 import { Redis } from 'ioredis';
-import { loadConfig } from '@orvia/config';
+import { loadConfig, loadDotEnv } from '@orvia/config';
 import { connectDb, disconnectDb } from '@orvia/database';
 import { buildCtx, ensureCategories } from '@orvia/core';
 import { buildServer } from './server';
 
+loadDotEnv();
 const cfg = loadConfig();
 const ctx = buildCtx({ cfg, service: 'api' });
 await connectDb({ uri: cfg.MONGODB_URI, autoIndex: !cfg.isProduction });

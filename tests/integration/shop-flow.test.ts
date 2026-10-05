@@ -24,8 +24,6 @@ const pickProduct = async (c: Client) => {
 };
 
 describe('customer journey: discover → cart → checkout → pay → fulfil → track → deliver', () => {
-  const buyer = mk ? undefined : undefined;
-  void buyer;
   it('runs end to end with real money-path safeguards', async () => {
     const c = mk();
     // discover

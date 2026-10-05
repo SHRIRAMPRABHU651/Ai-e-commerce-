@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { Badge, Button, DataTable, Drawer, Field, Input, Modal, StatusBadge, Textarea, Tabs, Card } from '@orvia/ui';
+import { Badge, Button, DataTable, Drawer, Field, Input, Modal, StatusBadge, Textarea, Card } from '@orvia/ui';
 import type { Column } from '@orvia/ui';
 import { FilterSelect, PageHeader, SearchBox, Toolbar, cur, useAction, useAdmin, useFetch, when, ErrorBox, Loading } from '@/components/admin/kit';
 import { api } from '@/lib/api';
@@ -97,4 +97,3 @@ function OrderDrawer({ id, onClose, onChanged }: { id: string | null; onClose: (
     </>
   );
 }
-void Tabs;

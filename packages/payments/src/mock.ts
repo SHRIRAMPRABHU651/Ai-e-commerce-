@@ -23,12 +23,11 @@ export class MockPaymentProvider implements PaymentProvider {
 
   async createPayment(i: CreatePaymentInput): Promise<CreatePaymentResult> {
     const intentId = `mock_pi_${createHmac('sha256', this.secret).update(i.idempotencyKey).digest('hex').slice(0, 20)}`;
-    const { created } = await this.store.setIfAbsent<ProviderPayment>('payment', intentId, {
+    await this.store.setIfAbsent<ProviderPayment>('payment', intentId, {
       status: 'pending',
       amount: i.amount,
       currency: i.currency,
     });
-    void created;
     return { provider: 'mock', intentId, clientSecret: `${intentId}_secret`, clientConfig: { mode: 'mock' } };
   }
 

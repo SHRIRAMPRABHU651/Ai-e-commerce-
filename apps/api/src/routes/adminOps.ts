@@ -132,9 +132,7 @@ export function adminOpsRoutes(app: FastifyInstance, ctx: Ctx): void {
   route(app, ctx, {
     method: 'POST', url: '/admin/promotions', summary: 'Create promotion', tags: ['Admin'], auth: A, permission: 'promotions:write', body: promoBody,
     handler: async ({ req, body, reply }) => {
-      const pricing = await ctx.settings.get('pricing');
       if (body.percent > 0.5) throw new DomainError('Discounts above 50% are not allowed', 'LIMIT', 422);
-      void pricing;
       const p = await Promotion.create({ ...body, startsAt: body.startsAt ? new Date(body.startsAt) : undefined, endsAt: body.endsAt ? new Date(body.endsAt) : undefined, recommendedBy: req.actor.id });
       await audit(ctx, req.actor, { action: 'promotion.created', resource: 'promotion', resourceId: String(p._id), newValue: body });
       return reply.status(201).send(p);

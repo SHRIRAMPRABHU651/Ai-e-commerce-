@@ -1,0 +1,33 @@
+name: Deploy
+# Manual, environment-gated deploy. Requires repository/environment secrets: AWS_ROLE_ARN (OIDC), and the ECS names below.
+on:
+  workflow_dispatch:
+    inputs:
+      environment: { description: staging or production, required: true, default: staging, type: choice, options: [staging, production] }
+permissions: { id-token: write, contents: read }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with: { role-to-assume: '${{ secrets.AWS_ROLE_ARN }}', aws-region: '${{ vars.AWS_REGION }}' }
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - name: Build and push
+        run: |
+          for t in api worker web; do
+            docker build -f infra/docker/Dockerfile --target $t -t ${{ steps.ecr.outputs.registry }}/orvia-$t:${{ github.sha }} .
+            docker push ${{ steps.ecr.outputs.registry }}/orvia-$t:${{ github.sha }}
+          done
+      - name: Run migrations (indexes)
+        run: echo "Run 'npm run migrate' as a one-off ECS task using the api image before updating services (see docs/DEPLOYMENT.md)."
+      - name: Update ECS services
+        run: |
+          for t in api worker web; do
+            aws ecs update-service --cluster "${{ vars.ECS_CLUSTER }}" --service "orvia-${{ inputs.environment }}-$t" --force-new-deployment
+          done
+          for t in api worker web; do
+            aws ecs wait services-stable --cluster "${{ vars.ECS_CLUSTER }}" --services "orvia-${{ inputs.environment }}-$t"
+          done

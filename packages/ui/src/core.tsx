@@ -112,14 +112,17 @@ export const CardHeader = ({ title, subtitle, action, className }: { title: Reac
 );
 export const Skeleton = ({ className }: { className?: string }) => <div className={cn('relative overflow-hidden rounded-md bg-sunken before:absolute before:inset-0 before:-translate-x-full before:animate-[orvia-shimmer_1.4s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent', className)} aria-hidden />;
 export const Spinner = ({ className }: { className?: string }) => <Loader2 className={cn('size-5 animate-spin text-ink-3', className)} aria-label="Loading" />;
-export const EmptyState = ({ icon, title, body, action }: { icon?: React.ReactNode; title: string; body?: string; action?: React.ReactNode }) => (
+export const EmptyState = ({ icon, title, body, action, level = 2 }: { icon?: React.ReactNode; title: string; body?: string; action?: React.ReactNode; level?: 1 | 2 | 3 }) => {
+  const H = `h${level}` as 'h1' | 'h2' | 'h3';
+  return (
   <div className="flex flex-col items-center px-6 py-14 text-center">
     {icon && <div className="mb-4 grid size-14 place-items-center rounded-full bg-sunken text-ink-3">{icon}</div>}
-    <p className="text-base font-bold">{title}</p>
+    <H className="text-base font-bold">{title}</H>
     {body && <p className="mt-1 max-w-sm text-sm text-ink-3">{body}</p>}
     {action && <div className="mt-5">{action}</div>}
   </div>
-);
+  );
+};
 
 /* ------------------------------------ Badges ---------------------------------- */
 export type Tone = 'neutral' | 'pine' | 'saffron' | 'coral' | 'ok' | 'warn' | 'info';

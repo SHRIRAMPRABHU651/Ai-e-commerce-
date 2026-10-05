@@ -1,10 +1,9 @@
-import { AdMetric, AiDecision, Campaign, ExceptionModel, Inventory, Order, Product } from '@orvia/database';
-import { DEFAULT_COUNTRIES } from '@orvia/types';
+import { Campaign, ExceptionModel, Inventory, Product } from '@orvia/database';
 import type { Ctx } from '../infra/context';
 import type { Actor } from '../infra/context';
 import { proposeOrExecute } from './automation';
 import { adsOverview } from './adsService';
-import { countryAnalytics, financials, insights, parseRange, productPerformance, supplierHealth, timeseries } from './reporting';
+import { countryAnalytics, financials, insights, parseRange, productPerformance, supplierHealth } from './reporting';
 import type { Range } from './reporting';
 import { audit } from '../infra/audit';
 
@@ -137,7 +136,6 @@ export async function askCopilot(ctx: Ctx, a: { question: string; confirm?: bool
       return { intent, sources: ['orders', 'ad_metrics', 'analytics'], answer: `Today: ${f.orders} order(s), net revenue ${usd(f.netRevenue)}, ad spend ${usd(f.adSpend)}, contribution profit ${usd(f.contributionProfit)}. ${l.openExceptions} open exception(s); ${l.pendingSupplierOrders} order(s) awaiting supplier placement.${ins[0] ? ` Top insight: ${ins[0].title}.` : ''}${f.pendingCostOrders ? ` (${f.pendingCostOrders} paid order(s) not yet fulfilled; their costs are not in profit.)` : ''}` };
     }
     default: {
-      void timeseries; void AiDecision; void AdMetric; void Order; void DEFAULT_COUNTRIES;
       return { intent: 'unknown', sources: [], answer: 'I can answer from your live data: “why did profit fall yesterday?”, “best products to scale”, “which products are losing money”, “pause products losing money”, “country performance”, “supplier health”, “open exceptions”, “inventory problems”, “ad performance”, or “how are we doing today?”.' };
     }
   }

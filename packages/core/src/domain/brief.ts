@@ -1,6 +1,6 @@
 import { ExceptionModel, Report } from '@orvia/database';
 import type { Ctx } from '../infra/context';
-import { countryAnalytics, financials, insights, parseRange, productPerformance } from './reporting';
+import { countryAnalytics, financials, insights, productPerformance } from './reporting';
 import type { Range } from './reporting';
 
 const usd = (m: number) => `$${(m / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -61,6 +61,5 @@ export async function generateDailyBrief(ctx: Ctx, dateStr?: string): Promise<Da
     brief.text += `\n\n${narrative.data.headline}\n${narrative.data.bullets.map((b) => `• ${b}`).join('\n')}`;
   }
   await Report.updateOne({ kind: 'daily_brief', date: day }, { $set: { data: brief, narrative: brief.text, source: brief.source } }, { upsert: true });
-  void parseRange;
   return brief;
 }

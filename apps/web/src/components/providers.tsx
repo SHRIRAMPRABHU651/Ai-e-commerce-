@@ -87,8 +87,8 @@ function Inner({ meta, country, initialUser, children }: { meta: Meta; country: 
   const toggleWish: Store['toggleWish'] = async (productId) => {
     if (!user) { toast.info('Sign in to save items to your wishlist'); router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`); return; }
     const has = wishlist.has(productId);
-    setWishlist((s) => { const n = new Set(s); has ? n.delete(productId) : n.add(productId); return n; });
-    try { has ? await api(`/account/wishlist/${productId}`, { method: 'DELETE' }) : await api('/account/wishlist', { body: { productId } }); } catch (e) { toast.error((e as Error).message); }
+    setWishlist((s) => { const n = new Set(s); if (has) n.delete(productId); else n.add(productId); return n; });
+    try { if (has) await api(`/account/wishlist/${productId}`, { method: 'DELETE' }); else await api('/account/wishlist', { body: { productId } }); } catch (e) { toast.error((e as Error).message); }
   };
 
   const value: Store = { meta, country, user, setUser, cart, cartLoading, refreshCart, addToCart, setQty, applyCoupon, setCountry, wishlist, toggleWish, cartOpen, setCartOpen, track };

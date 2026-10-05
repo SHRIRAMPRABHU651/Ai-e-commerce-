@@ -19,8 +19,10 @@ export async function sget<T>(path: string, opts: { country?: CountryCode; reval
   const jar = await cookies();
   const cookie = jar.getAll().map((c) => `${c.name}=${c.value}`).join('; ');
   const sep = path.includes('?') ? '&' : '?';
+  // keep per-visitor rate limiting meaningful: pass the real client IP chain to the API (it only trusts it when TRUST_PROXY=true)
+  const xff = (await headers()).get('x-forwarded-for');
   try {
-    const res = await fetch(`${API_URL}/api/v1${path}${sep}country=${country}`, { headers: { cookie, 'x-requested-with': 'orvia' }, cache: 'no-store' });
+    const res = await fetch(`${API_URL}/api/v1${path}${sep}country=${country}`, { headers: { cookie, 'x-requested-with': 'orvia', ...(xff ? { 'x-forwarded-for': xff } : {}) }, cache: 'no-store' });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`API ${path} -> ${res.status}`);
     return (await res.json()) as T;

@@ -30,7 +30,6 @@ export function Gallery({ images, title }: { images: { url: string; alt?: string
 export function BuyBox({ data }: { data: ProductPage }) {
   const { product: p, variants } = data;
   const router = useRouter();
-  const toast = useToast();
   const { addToCart, wishlist, toggleWish, country, meta, setCountry } = useStore();
   const [sku, setSku] = React.useState(variants[0]?.sku);
   const [qty, setQty] = React.useState(1);
@@ -178,7 +177,7 @@ export function FrequentlyBought({ items }: { items: ProductPage['frequentlyBoug
       <h3 className="text-lg font-bold">Frequently bought together</h3>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {items.slice(0, 4).map((i) => (
-          <li key={i.id}><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-line p-2.5 hover:bg-sunken/60"><input type="checkbox" checked={sel.has(i.id)} disabled={!i.available} onChange={() => setSel((s) => { const n = new Set(s); n.has(i.id) ? n.delete(i.id) : n.add(i.id); return n; })} className="size-4.5 accent-[var(--pine-600)]" /><div className="w-14 shrink-0 overflow-hidden rounded-md"><ProductArt src={i.images[0]?.url} alt="" /></div><div className="min-w-0 text-sm"><p className="line-clamp-2 font-semibold">{i.title}</p><PriceDisplay price={i.price} currency={i.currency} size="sm" /></div></label></li>
+          <li key={i.id}><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-line p-2.5 hover:bg-sunken/60"><input type="checkbox" checked={sel.has(i.id)} disabled={!i.available} onChange={() => setSel((s) => { const n = new Set(s); if (n.has(i.id)) n.delete(i.id); else n.add(i.id); return n; })} className="size-4.5 accent-[var(--pine-600)]" /><div className="w-14 shrink-0 overflow-hidden rounded-md"><ProductArt src={i.images[0]?.url} alt="" /></div><div className="min-w-0 text-sm"><p className="line-clamp-2 font-semibold">{i.title}</p><PriceDisplay price={i.price} currency={i.currency} size="sm" /></div></label></li>
         ))}
       </ul>
       <div className="mt-4 flex items-center justify-between"><span className="text-sm text-ink-3">{chosen.length} selected · <b className="text-ink">{chosen[0] ? money(total, chosen[0].currency) : '—'}</b></span><Button variant="secondary" disabled={!chosen.length} onClick={async () => { for (const c of chosen) await addToCart(c.id, undefined, 1, { silent: true }); toast.success(`${chosen.length} item${chosen.length > 1 ? 's' : ''} added to cart`); }}>Add selected</Button></div>

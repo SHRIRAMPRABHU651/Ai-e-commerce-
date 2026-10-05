@@ -274,7 +274,6 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
     return { ...res, state: 'held' };
   }
   await Order.updateOne({ _id: orderId }, { $set: { 'fulfillment.state': 'processing' }, $inc: { 'fulfillment.attempts': 1 } });
-  const pricing = await ctx.settings.get('pricing');
   let retryableError: Error | null = null;
 
   for (const it of order.items) {
@@ -318,7 +317,6 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
           res.failed++;
           break;
         }
-        void pricing;
         supplierDoc = await Supplier.findById(sel.best.supplierId);
         externalId = sel.best.externalId;
         sku = sel.best.sku;

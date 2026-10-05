@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+.git
+.env
+.env.*
+!.env.example
+.mongo-data
+coverage
+test-results
+playwright-report
+*.log

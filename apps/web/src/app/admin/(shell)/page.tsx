@@ -20,7 +20,7 @@ export default function OverviewPage() {
   const [preset, setPreset] = React.useState('7d');
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
-  const { data: d, error, loading, reload } = useFetch<Overview>(`/admin/overview?${rangeQs(preset, from, to)}`, 60_000);
+  const { data: d, error, reload } = useFetch<Overview>(`/admin/overview?${rangeQs(preset, from, to)}`, 60_000);
   const brief = useFetch<Brief>('/admin/brief');
   if (error && !d) return <ErrorBox message={error} retry={reload} />;
   if (!d) return <Loading rows={6} />;

@@ -76,7 +76,7 @@ export default function CheckoutPage() {
   };
 
   if (cartLoading) return <div className="mx-auto max-w-5xl px-4 py-10"><Skeleton className="h-96" /></div>;
-  if (!view || !view.lines.length) return <div className="mx-auto max-w-3xl px-4 py-16"><EmptyState icon={<ShoppingBag className="size-6" />} title="Nothing to check out" action={<Button href="/">Continue shopping</Button>} /></div>;
+  if (!view || !view.lines.length) return <div className="mx-auto max-w-3xl px-4 py-16"><EmptyState icon={<ShoppingBag className="size-6" />} level={1} title="Nothing to check out" action={<Button href="/">Continue shopping</Button>} /></div>;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-10">

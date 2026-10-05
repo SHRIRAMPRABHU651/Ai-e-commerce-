@@ -1,20 +1,15 @@
+import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
-
-const API_URL = process.env.API_URL ?? 'http://localhost:4000';
 
 const config: NextConfig = {
   transpilePackages: ['@orvia/ui', '@orvia/types', '@orvia/analytics'],
   poweredByHeader: false,
   reactStrictMode: true,
   output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
+  // monorepo: trace dependencies from the repo root so the standalone bundle is self-contained
+  outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
   images: { unoptimized: true },
-  // Browser talks to the same origin; Next proxies API calls so cookies are first-party (no CORS, SameSite=Lax works).
-  async rewrites() {
-    return [
-      { source: '/api/v1/:path*', destination: `${API_URL}/api/v1/:path*` },
-      { source: '/docs', destination: `${API_URL}/docs` },
-    ];
-  },
+  // API calls go through the runtime proxy in src/app/api/v1/[...path]/route.ts (API_URL is read per request).
   async headers() {
     return [
       {

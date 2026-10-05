@@ -60,7 +60,7 @@ export function registerJobs(ctx: Ctx): void {
     for (const o of stuck) await requestFulfillment(ctx, String(o._id));
     return { requeued: stuck.length };
   });
-  q.register('sync_inventory', async (p: { limit?: number }) => { const r = await runNamedAgent(ctx, 'InventoryAgent', {}); invalidateSearchIndex(); void p; return r; });
+  q.register('sync_inventory', async () => { const r = await runNamedAgent(ctx, 'InventoryAgent', {}); invalidateSearchIndex(); return r; });
   q.register('sync_ad_metrics', () => syncAdMetrics(ctx));
   q.register('optimize_ads', () => runNamedAgent(ctx, 'AdOptimizationAgent'));
   q.register('pricing_analysis', async () => { const r = await runPricingAgent(ctx); invalidateSearchIndex(); return r; });

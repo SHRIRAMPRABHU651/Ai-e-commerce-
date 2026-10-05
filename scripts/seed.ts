@@ -1,8 +1,9 @@
 import { connectDb, disconnectDb } from '@orvia/database';
 import { buildCtx, registerJobs } from '@orvia/core';
-import { loadConfig } from '@orvia/config';
+import { loadConfig, loadDotEnv } from '@orvia/config';
 import { runSeed, SEED_PASSWORD } from './lib/seed';
 
+loadDotEnv();
 const cfg = loadConfig();
 await connectDb({ uri: cfg.MONGODB_URI, autoIndex: true });
 const ctx = buildCtx({ cfg, service: 'seed' });

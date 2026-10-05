@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { AdCreative, AdMetric, Campaign, Product } from '@orvia/database';
 import { evaluateCampaign, evaluateTest, rankCreatives, PartialCreationError } from '@orvia/ads';
 import type { AdPlatform, AdRulesConfig, CampaignSpec } from '@orvia/ads';
-import { convertMinor, DEFAULT_COUNTRIES } from '@orvia/types';
+import { convertMinor } from '@orvia/types';
 import type { CountryCode, Currency } from '@orvia/types';
 import { audit } from '../infra/audit';
 import { aiActor, DomainError, notFound } from '../infra/context';
@@ -269,9 +269,6 @@ registerExecutor('ad_action', async (ctx, p, actor) => {
 });
 
 export async function adsOverview(ctx: Ctx, from: Date, to: Date) {
-  const ops = await ctx.settings.get('ops');
-  const fx = ops.fx;
-  const toUsd = (country: string, minor: number) => convertMinor(minor, (DEFAULT_COUNTRIES[country as CountryCode]?.currency ?? 'USD') as Currency, 'USD', fx);
   const rows = await AdMetric.aggregate<{ _id: { campaignId: mongoose.Types.ObjectId; country: string; productId: mongoose.Types.ObjectId }; impressions: number; clicks: number; spend: number; purchases: number; revenue: number; atc: number }>([
     { $match: { date: { $gte: from, $lte: to } } },
     { $group: { _id: { campaignId: '$campaignId', country: '$country', productId: '$productId' }, impressions: { $sum: '$impressions' }, clicks: { $sum: '$clicks' }, spend: { $sum: '$spend' }, purchases: { $sum: '$purchases' }, revenue: { $sum: '$revenue' }, atc: { $sum: '$addToCart' } } },
@@ -283,10 +280,7 @@ export async function adsOverview(ctx: Ctx, from: Date, to: Date) {
   const cm = new Map(camps.map((c) => [String(c._id), c]));
   return rows.map((r) => {
     const c = cm.get(String(r._id.campaignId));
-    const cur = (DEFAULT_COUNTRIES[r._id.country as CountryCode]?.currency ?? 'USD') as Currency;
-    void cur;
     const revenueUsd = r.revenue; // ad revenue is recorded in USD cents by providers/mocks
-    void toUsd;
     return {
       campaignId: String(r._id.campaignId), name: c?.name ?? '', platform: c?.platform ?? '', status: c?.status ?? '', country: r._id.country, productId: String(r._id.productId), product: pt.get(String(r._id.productId)) ?? '',
       dailyBudget: c?.dailyBudget ?? 0, impressions: r.impressions, clicks: r.clicks, spend: r.spend, purchases: r.purchases, revenue: revenueUsd, addToCart: r.atc,

@@ -20,6 +20,7 @@ const envSchema = z.object({
   WEB_URL: z.string().default('http://localhost:3000'),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   TRUST_PROXY: bool.default(false),
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(10).default(600), // global per-client-IP budget
 
   JWT_SECRET: z.string().default('dev-only-insecure-secret-change-me-please-0123456789'),
   COOKIE_SECURE: bool.optional(),
@@ -87,6 +88,15 @@ export type AppConfig = Omit<z.infer<typeof envSchema>, 'APP_ENV' | 'COOKIE_SECU
 };
 
 export class ConfigError extends Error {}
+
+/** Load a local .env (development convenience). Real environment variables always win; no-op when absent. */
+export function loadDotEnv(path = '.env'): void {
+  try {
+    (process as unknown as { loadEnvFile?: (p: string) => void }).loadEnvFile?.(path);
+  } catch {
+    /* no .env file — rely on the process environment */
+  }
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.safeParse(env);
