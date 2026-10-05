@@ -1,0 +1,41 @@
+{
+  "name": "orvia",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Orvia — AI-operated ecommerce & dropshipping platform",
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=20.11" },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "npm run dev -w @orvia/api",
+    "dev:worker": "npm run dev -w @orvia/worker",
+    "dev:web": "npm run dev -w @orvia/web",
+    "build": "npm run build -w @orvia/api -w @orvia/worker -w @orvia/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "node scripts/e2e.mjs",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "seed": "tsx scripts/seed.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "worker": "npm run dev -w @orvia/worker",
+    "production-check": "node scripts/production-check.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "mongodb-memory-server": "^10.0.0",
+    "prettier": "^3.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "@playwright/test": "^1.49.0"
+  }
+}
