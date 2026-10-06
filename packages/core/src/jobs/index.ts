@@ -11,6 +11,7 @@ import { proposePublish, scoreProduct } from '../domain/importer';
 import { canPublish } from '../domain/catalog';
 import { ingestSupplierImages } from '../domain/imagePipeline';
 import { runSupplierHealthChecks } from '../domain/supplierOps';
+import { runReconciliation } from '../domain/reconciliation';
 import { generateDailyBrief } from '../domain/brief';
 import { recommendPromotions } from '../domain/marketing';
 import { syncAdMetrics } from '../domain/adsService';
@@ -36,6 +37,7 @@ export const DEFAULT_SCHEDULES: (ScheduleDef & { automation?: AutomationKey; ris
   { name: 'product_performance', everyMs: HOUR, job: 'product_performance', description: 'Trend scores, review sentiment', risk: 'low' },
   { name: 'campaign_performance', everyMs: HOUR, job: 'optimize_ads', description: 'Evaluate campaigns against budget rules', automation: 'ad_optimization', risk: 'high' },
   { name: 'pricing_analysis', everyMs: HOUR, job: 'pricing_analysis', description: 'Dynamic pricing proposals within margin guardrails', automation: 'dynamic_pricing', risk: 'high' },
+  { name: 'reconciliation', everyMs: DAY, job: 'reconciliation', description: 'Daily orders ↔ payments ↔ refunds ↔ supplier orders consistency check', risk: 'low' },
   { name: 'housekeeping', everyMs: HOUR, job: 'housekeeping', description: 'Expire unpaid orders, refresh supplier reliability', risk: 'low' },
   { name: 'discovery', everyMs: DAY, job: 'discovery', description: 'Discover, score and import/propose products; start ad tests', automation: 'product_discovery', risk: 'medium' },
   { name: 'product_scoring', everyMs: DAY, job: 'score_products', description: 'Recompute opportunity scores', risk: 'low' },
@@ -55,6 +57,7 @@ export function registerJobs(ctx: Ctx): void {
   q.onDead = (job, err) => onJobDead(ctx, job as { name: string; payload: unknown }, err);
   q.register('send_notification', (p: { notificationId: string; html?: string }) => deliverNotification(ctx, p));
   q.register('fulfill_order', (p: { orderId: string; force?: boolean }) => fulfillOrder(ctx, p.orderId, { force: p.force }));
+  q.register('reconciliation', () => runReconciliation(ctx));
   q.register('supplier_health', () => runSupplierHealthChecks(ctx));
   q.register('image_ingestion', async (p: { productId: string }) => {
     const r = await ingestSupplierImages(ctx, p.productId);
