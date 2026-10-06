@@ -142,10 +142,16 @@ export interface TemplateData {
 }
 
 const hi = (d: TemplateData) => `Hi ${d.name?.split(' ')[0] || 'there'},`;
+/** Escape for HTML text/attribute context. Every dynamic value in an email goes through this (names, order numbers, carriers…). */
+export const escapeHtml = (v: unknown): string =>
+  String(v ?? '').replace(/[&<>"'`]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' })[c]!);
+/** Only http(s) links are allowed in emails (blocks javascript:/data: URLs injected through a template value). */
+const safeUrl = (u: string): string => (/^https?:\/\/[^\s"'<>]+$/i.test(u) ? escapeHtml(u) : '#');
+
 const shell = (title: string, lines: string[], cta?: { label: string; url: string }): { html: string } => ({
-  html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:auto;color:#1a1a17"><h2 style="font-weight:600">${title}</h2>${lines
-    .map((l) => `<p style="line-height:1.55">${l}</p>`)
-    .join('')}${cta ? `<p><a href="${cta.url}" style="display:inline-block;background:#1f3d36;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none">${cta.label}</a></p>` : ''}<p style="color:#77746b;font-size:12px">Orvia · You are receiving this because of activity on your Orvia account or order.</p></div>`,
+  html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:auto;color:#1a1a17"><h2 style="font-weight:600">${escapeHtml(title)}</h2>${lines
+    .map((l) => `<p style="line-height:1.55">${escapeHtml(l)}</p>`)
+    .join('')}${cta ? `<p><a href="${safeUrl(cta.url)}" style="display:inline-block;background:#1f3d36;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none">${escapeHtml(cta.label)}</a></p>` : ''}<p style="color:#77746b;font-size:12px">Orvia · You are receiving this because of activity on your Orvia account or order.</p></div>`,
 });
 
 export function renderTemplate(name: TemplateName, d: TemplateData): { subject: string; body: string; html: string } {

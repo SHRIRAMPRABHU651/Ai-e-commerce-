@@ -20,7 +20,18 @@ export class Client {
     }
     let json: T | undefined;
     try { json = res.json() as T; } catch { /* non-json */ }
-    return { status: res.statusCode, body: json as T, headers: res.headers, raw: res.body };
+    return { status: res.statusCode, body: json as T, headers: res.headers, raw: res.body, buffer: res.rawPayload };
+  }
+  /** multipart/form-data upload (one file part + optional text fields). */
+  async upload(url: string, file: { filename: string; mimetype: string; buffer: Buffer }, fields: Record<string, string> = {}) {
+    const boundary = '----orviaTest' + Math.random().toString(16).slice(2);
+    const parts: Buffer[] = [];
+    for (const [k, v] of Object.entries(fields)) parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${file.filename}"\r\nContent-Type: ${file.mimetype}\r\n\r\n`), file.buffer, Buffer.from(`\r\n--${boundary}--\r\n`));
+    const cookie = Object.entries(this.cookies).map(([k, v]) => `${k}=${v}`).join('; ');
+    const res = await this.app.inject({ method: 'POST', url, payload: Buffer.concat(parts), remoteAddress: this.remoteAddress, headers: { 'x-requested-with': 'orvia', 'content-type': `multipart/form-data; boundary=${boundary}`, ...(cookie ? { cookie } : {}), ...this.headers } });
+    let json: any; try { json = res.json(); } catch { /* non-json */ }
+    return { status: res.statusCode, body: json, raw: res.body };
   }
   get = <T = any>(url: string, extra?: Record<string, string>) => this.req<T>('GET', url, undefined, extra);
   post = <T = any>(url: string, body: unknown = {}, extra?: Record<string, string>) => this.req<T>('POST', url, body, extra);

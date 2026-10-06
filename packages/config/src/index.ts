@@ -74,6 +74,22 @@ const envSchema = z.object({
   TWILIO_AUTH_TOKEN: optStr,
   TWILIO_FROM: optStr,
 
+  // Media storage: customer-facing product images are served from Orvia-owned storage (never hotlinked from suppliers in production).
+  OBJECT_STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
+  OBJECT_STORAGE_BUCKET: optStr,
+  OBJECT_STORAGE_REGION: z.string().default('us-east-1'),
+  OBJECT_STORAGE_ENDPOINT: optStr, // S3-compatible endpoint (R2, MinIO, Spaces…); omit for AWS S3
+  OBJECT_STORAGE_ACCESS_KEY: optStr, // omit on AWS when the task/instance role provides credentials
+  OBJECT_STORAGE_SECRET: optStr,
+  CDN_BASE_URL: optStr, // public base URL that serves the bucket, e.g. https://cdn.example.com
+  LOCAL_MEDIA_DIR: z.string().default('.media'), // dev-only local storage directory
+  MEDIA_MAX_BYTES: z.coerce.number().int().min(100_000).default(10_000_000),
+  MEDIA_MIN_DIMENSION: z.coerce.number().int().min(100).default(500),
+
+  ALLOW_PRIVATE_FETCH: bool.default(false), // tests/dev only: lets the SSRF guard reach localhost fake servers
+  LEGAL_REVIEW_REQUIRED: bool.default(true), // stays true until counsel has reviewed the legal pages (blocks the launch gate)
+  MARKET_CRAWLER_CONTACT: z.string().default('https://orvia.example/bot'), // shown in the crawler User-Agent
+
   WORKER_CONCURRENCY: z.coerce.number().default(4),
   SCHEDULER_ENABLED: bool.default(true),
   SEED_ON_START: bool.default(false),
@@ -133,6 +149,12 @@ export function assertSafeForEnvironment(cfg: AppConfig): void {
     problems.push('JWT_SECRET must be a strong secret (>=32 chars) in production');
   if (!cfg.COOKIE_SECURE) problems.push('COOKIE_SECURE must be true in production');
   if (cfg.SEED_ON_START) problems.push('SEED_ON_START is forbidden in production');
+  if (cfg.ALLOW_PRIVATE_FETCH) problems.push('ALLOW_PRIVATE_FETCH must be false in production (SSRF protection)');
+  if (cfg.OBJECT_STORAGE_PROVIDER !== 's3') problems.push('OBJECT_STORAGE_PROVIDER must be s3 in production (customer images need durable object storage + CDN)');
+  if (cfg.OBJECT_STORAGE_PROVIDER === 's3' && !cfg.OBJECT_STORAGE_BUCKET) problems.push('OBJECT_STORAGE_BUCKET is required in production');
+  if (cfg.OBJECT_STORAGE_PROVIDER === 's3' && !cfg.CDN_BASE_URL) problems.push('CDN_BASE_URL is required in production');
+  if (cfg.CDN_BASE_URL && !/^https:\/\//i.test(cfg.CDN_BASE_URL)) problems.push('CDN_BASE_URL must be https in production');
+  if (!cfg.ENCRYPTION_KEY || !/^[0-9a-f]{64}$/i.test(cfg.ENCRYPTION_KEY)) problems.push('ENCRYPTION_KEY (64 hex chars) is required in production for stored supplier credentials');
   if (problems.length) throw new ConfigError('Unsafe production configuration: ' + problems.join('; '));
 }
 

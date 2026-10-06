@@ -10,6 +10,8 @@ import { authRoutes } from './routes/auth';
 import { publicRoutes } from './routes/public';
 import { shopRoutes } from './routes/shop';
 import { systemRoutes } from './routes/system';
+import { mediaRoutes } from './routes/media';
+import multipart from '@fastify/multipart';
 
 export interface ServerOptions {
   redis?: Redis | null;
@@ -20,6 +22,7 @@ export interface ServerOptions {
 export async function buildServer(ctx: Ctx, opts: ServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: false, trustProxy: ctx.cfg.TRUST_PROXY, bodyLimit: 1_000_000, routerOptions: { maxParamLength: 200 } });
   await registerPlugins(app, ctx, { redis: opts.redis });
+  await app.register(multipart, { limits: { fileSize: ctx.cfg.MEDIA_MAX_BYTES, files: 1, fields: 5, parts: 8 } });
   if (opts.withJobHandlers) registerJobs(ctx);
   systemRoutes(app, ctx, opts.redis ?? null);
   publicRoutes(app, ctx);
@@ -27,6 +30,7 @@ export async function buildServer(ctx: Ctx, opts: ServerOptions = {}): Promise<F
   shopRoutes(app, ctx);
   adminCommerceRoutes(app, ctx);
   adminOpsRoutes(app, ctx);
+  mediaRoutes(app, ctx);
   await app.ready();
   return app;
 }

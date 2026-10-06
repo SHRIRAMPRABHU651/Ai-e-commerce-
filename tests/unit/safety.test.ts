@@ -118,9 +118,28 @@ describe('configuration safety (dev/staging/production separation)', () => {
   it('refuses mock providers and weak secrets in production', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' } as NodeJS.ProcessEnv)).toThrow(ConfigError);
     expect(() => loadConfig({ NODE_ENV: 'production', SUPPLIER_MODE: 'live', PAYMENT_MODE: 'live', ADS_MODE: 'live', NOTIFY_MODE: 'live', JWT_SECRET: 'short' } as NodeJS.ProcessEnv)).toThrow(/JWT_SECRET/);
-    const cfg = loadConfig({ NODE_ENV: 'production', SUPPLIER_MODE: 'live', PAYMENT_MODE: 'live', ADS_MODE: 'live', NOTIFY_MODE: 'live', JWT_SECRET: 'x'.repeat(48) } as NodeJS.ProcessEnv);
+    const cfg = loadConfig(prodEnv());
     expect(cfg.isProduction).toBe(true);
     expect(cfg.COOKIE_SECURE).toBe(true);
+  });
+  const prodEnv = (over: Record<string, string> = {}) => ({
+    NODE_ENV: 'production', SUPPLIER_MODE: 'live', PAYMENT_MODE: 'live', ADS_MODE: 'live', NOTIFY_MODE: 'live', JWT_SECRET: 'x'.repeat(48), ENCRYPTION_KEY: 'a'.repeat(64),
+    OBJECT_STORAGE_PROVIDER: 's3', OBJECT_STORAGE_BUCKET: 'orvia-media', CDN_BASE_URL: 'https://cdn.example.com', ...over,
+  }) as NodeJS.ProcessEnv;
+  it.each([
+    ['mock supplier', { SUPPLIER_MODE: 'mock' }, /SUPPLIER_MODE/],
+    ['mock payment', { PAYMENT_MODE: 'mock' }, /PAYMENT_MODE/],
+    ['mock ads', { ADS_MODE: 'mock' }, /ADS_MODE/],
+    ['log-only notifications', { NOTIFY_MODE: 'log' }, /NOTIFY_MODE/],
+    ['local image storage', { OBJECT_STORAGE_PROVIDER: 'local' }, /OBJECT_STORAGE_PROVIDER/],
+    ['missing bucket', { OBJECT_STORAGE_BUCKET: '' }, /OBJECT_STORAGE_BUCKET/],
+    ['missing CDN', { CDN_BASE_URL: '' }, /CDN_BASE_URL/],
+    ['http CDN', { CDN_BASE_URL: 'http://cdn.example.com' }, /https/],
+    ['missing encryption key', { ENCRYPTION_KEY: '' }, /ENCRYPTION_KEY/],
+    ['private fetch enabled', { ALLOW_PRIVATE_FETCH: 'true' }, /ALLOW_PRIVATE_FETCH/],
+    ['seed on start', { SEED_ON_START: 'true' }, /SEED_ON_START/],
+  ])('production refuses to start with %s', (_n, over, re) => {
+    expect(() => loadConfig(prodEnv(over))).toThrow(re);
   });
   it('allows mocks in development', () => {
     const cfg = loadConfig({ NODE_ENV: 'development' } as NodeJS.ProcessEnv);

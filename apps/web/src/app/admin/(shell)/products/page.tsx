@@ -7,7 +7,7 @@ import { FilterSelect, PageHeader, SearchBox, Toolbar, cur, pctf, useAction, use
 import { api } from '@/lib/api';
 
 interface Row { id: string; title: string; slug: string; state: string; category: string; image?: string; opportunity: number | null; action: string | null; compliance: string; sold: number; rating: number; markets: { country: string; price: number; currency: string; margin: number; profit: number; stock: number }[] }
-const STATES = ['', 'DISCOVERED', 'ANALYZING', 'APPROVED', 'DRAFT', 'PUBLISHED', 'TESTING', 'WINNER', 'SCALING', 'DECLINING', 'PAUSED', 'OUT_OF_STOCK', 'BANNED', 'ARCHIVED'];
+const STATES = ['', 'DISCOVERED', 'ANALYZING', 'APPROVED', 'DRAFT', 'IMAGE_REQUIRED', 'READY', 'COMPLIANCE_REVIEW', 'SUPPLIER_REVIEW', 'PRICING_REVIEW', 'PUBLISHED', 'TESTING', 'WINNER', 'SCALING', 'DECLINING', 'PAUSED', 'OUT_OF_STOCK', 'BANNED', 'ARCHIVED'];
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -16,7 +16,8 @@ export default function ProductsPage() {
   const [state, setState] = React.useState('');
   const [q, setQ] = React.useState('');
   const [imp, setImp] = React.useState(false);
-  const { data, error, loading, reload } = useFetch<{ items: Row[]; total: number }>(`/admin/products?page=${page}&pageSize=20${state ? `&state=${state}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`);
+  const [attention, setAttention] = React.useState(false);
+  const { data, error, loading, reload } = useFetch<{ items: Row[]; total: number }>(`/admin/products?page=${page}&pageSize=20${state ? `&state=${state}` : ''}${attention ? '&images=attention' : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`);
   const cols: Column<Row>[] = [
     { key: 'p', header: 'Product', render: (r) => <div className="flex items-center gap-3"><div className="w-11 shrink-0 overflow-hidden rounded-md"><ProductArt src={r.image} alt="" /></div><div className="min-w-0"><p className="max-w-64 truncate font-semibold">{r.title}</p><p className="text-xs text-ink-3">{r.category}</p></div></div> },
     { key: 's', header: 'State', render: (r) => <StatusBadge status={r.state} /> },
@@ -28,7 +29,7 @@ export default function ProductsPage() {
   return (
     <>
       <PageHeader title="Products" subtitle="Lifecycle, economics and compliance for every listing." actions={can('products:write') ? <Button onClick={() => setImp(true)}>Import product</Button> : undefined} />
-      <Toolbar><SearchBox value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search products" /><FilterSelect label="State" value={state} onChange={(v) => { setState(v); setPage(1); }} options={STATES.map((s) => [s, s ? s.replace(/_/g, ' ').toLowerCase() : 'All states'])} /></Toolbar>
+      <Toolbar><Button size="sm" variant={attention ? 'primary' : 'secondary'} aria-pressed={attention} onClick={() => { setAttention(!attention); setPage(1); }}>Needs attention: missing images</Button><SearchBox value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search products" /><FilterSelect label="State" value={state} onChange={(v) => { setState(v); setPage(1); }} options={STATES.map((s) => [s, s ? s.replace(/_/g, ' ').toLowerCase() : 'All states'])} /></Toolbar>
       {error && !data && <ErrorBox message={error} retry={reload} />}
       <Card><DataTable columns={cols} rows={data?.items} loading={loading} rowKey={(r) => r.id} onRowClick={(r) => router.push(`/admin/products/${r.id}`)} page={page} pageSize={20} total={data?.total} onPage={setPage} /></Card>
       <ImportModal open={imp} onClose={() => setImp(false)} onDone={() => { void reload(); }} />

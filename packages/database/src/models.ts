@@ -125,7 +125,9 @@ const productSchema = new Schema({
   faqs: [{ _id: false, q: String, a: String }],
   seo: { title: String, metaDescription: String, keywords: [String] },
   social: { instagram: String, tiktokScript: String, facebookAd: String },
-  images: [{ _id: false, url: String, alt: String }],
+  /** Customer-facing image projection, rebuilt from ProductAsset by syncProductImages(). */
+  images: [{ _id: false, url: String, alt: String, card: String, thumb: String, zoom: String, assetId: String, source: String, license: String }],
+  imageStatus: { type: String, enum: ['MISSING', 'PENDING', 'READY', 'FAILED'], default: 'MISSING', index: true },
   videos: [{ _id: false, url: String, licensed: Boolean }],
   category: { type: String, index: true }, // sub-category slug
   topCategory: { type: String, index: true }, // pet|kids|fashion|gadgets
@@ -812,3 +814,33 @@ const mockStoreSchema = new Schema({
 }, schemaOpts);
 mockStoreSchema.index({ kind: 1, key: 1 }, { unique: true });
 export const MockStore = defineModel('MockStore', mockStoreSchema, 'mock_store');
+
+/** One uploaded/ingested image: the Orvia-hosted original + processed variants. Supplier URL is kept only as provenance. */
+const productAssetSchema = new Schema({
+  productId: { type: oid, ref: 'Product', required: true, index: true },
+  kind: { type: String, enum: ['image'], default: 'image' },
+  source: { type: String, enum: ['supplier', 'admin'], required: true },
+  sourceUrl: String,
+  supplierId: { type: oid, ref: 'Supplier' },
+  status: { type: String, enum: ['ready', 'failed'], required: true },
+  error: String,
+  sha256: String,
+  dhash: String,
+  width: Number,
+  height: Number,
+  bytes: Number,
+  format: String,
+  hasAlpha: Boolean,
+  variants: { thumb: String, card: String, page: String, zoom: String, og: String },
+  keys: [String],
+  alt: String,
+  position: { type: Number, default: 0 },
+  isPrimary: { type: Boolean, default: false },
+  variantSku: String,
+  countries: [String],
+  license: { type: String, enum: ['unknown', 'supplier_provided', 'owned'], default: 'unknown' },
+  createdBy: String,
+}, schemaOpts);
+productAssetSchema.index({ productId: 1, sha256: 1 });
+productAssetSchema.index({ productId: 1, sourceUrl: 1 });
+export const ProductAsset = defineModel('ProductAsset', productAssetSchema, 'product_assets');

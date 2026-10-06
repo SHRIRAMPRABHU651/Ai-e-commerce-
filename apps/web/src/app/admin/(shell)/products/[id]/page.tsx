@@ -4,10 +4,11 @@ import * as React from 'react';
 import { Badge, Button, Card, Field, Input, Modal, ProductArt, Select, StatusBadge, Tabs } from '@orvia/ui';
 import { ErrorBox, Loading, PageHeader, Panel, cur, pctf, useAction, useAdmin, useFetch, when } from '@/components/admin/kit';
 import { api } from '@/lib/api';
+import { ProductImages } from '@/components/admin/product-images';
 
 interface CmpRow { supplierId: string; supplierName: string; supplierCode: string; warehouseCountry: string; productCost: number; shippingCost: number; duties: number; landedCost: number; minDays: number; maxDays: number; stock: number; reliability: number; rating: number; expectedProfit: number; margin: number; cxScore: number; finalScore: number; eligible: boolean; ineligibleReason?: string; currency: string }
 interface Detail {
-  product: { _id: string; title: string; slug: string; state: string; images: { url: string }[]; description: string; bullets: string[]; compliance: { status: string; flags: string[] }; markets: { country: string; price: number; currency: string; compareAtPrice: number; expectedMargin: number; expectedProfit: number; landedCost: number; stock: number; shipsFrom?: string; pricingStrategy: string }[]; opportunity?: { finalScore: number; action: string }; stateHistory: { state: string; at: string; by: string; reason: string }[]; pricingConfig?: { strategy: string; targetMarginPct: number }; intel?: { competitorPrices?: Record<string, number[]> } };
+  product: { _id: string; title: string; slug: string; state: string; images: { url: string }[]; imageStatus?: string; description: string; bullets: string[]; compliance: { status: string; flags: string[] }; markets: { country: string; price: number; currency: string; compareAtPrice: number; expectedMargin: number; expectedProfit: number; landedCost: number; stock: number; shipsFrom?: string; pricingStrategy: string }[]; opportunity?: { finalScore: number; action: string }; stateHistory: { state: string; at: string; by: string; reason: string }[]; pricingConfig?: { strategy: string; targetMarginPct: number }; intel?: { competitorPrices?: Record<string, number[]> } };
   comparisons: { country: string; currency: string; sellingPrice: number; rows: CmpRow[]; recommendation: { supplierName: string | null; reason: string } }[];
   plans: { country: string; economics: { supplier_cost: number; shipping_cost: number; landed_cost: number; selling_price: number; gross_margin: number; payment_fee: number; estimated_return_cost: number; estimated_ad_cost: number; customer_acquisition_cost: number; expected_profit: number; profit_margin: number; ROAS: number; break_even_ROAS: number; refund_rate: number } | null; pricing: { price: number; floorPrice: number; explanation: string } | null; strategy: string; competitorPrices: number[] }[];
   scores: { finalScore: number; action: string; components: Record<string, number>; reasons: string[]; computedAt: string }[]; campaigns: { _id: string; name: string; status: string; platform: string; country: string }[]; decisions: { _id: string; summary: string }[]; exceptions: { _id: string; issue: string; kind: string }[];
@@ -45,6 +46,7 @@ export default function ProductDetail() {
         {can('products:write') && ['PUBLISHED', 'TESTING', 'WINNER', 'SCALING', 'DECLINING'].includes(p.state) && <Button variant="secondary" size="sm" loading={busy === 'pause'} onClick={() => post(`/admin/products/${id}/transition`, { to: 'PAUSED', reason: 'paused by admin' }, 'Paused', 'pause')}>Pause</Button>}
         {can('ads:write') && <Button variant="soft" size="sm" onClick={() => setTest(true)}>Start ad test</Button>}
       </>} />
+      {p.imageStatus && p.imageStatus !== 'READY' && <div role="alert" className="mb-4 rounded-lg bg-coral-50 p-4 text-sm text-coral-700"><b>IMAGE REQUIRED.</b> This product can’t be published or bought until it has a usable image. <button className="font-bold underline" onClick={() => setTab('images')}>Add images</button></div>}
       {d.exceptions.length > 0 && <div className="mb-4 rounded-lg bg-coral-50 p-4 text-sm text-coral-700"><b>Open exceptions:</b> {d.exceptions.map((x) => x.issue).join(' · ')}</div>}
       {d.decisions.length > 0 && <div className="mb-4 rounded-lg bg-saffron-50 p-4 text-sm text-saffron-700"><b>Awaiting approval:</b> {d.decisions.map((x) => x.summary).join(' · ')} <a className="font-bold underline" href="/admin/automation">Review</a></div>}
       <div className="grid gap-4 xl:grid-cols-[18rem_1fr]">
@@ -60,7 +62,7 @@ export default function ProductDetail() {
           {market && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {[['Selling price', cur(market.price, market.currency)], ['Typical elsewhere', market.compareAtPrice ? cur(market.compareAtPrice, market.currency) : '—'], ['Landed cost', cur(market.landedCost, market.currency)], ['Expected margin', pctf(market.expectedMargin)]].map(([k, v]) => <Card key={k} className="p-4"><p className="text-xs font-semibold text-ink-3">{k}</p><p className="mt-1 text-xl font-bold tabular-nums">{v}</p></Card>)}
           </div>}
-          <Tabs tabs={[{ id: 'suppliers', label: 'Supplier comparison' }, { id: 'economics', label: 'Unit economics' }, { id: 'campaigns', label: `Campaigns (${d.campaigns.length})` }, { id: 'content', label: 'Content' }]} value={tab} onChange={setTab} />
+          <Tabs tabs={[{ id: 'suppliers', label: 'Supplier comparison' }, { id: 'economics', label: 'Unit economics' }, { id: 'campaigns', label: `Campaigns (${d.campaigns.length})` }, { id: 'images', label: p.imageStatus === 'READY' ? 'Images' : 'Images ⚠' }, { id: 'content', label: 'Content' }]} value={tab} onChange={setTab} />
           {tab === 'suppliers' && cmp && (
             <div className="space-y-3">
               {cmp.rows.map((r, i) => (
@@ -81,6 +83,7 @@ export default function ProductDetail() {
             </Panel>
           )}
           {tab === 'campaigns' && <Panel pad>{d.campaigns.length === 0 ? <p className="text-sm text-ink-3">No campaigns yet.</p> : <ul className="divide-y divide-line">{d.campaigns.map((c) => <li key={c._id} className="flex items-center justify-between gap-3 py-2.5 text-sm"><span>{c.name} <span className="text-ink-3">· {c.platform} · {c.country}</span></span><StatusBadge status={c.status} /></li>)}</ul>}</Panel>}
+          {tab === 'images' && <ProductImages productId={id} canWrite={can('products:write')} onChange={() => void reload()} />}
           {tab === 'content' && <Panel title="Listing content"><p className="text-sm leading-relaxed text-ink-2">{p.description}</p><ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-2">{p.bullets.map((b) => <li key={b}>{b}</li>)}</ul></Panel>}
           {can('products:write') && (
             <Panel title="Source from another supplier" subtitle="Use a different supplier for other countries. Photos, price and delivery for those countries then come from that supplier.">

@@ -98,14 +98,15 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
   // -------------------------------------------------------------- products
   route(app, ctx, {
     method: 'GET', url: '/admin/products', summary: 'Products table', tags: ['Admin'], auth: A, permission: 'products:read',
-    query: paginationSchema.extend({ state: z.enum(PRODUCT_STATES).optional(), q: z.string().trim().max(60).optional(), category: z.string().max(80).optional() }),
+    query: paginationSchema.extend({ state: z.enum(PRODUCT_STATES).optional(), q: z.string().trim().max(60).optional(), category: z.string().max(80).optional(), images: z.enum(['attention']).optional() }),
     handler: async ({ query }) => {
       const filter: Record<string, unknown> = {};
+      if (query.images === 'attention') filter['imageStatus'] = { $ne: 'READY' };
       if (query.state) filter['state'] = query.state;
       if (query.category) filter['$or'] = [{ category: query.category }, { topCategory: query.category }];
       if (query.q) filter['title'] = new RegExp(escapeRegex(query.q), 'i');
-      const r = await paginate(Product, filter, { ...query, select: 'title slug state category topCategory images markets stats opportunity compliance.status createdAt' });
-      return { ...r, items: r.items.map((p) => ({ id: String(p._id), title: p.title, slug: p.slug, state: p.state, category: p.category, image: p.images?.[0]?.url, opportunity: p.opportunity?.finalScore ?? null, action: p.opportunity?.action ?? null, compliance: p.compliance?.status, sold: p.stats?.soldCount ?? 0, rating: p.stats?.ratingAvg ?? 0, markets: p.markets.map((m) => ({ country: m.country, price: m.price, currency: m.currency, margin: m.expectedMargin, profit: m.expectedProfit, stock: m.stock })) })) };
+      const r = await paginate(Product, filter, { ...query, select: 'title slug state category topCategory images imageStatus markets stats opportunity compliance.status createdAt' });
+      return { ...r, items: r.items.map((p) => ({ id: String(p._id), title: p.title, slug: p.slug, state: p.state, category: p.category, image: p.images?.[0]?.url, imageStatus: p.imageStatus, opportunity: p.opportunity?.finalScore ?? null, action: p.opportunity?.action ?? null, compliance: p.compliance?.status, sold: p.stats?.soldCount ?? 0, rating: p.stats?.ratingAvg ?? 0, markets: p.markets.map((m) => ({ country: m.country, price: m.price, currency: m.currency, margin: m.expectedMargin, profit: m.expectedProfit, stock: m.stock })) })) };
     },
   });
   route(app, ctx, {

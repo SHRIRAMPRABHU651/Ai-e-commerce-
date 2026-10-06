@@ -98,7 +98,7 @@ export interface StoreProduct {
   features: string[];
   benefits: string[];
   faqs: { q: string; a: string }[];
-  images: { url: string; alt?: string }[];
+  images: { url: string; alt?: string; card?: string; thumb?: string; zoom?: string }[];
   category: string;
   topCategory: string;
   attributes: Record<string, string>;

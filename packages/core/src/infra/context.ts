@@ -6,6 +6,7 @@ import type { PaymentRegistry } from '@orvia/payments';
 import type { SupplierRegistry } from '@orvia/suppliers';
 import type { Role } from '@orvia/types';
 import type { JobQueue } from './queue';
+import type { ObjectStorage } from './storage';
 import type { SettingsService } from './settings';
 
 export interface Actor {
@@ -28,6 +29,7 @@ export interface Ctx {
   ads: AdsRegistry;
   notifier: NotificationRouter;
   queue: JobQueue;
+  storage: ObjectStorage;
   settings: SettingsService;
   now: () => Date;
 }

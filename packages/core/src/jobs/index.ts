@@ -7,7 +7,9 @@ import type { Ctx } from '../infra/context';
 import { onJobDead, fulfillOrder, requestFulfillment, syncTracking, verifyPendingPayments, expireUnpaidOrders } from '../domain/orders';
 import { deliverNotification, notify } from '../domain/notify';
 import { runPricingAgent } from '../domain/pricing';
-import { scoreProduct } from '../domain/importer';
+import { proposePublish, scoreProduct } from '../domain/importer';
+import { canPublish } from '../domain/catalog';
+import { ingestSupplierImages } from '../domain/imagePipeline';
 import { generateDailyBrief } from '../domain/brief';
 import { recommendPromotions } from '../domain/marketing';
 import { syncAdMetrics } from '../domain/adsService';
@@ -51,6 +53,16 @@ export function registerJobs(ctx: Ctx): void {
   q.onDead = (job, err) => onJobDead(ctx, job as { name: string; payload: unknown }, err);
   q.register('send_notification', (p: { notificationId: string; html?: string }) => deliverNotification(ctx, p));
   q.register('fulfill_order', (p: { orderId: string; force?: boolean }) => fulfillOrder(ctx, p.orderId, { force: p.force }));
+  q.register('image_ingestion', async (p: { productId: string }) => {
+    const r = await ingestSupplierImages(ctx, p.productId);
+    const prod = await Product.findById(p.productId).select('state title markets').lean();
+    if (prod?.state === 'READY') {
+      const gate = await canPublish(ctx, p.productId);
+      if (gate.ok) await proposePublish(ctx, p.productId, prod.title, prod.markets.filter((m) => m.price > 0).length);
+    }
+    invalidateSearchIndex();
+    return r;
+  });
   q.register('sync_tracking', (p: { orderId?: string }) => syncTracking(ctx, { orderId: p?.orderId }));
   q.register('payment_verification', () => verifyPendingPayments(ctx));
   q.register('order_sync', async () => {

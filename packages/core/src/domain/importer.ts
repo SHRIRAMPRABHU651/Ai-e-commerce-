@@ -1,5 +1,6 @@
 import { providerFor } from './supplierAccess';
 import { usableImages } from './images';
+import { syncProductStateForImages } from './imagePipeline';
 import { Product, ProductScore, ProductVariant, Supplier, SupplierProduct } from '@orvia/database';
 import { scoreOpportunity } from '@orvia/analytics';
 import { MOCK_MARKET_SIGNALS } from '@orvia/suppliers';
@@ -35,6 +36,15 @@ export function marketIntelFor(ctx: Ctx, externalId: string): { demand: number; 
     return s ? { demand: s.demand, trend: s.trend, competition: s.competition, video: s.video, competitorPricesUsd: s.retail } : null;
   }
   return null; // no market-intel provider configured: scores use neutral priors and admins can enter competitor prices
+}
+
+/** Ask the automation layer to publish a gate-passing product (ASSISTED → proposal, AUTOMATIC → publish now). */
+export async function proposePublish(ctx: Ctx, pid: string, title: string, pricedMarkets: number): Promise<ImportResult['publish']> {
+  const out = await proposeOrExecute(ctx, {
+    automationKey: 'auto_publishing', agent: 'ContentAgent', kind: 'publish_product', resource: 'product', resourceId: pid,
+    summary: `Publish "${title}" (compliance passed, ${pricedMarkets} market(s) priced)`, payload: { productId: pid }, confidence: 0.85, dedupeKey: `publish:${pid}`,
+  });
+  return out.status === 'executed' ? { outcome: 'published' } : out.status === 'proposed' ? { outcome: 'proposed', decisionId: out.decisionId } : { outcome: 'skipped' };
 }
 
 function sourceFor(sp: SupplierProductSummary) {
@@ -99,7 +109,8 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
     faqs: content.faqs,
     seo: { title: content.seoTitle, metaDescription: content.metaDescription, keywords: content.keywords },
     social: { instagram: content.social.instagram, tiktokScript: content.social.tiktokScript, facebookAd: content.social.facebookAd },
-    images: usableImages(sp.images).map((url, i) => ({ url, alt: `${sp.title} — image ${i + 1}` })),
+    images: usableImages(sp.images).map((url, i) => ({ url, alt: `${sp.title} — image ${i + 1}`, source: 'supplier', license: 'unknown' })),
+    imageStatus: usableImages(sp.images).length ? 'READY' : 'MISSING',
     videos: sp.videos.map((url) => ({ url, licensed: true })),
     category,
     topCategory,
@@ -138,6 +149,9 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
     return { productId: pid, slug, state: 'BANNED', compliance, contentSource: aiContent.source, markets: [], publish: { outcome: 'blocked', problems: compliance.flags.map((f) => f.detail) }, notes };
   }
 
+  // Host Orvia copies of the supplier photos (SSRF-safe download, validation, resize); never hot-link suppliers in production.
+  if (sp.images.some((u) => /^https?:\/\//i.test(u))) await ctx.queue.enqueue('image_ingestion', { productId: pid }, { dedupeKey: `images:${pid}` });
+
   // Offers, markets, pricing.
   await syncProductOffers(ctx, pid);
   const refreshed = await refreshProductMarkets(ctx, pid);
@@ -146,6 +160,14 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
   await transitionProduct(ctx, pid, 'DRAFT', actor, 'draft listing created');
 
   let publish: ImportResult['publish'];
+  const imageGate = await Product.findById(pid).select('imageStatus').lean();
+  if (imageGate?.imageStatus !== 'READY') {
+    await syncProductStateForImages(ctx, pid, actor);
+    await raiseException(ctx, {
+      kind: 'MISSING_IMAGE', priority: 'medium', productId: pid, issue: `${sp.title} has no usable product image yet`,
+      aiRecommendation: 'Wait for supplier image ingestion, or upload photos in Admin → Product → Images.', suggestedAction: 'Upload images', actionCode: 'review_product', dedupeKey: `noimage:${pid}`,
+    });
+  }
   if (compliance.status === 'review') {
     await raiseException(ctx, {
       kind: compliance.flags.some((f) => f.code.startsWith('KIDS') || f.code === 'INFANT_PRODUCT' || f.code === 'SMALL_PARTS') ? 'SAFETY' : 'COMPLIANCE',
@@ -157,11 +179,7 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
     const gate = await canPublish(ctx, pid);
     if (!gate.ok) publish = { outcome: 'blocked', problems: gate.problems };
     else {
-      const out = await proposeOrExecute(ctx, {
-        automationKey: 'auto_publishing', agent: 'ContentAgent', kind: 'publish_product', resource: 'product', resourceId: pid,
-        summary: `Publish "${sp.title}" (compliance passed, ${refreshed.filter((m) => m.priced).length} market(s) priced)`, payload: { productId: pid }, confidence: 0.85, dedupeKey: `publish:${pid}`,
-      });
-      publish = out.status === 'executed' ? { outcome: 'published' } : out.status === 'proposed' ? { outcome: 'proposed', decisionId: out.decisionId } : { outcome: 'skipped' };
+      publish = await proposePublish(ctx, pid, sp.title, refreshed.filter((m) => m.priced).length);
     }
   }
   const final = await Product.findById(pid).lean();

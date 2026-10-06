@@ -1,3 +1,4 @@
+import { buildStorage } from './storage';
 import { setImagePolicy } from '../domain/images';
 import { AdsRegistry } from '@orvia/ads';
 import { AIService } from '@orvia/ai';
@@ -24,7 +25,8 @@ export function buildCtx(o: BuildOptions): Ctx {
   const log = o.log ?? createLogger({ level: cfg.LOG_LEVEL, service: o.service });
   const kv = new MongoKVStore();
   // demo art stands in for supplier photos only with the mock supplier outside production
-  setImagePolicy({ allowDemoArt: cfg.SUPPLIER_MODE === 'mock' && !cfg.isProduction });
+  const storage = buildStorage(cfg);
+  setImagePolicy({ allowDemoArt: cfg.SUPPLIER_MODE === 'mock' && !cfg.isProduction, allowHotlinks: !cfg.isProduction, ownedPrefixes: [storage.publicUrl('x').replace(/x$/, '')] });
   const ctx: Ctx = {
     cfg,
     log,
@@ -70,6 +72,7 @@ export function buildCtx(o: BuildOptions): Ctx {
       fetchImpl: o.fetchImpl,
     }),
     queue: new JobQueue(log),
+    storage,
     settings: new SettingsService(cfg.isProduction),
     now: () => new Date(),
     ...o.overrides,

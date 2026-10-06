@@ -2,6 +2,7 @@ export * from './infra';
 export * from './domain/automation';
 export * from './domain/catalog';
 export * from './domain/images';
+export * from './domain/imagePipeline';
 export * from './domain/compliance';
 export * from './domain/fraud';
 export * from './domain/exceptions';

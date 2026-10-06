@@ -47,7 +47,7 @@ export interface CardProduct {
   id: string;
   slug: string;
   title: string;
-  images: { url: string; alt?: string }[];
+  images: { url: string; alt?: string; card?: string; thumb?: string; zoom?: string }[];
   price: number | null;
   compareAtPrice: number | null;
   currency: string;
@@ -68,7 +68,7 @@ export function ProductCard({ p, wished, onWish, onQuickAdd, priority }: { p: Ca
     <article className="group relative flex flex-col">
       <div className="relative overflow-hidden rounded-lg border border-line bg-sunken">
         <Link href={`/p/${p.slug}`} className="block" aria-label={p.title}>
-          <ProductArt src={p.images[0]?.url} alt={p.images[0]?.alt ?? p.title} priority={priority} />
+          <ProductArt src={p.images[0]?.card ?? p.images[0]?.url} alt={p.images[0]?.alt ?? p.title} priority={priority} />
         </Link>
         {badge && <Badge tone={badge.tone} className="absolute left-2.5 top-2.5 shadow-sm">{badge.t}</Badge>}
         {onWish && (
