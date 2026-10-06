@@ -65,7 +65,13 @@ export function publicRoutes(app: FastifyInstance, ctx: Ctx): void {
 
   route(app, ctx, {
     method: 'GET', url: '/products', summary: 'Search / browse products', tags: ['Storefront'], query: searchQuerySchema,
-    handler: async ({ req, query }) => searchProducts(query, query.country ?? req.country),
+    handler: async ({ req, query }) => {
+      const res = await searchProducts(query, query.country ?? req.country);
+      const q = (query.q ?? '').trim().toLowerCase().slice(0, 80);
+      // demand signal for the market engine: what people look for (and don't find). No personal data is stored with it.
+      if (q.length >= 2 && (query.page ?? 1) === 1) void trackEvent(ctx, { type: 'search', sessionId: 'server-search', country: req.country, meta: { q, results: res.total } }).catch(() => undefined);
+      return res;
+    },
   });
 
   route(app, ctx, {

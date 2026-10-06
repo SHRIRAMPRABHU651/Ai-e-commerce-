@@ -34,3 +34,4 @@ export * from './domain/supplierAccess';
 export * from './domain/manualSupplier';
 export * from './domain/supplierOps';
 export * from './domain/reconciliation';
+export * from './market';

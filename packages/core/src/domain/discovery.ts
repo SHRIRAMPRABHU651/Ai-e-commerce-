@@ -1,5 +1,5 @@
 import { providerFor } from './supplierAccess';
-import { Product, Supplier, SupplierProduct } from '@orvia/database';
+import { MarketTopic, Product, Supplier, SupplierProduct } from '@orvia/database';
 import { scoreOpportunity } from '@orvia/analytics';
 import { AnalyticsEvent } from '@orvia/database';
 import type { Ctx } from '../infra/context';
@@ -14,6 +14,8 @@ export interface DiscoverySummary {
   watch: number;
   imported: number;
   proposed: number;
+  /** trending topics from the market index used as catalogue searches */
+  trendQueries?: number;
   errors: string[];
 }
 
@@ -24,6 +26,11 @@ export interface DiscoverySummary {
 export async function runDiscovery(ctx: Ctx, opts: { perSupplier?: number } = {}): Promise<DiscoverySummary> {
   const sum: DiscoverySummary = { suppliersScanned: 0, candidates: 0, rejected: 0, watch: 0, imported: 0, proposed: 0, errors: [] };
   const suppliers = await Supplier.find({ active: true }).limit(20).lean();
+  // search each catalogue broadly AND for products matching topics the market index has real evidence for
+  const market = await ctx.settings.get('market');
+  const hot = await MarketTopic.find({ status: { $in: ['TRENDING', 'RISING'] }, confidence: { $gte: market.minConfidence } }).sort({ trendScore: -1 }).limit(8).select('displayName normalizedName').lean();
+  const plans: (string | undefined)[] = [undefined, ...hot.map((t) => t.displayName ?? t.normalizedName)];
+  sum.trendQueries = hot.length;
   for (const s of suppliers) {
     let provider;
     try {
@@ -37,8 +44,11 @@ export async function runDiscovery(ctx: Ctx, opts: { perSupplier?: number } = {}
     let seen = 0;
     const cap = opts.perSupplier ?? 60;
     try {
+      for (const plan of plans) {
+      if (seen >= cap) break;
+      cursor = undefined;
       do {
-        const page = await provider.searchProducts({ limit: 20, cursor });
+        const page = await provider.searchProducts({ limit: 20, cursor, query: plan });
         cursor = page.nextCursor;
         for (const item of page.items) {
           if (seen++ >= cap) {
@@ -49,7 +59,7 @@ export async function runDiscovery(ctx: Ctx, opts: { perSupplier?: number } = {}
           if (known) continue;
           sum.candidates++;
           const compliance = checkCompliance({ title: item.title, description: item.description, category: item.category, topCategory: String(item.attributes['Top category'] ?? '').toLowerCase(), tags: item.tags, attributes: item.attributes, safetyInfo: item.safetyInfo });
-          const intel = marketIntelFor(ctx, item.externalId);
+          const intel = await marketIntelFor(ctx, item.externalId, item.title);
           // quick economics: target-margin price from the supplier's reference cost vs observed competitor median
           const medianUsd = intel?.competitorPricesUsd.length ? [...intel.competitorPricesUsd].sort((a, b) => a - b)[Math.floor(intel.competitorPricesUsd.length / 2)]! : item.baseCostUsd * 3;
           const margin = Math.max(0, (medianUsd - item.baseCostUsd * 1.35 - medianUsd * 0.12) / medianUsd);
@@ -82,6 +92,7 @@ export async function runDiscovery(ctx: Ctx, opts: { perSupplier?: number } = {}
           }
         }
       } while (cursor);
+      }
     } catch (e) {
       sum.errors.push(`${s.code}: ${(e as Error).message}`);
       ctx.log.error({ channel: 'supplier', supplier: s.code, err: (e as Error).message }, 'discovery scan failed');

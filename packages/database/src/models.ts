@@ -858,3 +858,92 @@ const productAssetSchema = new Schema({
 productAssetSchema.index({ productId: 1, sha256: 1 });
 productAssetSchema.index({ productId: 1, sourceUrl: 1 });
 export const ProductAsset = defineModel('ProductAsset', productAssetSchema, 'product_assets');
+
+/* ------------------------------------------------------------------ market intelligence (zero-cost, public sources + Orvia analytics) */
+export const MARKET_SOURCE_TYPES = ['RSS', 'ATOM', 'SITEMAP', 'HTML_LISTING', 'HTML_PRODUCT', 'JSON_PUBLIC', 'SUPPLIER', 'INTERNAL_ANALYTICS'] as const;
+
+const marketSourceSchema = new Schema({
+  name: { type: String, required: true },
+  type: { type: String, enum: MARKET_SOURCE_TYPES, required: true },
+  baseUrl: String,
+  country: COUNTRY,
+  category: String,
+  enabled: { type: Boolean, default: true, index: true },
+  crawlIntervalMinutes: { type: Number, default: 360, min: 15 },
+  robotsRequired: { type: Boolean, default: true },
+  /** HTML/JSON extraction rules: itemSelector, titleSelector, linkSelector, priceSelector, currency, list/title/price paths … */
+  parserConfig: Mixed,
+  /** Sitemap sources: fetch up to N product pages per crawl to read their price. 0 = names/dates only. */
+  fetchProductPages: { type: Number, default: 0, min: 0, max: 100 },
+  lastCrawledAt: Date,
+  lastSuccessAt: Date,
+  lastFailureAt: Date,
+  lastError: String,
+  failureCount: { type: Number, default: 0 },
+  documentsCollected: { type: Number, default: 0 },
+  healthStatus: { type: String, enum: ['NEW', 'HEALTHY', 'DEGRADED', 'FAILING', 'BLOCKED', 'DISABLED'], default: 'NEW' },
+  robotsStatus: { type: String, enum: ['unknown', 'allowed', 'disallowed', 'unreachable'], default: 'unknown' },
+  robotsCheckedAt: Date,
+  robotsTxt: { type: String, select: false },
+  etag: String,
+  lastModified: String,
+  successRate: { type: Number, default: 0 },
+  crawlCount: { type: Number, default: 0 },
+}, schemaOpts);
+marketSourceSchema.index({ enabled: 1, lastCrawledAt: 1 });
+export const MarketSource = defineModel('MarketSource', marketSourceSchema, 'market_sources');
+
+/** One observation of one item on one source on one day (TrendDocument). */
+const marketDocumentSchema = new Schema({
+  sourceId: { type: oid, ref: 'MarketSource', required: true },
+  source: String,
+  sourceUrl: String,
+  urlHash: String,
+  day: { type: String, required: true }, // yyyy-mm-dd bucket: one observation per item per source per day
+  topicId: { type: oid, ref: 'MarketTopic', index: true },
+  normalizedProductName: { type: String, index: true },
+  title: String,
+  keywords: [String],
+  category: String,
+  country: COUNTRY,
+  observedAt: { type: Date, required: true },
+  publishedAt: Date,
+  price: money,
+  currency: String,
+  shipping: money,
+  availability: { type: String, enum: ['in_stock', 'out_of_stock', 'unknown'], default: 'unknown' },
+  rank: Number,
+  mentionCount: { type: Number, default: 1 },
+}, { timestamps: false, versionKey: false });
+marketDocumentSchema.index({ sourceId: 1, urlHash: 1, day: 1 }, { unique: true });
+marketDocumentSchema.index({ keywords: 1 });
+marketDocumentSchema.index({ country: 1, category: 1, observedAt: -1 });
+marketDocumentSchema.index({ observedAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 120 });
+export const MarketDocument = defineModel('MarketDocument', marketDocumentSchema, 'market_documents');
+
+const marketTopicSchema = new Schema({
+  normalizedName: { type: String, required: true },
+  displayName: String,
+  keywords: [String],
+  category: String,
+  country: COUNTRY,
+  firstSeen: Date,
+  lastSeen: Date,
+  observationCount: { type: Number, default: 0 },
+  sourceCount: { type: Number, default: 0 },
+  trendScore: { type: Number, default: 0, index: true },
+  confidence: { type: Number, default: 0 },
+  status: { type: String, enum: ['TRENDING', 'RISING', 'STABLE', 'DECLINING', 'INSUFFICIENT_DATA'], default: 'INSUFFICIENT_DATA', index: true },
+  growthPct: Number,
+  components: Mixed, // { name: { score, available, sample } }
+  windows: Mixed, // counts per window: 1h 6h 24h 3d 7d 14d 30d
+  evidence: Mixed, // per-source growth + internal signals + samples
+  price: Mixed, // { low, median, high, avg, n, hosts, currency, velocity, confidence, newestAt }
+  internal: Mixed,
+  matchedProductIds: [{ type: oid, ref: 'Product' }],
+  computedAt: Date,
+}, schemaOpts);
+marketTopicSchema.index({ keywords: 1 });
+marketTopicSchema.index({ country: 1, category: 1, status: 1, trendScore: -1 });
+marketTopicSchema.index({ normalizedName: 1, country: 1 });
+export const MarketTopic = defineModel('MarketTopic', marketTopicSchema, 'market_topics');

@@ -106,6 +106,9 @@ export const PERMISSIONS = [
   'audit:read',
   'users:manage',
   'ai:write',
+  'market:read',
+  'market:write',
+  'launch:read',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -118,19 +121,19 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   MARKETING: [
     'overview:read', 'products:read', 'marketing:read', 'marketing:write', 'ads:read', 'ads:write',
     'promotions:read', 'promotions:write', 'analytics:read', 'copilot:use', 'reviews:read', 'countries:read',
-    'automation:read', 'ai:write',
+    'automation:read', 'ai:write', 'market:read', 'market:write',
   ],
   OPERATIONS: [
     'overview:read', 'orders:read', 'orders:write', 'products:read', 'suppliers:read', 'suppliers:write',
     'inventory:read', 'inventory:write', 'shipping:read', 'returns:read', 'returns:write', 'exceptions:read',
     'exceptions:write', 'payments:read', 'customers:read', 'analytics:read', 'automation:read', 'countries:read',
-    'refunds:write',
+    'refunds:write', 'market:read', 'launch:read',
   ],
   SUPPORT: [
     'overview:read', 'orders:read', 'customers:read', 'support:read', 'support:write', 'returns:read',
     'returns:write', 'reviews:read', 'reviews:write', 'exceptions:read', 'refunds:write', 'shipping:read',
   ],
-  ANALYST: [...readOnly.filter((p) => !['settings:read', 'audit:read', 'payments:read'].includes(p)), 'copilot:use'],
+  ANALYST: [...readOnly.filter((p) => !['settings:read', 'audit:read', 'payments:read', 'launch:read'].includes(p)), 'copilot:use'],
   CUSTOMER: [],
 };
 

@@ -1,3 +1,5 @@
+import { MarketSource, MarketTopic } from '@orvia/database';
+import { explainTopic, similarity } from '../market';
 import { Campaign, ExceptionModel, Inventory, Product } from '@orvia/database';
 import type { Ctx } from '../infra/context';
 import type { Actor } from '../infra/context';
@@ -22,6 +24,7 @@ const usd = (minor: number) => `$${(minor / 100).toLocaleString('en-US', { minim
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
 const INTENTS: [string, RegExp][] = [
+  ['trend_explain', /\b(trending|trend|rising|going viral|what'?s hot|popular right now)\b/i],
   ['pause_losers', /\b(pause|stop|kill)\b.*\b(losing|unprofitable|negative|loss)/i],
   ['profit_change', /\bwhy\b.*\b(profit|revenue)\b.*\b(fall|fell|drop|dropped|down|decline|increase|rose|up)\b|\b(profit|revenue)\b.*\b(yesterday|vs|compared)\b/i],
   ['scale', /\b(scale|best products|winners|top products|what should i scale)\b/i],
@@ -47,7 +50,7 @@ const dayRange = (offset: number, now: Date): Range => {
 export async function askCopilot(ctx: Ctx, a: { question: string; confirm?: boolean; actor: Actor }): Promise<CopilotAnswer> {
   let intent = INTENTS.find(([, re]) => re.test(a.question))?.[0];
   if (!intent && ctx.ai.llmConfigured) {
-    const c = await ctx.ai.classify(a.question, ['pause_losers', 'profit_change', 'scale', 'losers', 'country', 'suppliers', 'exceptions', 'inventory', 'ads', 'summary', 'unknown']);
+    const c = await ctx.ai.classify(a.question, ['pause_losers', 'profit_change', 'scale', 'losers', 'country', 'suppliers', 'exceptions', 'inventory', 'ads', 'summary', 'trend_explain', 'unknown']);
     if (c.confidence >= 0.6 && c.label !== 'unknown') intent = c.label;
   }
   await audit(ctx, a.actor, { action: 'copilot.ask', resource: 'copilot', reason: a.question.slice(0, 200) });
@@ -77,6 +80,21 @@ export async function askCopilot(ctx: Ctx, a: { question: string; confirm?: bool
         answer: `Contribution profit ${dir} from ${usd(netPrev)} to ${usd(netNow)} yesterday. Revenue was ${usd(fy.netRevenue)} vs ${usd(fp.netRevenue)} the day before; ad spend ${usd(fy.adSpend)} vs ${usd(fp.adSpend)}.${adLines.length ? ` By country: ${adLines.join('; ')}.` : ''}${worst && worst.delta < 0 ? ` The biggest drag was "${worst.title}" (${usd(worst.delta)} change, about ${share}% of the movement).` : ''}${fy.pendingCostOrders ? ` Note: ${fy.pendingCostOrders} paid order(s) are not yet fulfilled, so their costs are not counted.` : ''}`,
         tables: [{ title: 'Yesterday vs day before (USD)', columns: ['Metric', 'Yesterday', 'Day before'], rows: [['Net revenue', usd(fy.netRevenue), usd(fp.netRevenue)], ['Gross profit', usd(fy.grossProfit), usd(fp.grossProfit)], ['Contribution profit', usd(fy.contributionProfit), usd(fp.contributionProfit)], ['Ad spend', usd(fy.adSpend), usd(fp.adSpend)], ['Orders', fy.orders, fp.orders]] }],
       };
+    }
+    case 'trend_explain': {
+      const q = a.question.toLowerCase().replace(/\b(why|is|are|the|a|an|trending|trend|rising|right now|now|today|going|viral|what|what's|whats|hot|popular|products?|items?|currently|this week)\b/g, ' ').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const topics = await MarketTopic.find({ status: { $ne: 'INSUFFICIENT_DATA' } }).sort({ trendScore: -1 }).limit(300).lean();
+      const named = q.length >= 3 ? topics.map((t) => ({ t, sim: similarity(q, t.displayName ?? t.normalizedName) })).filter((x) => x.sim >= 0.45).sort((x, y) => y.sim - x.sim)[0]?.t : undefined;
+      if (named) {
+        const ex = explainTopic(named as never);
+        return { intent, sources: ['market_index', 'analytics'], answer: ex.text, note: ex.warnings.length ? `Caveats: ${ex.warnings.join('; ')}` : undefined };
+      }
+      const hot = topics.filter((t) => ['TRENDING', 'RISING'].includes(t.status)).slice(0, 10);
+      if (!hot.length) {
+        const sources = await MarketSource.countDocuments({ enabled: true });
+        return { intent, sources: ['market_index'], answer: sources ? 'The market index has no topic with enough evidence to call a trend yet. I only report trends that public sources and Orvia’s own analytics actually support.' : 'No market sources are configured, so there is no evidence of any trend. Add public sources under Market Intelligence → Sources; I will not guess what is trending.' };
+      }
+      return { intent, sources: ['market_index', 'analytics'], answer: `${hot.length} topic(s) have evidence of rising demand (from configured public sources and Orvia analytics).`, tables: [{ title: 'Trending / rising (evidence-based)', columns: ['Topic', 'Status', 'Score', 'Confidence', 'Sources'], rows: hot.map((t) => [t.displayName ?? t.normalizedName, t.status, String(t.trendScore), `${Math.round((t.confidence ?? 0) * 100)}%`, String(t.sourceCount)]) }] };
     }
     case 'scale': {
       const range = parseRange('30d', undefined, undefined, now);

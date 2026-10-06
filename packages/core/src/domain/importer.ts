@@ -1,5 +1,7 @@
 import { providerFor } from './supplierAccess';
 import { usableImages } from './images';
+import { intelFromIndex } from '../market';
+import type { ResolvedIntel } from '../market';
 import { syncProductStateForImages } from './imagePipeline';
 import { Product, ProductScore, ProductVariant, Supplier, SupplierProduct } from '@orvia/database';
 import { scoreOpportunity } from '@orvia/analytics';
@@ -29,13 +31,20 @@ export interface ImportResult {
   notes: string[];
 }
 
-/** Market intelligence (demand/trend/competitor prices). Mock data is dev-only; live mode needs a real provider. */
-export function marketIntelFor(ctx: Ctx, externalId: string): { demand: number; trend: number; competition: number; video: boolean; competitorPricesUsd: number[] } | null {
+/**
+ * Market evidence for a supplier product. Order of truth: the Orvia market index (public sources + Orvia behaviour, with
+ * confidence); the demo signals only for the mock supplier outside production; otherwise nothing (neutral priors — never invented).
+ */
+export async function marketIntelFor(ctx: Ctx, externalId: string, title?: string, country?: CountryCode): Promise<ResolvedIntel | null> {
+  if (title) {
+    const fromIndex = await intelFromIndex(ctx, title, country);
+    if (fromIndex) return fromIndex;
+  }
   if (ctx.cfg.SUPPLIER_MODE === 'mock' && !ctx.cfg.isProduction) {
     const s = MOCK_MARKET_SIGNALS[externalId];
-    return s ? { demand: s.demand, trend: s.trend, competition: s.competition, video: s.video, competitorPricesUsd: s.retail } : null;
+    return s ? { source: 'mock', demand: s.demand, trend: s.trend, competition: s.competition, video: s.video, competitorPricesUsd: s.retail, confidence: 0, competitorConfidence: 'LOW' } : null;
   }
-  return null; // no market-intel provider configured: scores use neutral priors and admins can enter competitor prices
+  return null;
 }
 
 /** Ask the automation layer to publish a gate-passing product (ASSISTED → proposal, AUTOMATIC → publish now). */
@@ -92,7 +101,7 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
   });
 
   const slug = await uniqueSlug(sp.title);
-  const intel = marketIntelFor(ctx, sp.externalId);
+  const intel = await marketIntelFor(ctx, sp.externalId, sp.title);
   const ops = await ctx.settings.get('ops');
   const competitorPrices: Record<string, number[]> = {};
   if (intel) {
@@ -119,7 +128,7 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
     state: 'DISCOVERED',
     stateHistory: [{ state: 'DISCOVERED', at: new Date(), by: actor.id, reason: `imported from ${supplier.code}` }],
     compliance: { status: compliance.status, flags: compliance.flags.map((f) => f.code), checkedAt: new Date(), safetyInfo: sp.safetyInfo ? { standards: sp.safetyInfo.standards, ageRange: sp.safetyInfo.ageRange } : undefined },
-    intel: intel ? { source: 'mock', demand: intel.demand, trend: intel.trend, competition: intel.competition, video: intel.video, competitorPrices, cpcUsd: 0.8 } : undefined,
+    intel: intel ? { source: intel.source, topicId: intel.topicId, confidence: intel.confidence, status: intel.status, competitorConfidence: intel.competitorConfidence, demand: intel.demand, trend: intel.trend, competition: intel.competition, video: intel.video, competitorPrices: intel.competitorPricesUsd.length ? competitorPrices : undefined, cpcUsd: 0.8 } : undefined,
     stats: { trendScore: intel?.trend ?? 0 },
     isDemo: ctx.cfg.APP_ENV !== 'production' && supplier.isDemo,
   });

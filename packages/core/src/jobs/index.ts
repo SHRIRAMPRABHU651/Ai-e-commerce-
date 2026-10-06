@@ -12,6 +12,7 @@ import { canPublish } from '../domain/catalog';
 import { ingestSupplierImages } from '../domain/imagePipeline';
 import { runSupplierHealthChecks } from '../domain/supplierOps';
 import { runReconciliation } from '../domain/reconciliation';
+import { crawlSource, dueSources, recomputeTrends } from '../market';
 import { generateDailyBrief } from '../domain/brief';
 import { recommendPromotions } from '../domain/marketing';
 import { syncAdMetrics } from '../domain/adsService';
@@ -34,6 +35,8 @@ export const DEFAULT_SCHEDULES: (ScheduleDef & { automation?: AutomationKey; ris
   { name: 'inventory_sync', everyMs: 5 * MIN, job: 'sync_inventory', payload: { limit: 60 }, description: 'Rotating supplier stock + price refresh; pause/restore products', automation: 'inventory_sync', risk: 'medium' },
   { name: 'abandoned_cart', everyMs: 5 * MIN, job: 'abandoned_cart', description: 'Consent-based cart recovery messages', automation: 'abandoned_cart', risk: 'low' },
   { name: 'ad_metrics', everyMs: 15 * MIN, job: 'sync_ad_metrics', description: 'Pull ad platform metrics', automation: 'ad_optimization', risk: 'low' },
+  { name: 'market_crawl', everyMs: 15 * MIN, job: 'market_crawl', description: 'Crawl due public market sources (robots-aware, rate-limited)', risk: 'low' },
+  { name: 'market_index', everyMs: HOUR, job: 'market_index', description: 'Recompute trend scores, confidence and competitor prices from collected evidence', risk: 'low' },
   { name: 'product_performance', everyMs: HOUR, job: 'product_performance', description: 'Trend scores, review sentiment', risk: 'low' },
   { name: 'campaign_performance', everyMs: HOUR, job: 'optimize_ads', description: 'Evaluate campaigns against budget rules', automation: 'ad_optimization', risk: 'high' },
   { name: 'pricing_analysis', everyMs: HOUR, job: 'pricing_analysis', description: 'Dynamic pricing proposals within margin guardrails', automation: 'dynamic_pricing', risk: 'high' },
@@ -57,6 +60,18 @@ export function registerJobs(ctx: Ctx): void {
   q.onDead = (job, err) => onJobDead(ctx, job as { name: string; payload: unknown }, err);
   q.register('send_notification', (p: { notificationId: string; html?: string }) => deliverNotification(ctx, p));
   q.register('fulfill_order', (p: { orderId: string; force?: boolean }) => fulfillOrder(ctx, p.orderId, { force: p.force }));
+  q.register('market_crawl', async () => {
+    const ids = await dueSources(ctx, 3);
+    const results = [];
+    for (const id of ids) results.push(await crawlSource(ctx, id));
+    return { crawled: results.length, documents: results.reduce((a, r) => a + r.documents, 0), failed: results.filter((r) => r.status === 'failed' || r.status === 'blocked').length };
+  });
+  q.register('market_index', async () => {
+    const t = await refreshTrends(ctx); // internal behaviour first…
+    const m = await recomputeTrends(ctx); // …then evidence from public sources + Orvia analytics (overrides when confident)
+    invalidateSearchIndex();
+    return { internal: t, market: m };
+  });
   q.register('reconciliation', () => runReconciliation(ctx));
   q.register('supplier_health', () => runSupplierHealthChecks(ctx));
   q.register('image_ingestion', async (p: { productId: string }) => {

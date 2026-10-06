@@ -49,7 +49,19 @@ export interface SourcingSettings {
   failingAfterChecks: number;
 }
 
+export interface MarketSettings {
+  /** Trend-score component weights (normalised at use). */
+  weights: { recency: number; velocity: number; crossSource: number; mentionGrowth: number; searchGrowth: number; availability: number; priceMomentum: number; internalConversion: number };
+  /** Below this confidence a topic is never labelled TRENDING/RISING. */
+  minConfidence: number;
+  /** Competitor prices older than this lose confidence entirely. */
+  priceStaleDays: number;
+  /** Orvia events needed before a behavioural signal counts (prevents one or two purchases looking viral). */
+  minInternalSample: number;
+}
+
 export interface SettingsMap {
+  market: MarketSettings;
   sourcing: SourcingSettings;
   pricing: PricingSettings;
   ads: AdRulesConfig;
@@ -87,6 +99,7 @@ export function buildDefaults(production: boolean): SettingsMap {
       minPriceChangePct: 0.02,
     },
     sourcing: { weights: DEFAULT_RANK_WEIGHTS, staleAfterMinutes: 360, manualOfferTtlHours: 72, failingAfterChecks: 3 },
+    market: { weights: { recency: 0.2, velocity: 0.25, crossSource: 0.15, mentionGrowth: 0.15, searchGrowth: 0.1, availability: 0.05, priceMomentum: 0.05, internalConversion: 0.05 }, minConfidence: 0.35, priceStaleDays: 14, minInternalSample: 10 },
     ads: DEFAULT_AD_RULES,
     automation: { modes: defaultAutomationModes(production), autoRefundLimitUsd: 5000 },
     ops: {
