@@ -1,3 +1,4 @@
+import { listableImageFilter } from './images';
 import { Product } from '@orvia/database';
 import { SELLABLE_STATES } from '@orvia/types';
 import type { CountryCode, SearchQuery } from '@orvia/types';
@@ -53,7 +54,7 @@ export function invalidateSearchIndex(): void {
 
 async function getIndex() {
   if (index && Date.now() - index.at < TTL) return index;
-  const rows = await Product.find({ state: { $in: SELLABLE_STATES } })
+  const rows = await Product.find({ state: { $in: SELLABLE_STATES }, ...listableImageFilter() })
     .select('title slug seo tags category topCategory brand state createdAt stats markets')
     .limit(MAX_DOCS)
     .lean();

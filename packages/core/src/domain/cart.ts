@@ -1,3 +1,4 @@
+import { hasUsableImage } from './images';
 import { randomToken } from '@orvia/auth';
 import { Cart, Order, Product, ProductVariant } from '@orvia/database';
 import { estimateDelivery, orderTotals, pickShipping, shippingOptions } from '@orvia/shipping';
@@ -66,8 +67,8 @@ export async function getOrCreateCart(token: string | undefined, userId: string 
 export async function addToCart(ctx: Ctx, token: string, input: { productId: string; variantSku?: string; quantity: number }) {
   const cart = await Cart.findOne({ token });
   if (!cart) throw notFound('Cart');
-  const product = await Product.findById(input.productId).select('state markets').lean();
-  if (!product || !isSellable(product.state)) throw new DomainError('This product is not available', 'UNAVAILABLE', 409);
+  const product = await Product.findById(input.productId).select('state markets images').lean();
+  if (!product || !isSellable(product.state) || !hasUsableImage((product.images ?? []).map((i) => i.url))) throw new DomainError('This product is not available', 'UNAVAILABLE', 409);
   const market = product.markets.find((m) => m.country === cart.country && m.enabled);
   if (!market || market.price <= 0 || market.stock <= 0) throw new DomainError('Not available in your country right now', 'UNAVAILABLE', 409);
   const variants = await ProductVariant.find({ productId: input.productId, active: true }).select('sku').lean();

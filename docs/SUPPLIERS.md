@@ -11,6 +11,12 @@
 
 Add a supplier: implement the interface, register it in `SupplierRegistry`, add an `Supplier` document (country coverage, reliability seed). Nothing else in the engine is supplier-specific.
 
+## Product images — always the supplier's own
+Photos are taken from the supplier API response (CJ: `productImageSet`, `productImage`, `bigImage`, per-variant `variantImage`), stored as absolute https URLs on the supplier CDN, and rendered as-is (`referrerPolicy=no-referrer`). Nothing is stock-photo'd or AI-generated.
+- **Gate:** a product with no usable supplier image cannot be published (`canPublish`), listed in search/home/recommendations, or added to a cart.
+- **Home page:** hero collage, category tiles and the spotlight banner are built from the live catalogue's supplier photos (top product per category).
+- **Demo data:** the mock supplier has no real photographs, so in development it uses procedural illustrations at `/art/:id`, accepted *only* when `SUPPLIER_MODE=mock` outside production. To see real product photos: set `SUPPLIER_MODE=live` + `CJ_API_KEY`, open *Admin → Suppliers → Add supplier* (provider `cj`), then *Products → Import* — the import dialog shows each supplier photo before you import.
+
 ## Selection (not "cheapest")
 `selectSupplierLive` fetches live offers from every eligible supplier, discards ones that can't ship to the destination or lack stock, and ranks them by **expected profit** (sell price − landed cost − shipping − duty − payment fee − refund-rate allowance − ad allowance) blended with a **customer-experience** score (delivery days, supplier reliability, stock confidence). The chosen supplier is pinned on a pending shipment row before the order call, so retries never re-pick or double-order. If every supplier errors transiently the order stays queued and retries; if the best option would lose money, the order goes to the exception queue (`NEGATIVE_MARGIN`) instead of auto-fulfilling.
 

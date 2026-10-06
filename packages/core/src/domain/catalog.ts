@@ -1,4 +1,5 @@
 import { Product, ProductVariant, Category } from '@orvia/database';
+import { hasUsableImage } from './images';
 import { CATEGORY_TREE, PRODUCT_TRANSITIONS, SELLABLE_STATES, slugify } from '@orvia/types';
 import type { CountryCode, ProductState } from '@orvia/types';
 import { audit } from '../infra/audit';
@@ -57,7 +58,7 @@ export async function canPublish(ctx: Ctx, productId: string): Promise<PublishCh
   if (!p) throw notFound('Product');
   const problems: string[] = [];
   if (p.compliance?.status !== 'passed') problems.push(`Compliance status is "${p.compliance?.status ?? 'pending'}"`);
-  if (!p.images?.length) problems.push('No images');
+  if (!hasUsableImage((p.images ?? []).map((i) => i.url))) problems.push('No product image from the supplier — products without a real photo cannot be sold');
   if (!p.description || p.description.length < 20) problems.push('Missing description');
   const pricing = await ctx.settings.get('pricing');
   const live = (p.markets ?? []).filter((m) => m.enabled && m.price > 0);

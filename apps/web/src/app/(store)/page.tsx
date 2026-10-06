@@ -16,6 +16,7 @@ export default async function Home() {
   const [home, meta] = await Promise.all([sget<HomeData>('/home', { country }), sget<Meta>('/meta', { country })]);
   if (!home || !meta) return null;
   const hero = home.trending.filter((p) => p.available).slice(0, 3);
+  const spotlight = home.bestSellers.find((p) => p.available && p.images[0]?.url) ?? home.trending.find((p) => p.available && p.images[0]?.url);
   const welcome = home.promotions.find((p) => p.code);
   const flash = home.promotions.find((p) => !p.code && p.percent > 0);
   return (
@@ -51,15 +52,38 @@ export default async function Home() {
         <h2 id="cats" className="sr-only">Categories</h2>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {home.categories.map((c) => (
-            <Link key={c.slug} href={`/c/${c.slug}`} className={`group relative flex min-h-36 flex-col justify-between overflow-hidden rounded-xl p-4 transition-transform hover:-translate-y-0.5 sm:min-h-44 sm:p-5 ${TILE_STYLE[c.slug] ?? 'bg-sunken'}`}>
-              <span className="font-display text-2xl font-semibold sm:text-3xl">{c.name}</span>
-              <span className="text-[13px] leading-snug opacity-80 sm:text-sm">{TILE_COPY[c.slug]}<span className="mt-2 flex items-center gap-1 font-bold">{c.count} items <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" /></span></span>
+            <Link key={c.slug} href={`/c/${c.slug}`} className={`group relative flex min-h-44 flex-col justify-end overflow-hidden rounded-xl p-4 transition-transform hover:-translate-y-0.5 sm:min-h-64 sm:p-5 ${c.image ? 'bg-ink text-white' : (TILE_STYLE[c.slug] ?? 'bg-sunken')}`}>
+              {c.image && (
+                <>
+                  <img src={c.image} alt={c.imageAlt ?? c.name} referrerPolicy="no-referrer" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" aria-hidden />
+                </>
+              )}
+              <span className="relative font-display text-2xl font-semibold sm:text-3xl">{c.name}</span>
+              <span className="relative text-[13px] leading-snug opacity-90 sm:text-sm">{TILE_COPY[c.slug]}<span className="mt-2 flex items-center gap-1 font-bold">{c.count} items <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" /></span></span>
             </Link>
           ))}
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pt-14"><SectionHeader title="Trending now" subtitle={`What shoppers in ${meta.countries.find((c) => c.code === country)?.name} are adding to cart`} href="/c/trending" /><ProductShelf products={home.trending} /></section>
+
+
+      {spotlight && (
+        <section className="mx-auto max-w-7xl px-4 pt-14" aria-labelledby="spot">
+          <div className="grid overflow-hidden rounded-2xl border border-line bg-surface shadow-card md:grid-cols-2">
+            <Link href={`/p/${spotlight.slug}`} className="group relative block aspect-[4/3] md:aspect-auto md:min-h-96"><ProductArt src={spotlight.images[0]?.url} alt={spotlight.title} className="absolute inset-0 !aspect-auto size-full" /></Link>
+            <div className="flex flex-col justify-center gap-4 p-6 sm:p-10">
+              <Badge tone="saffron" className="w-fit">Customer favourite</Badge>
+              <h2 id="spot" className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{spotlight.title}</h2>
+              <Rating value={spotlight.rating.avg} count={spotlight.rating.count} />
+              <PriceDisplay price={spotlight.price} compareAt={spotlight.compareAtPrice} currency={spotlight.currency} size="lg" />
+              <p className="text-ink-2">{spotlight.minDays && spotlight.maxDays ? `Arrives in ${spotlight.minDays + 1}–${spotlight.maxDays + 1} days with tracking. ` : ''}Photos shown are the supplier’s own product images.</p>
+              <div><Button size="lg" href={`/p/${spotlight.slug}`}>View product <ArrowRight className="size-4" /></Button></div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {(flash || welcome) && (
         <section className="mx-auto max-w-7xl px-4 pt-14" aria-label="Offers">

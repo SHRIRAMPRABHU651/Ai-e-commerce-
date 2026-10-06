@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Category, Product, ProductVariant, Promotion, Review } from '@orvia/database';
 import {
   bestSellers, countryTrending, deals, frequentlyBoughtTogether, getCountry, getCountryConfigs, listReviews, newArrivals, recentlyViewed, recommendedForYou,
-  searchProducts, similar, suggest, toStoreProduct, trackEvent, trending, DomainError, isSellable,
+  searchProducts, similar, suggest, toStoreProduct, trackEvent, trending, DomainError, isSellable, listableImageFilter,
 } from '@orvia/core';
 import { estimateDelivery } from '@orvia/shipping';
 import { countrySchema, objectId, paginationSchema, searchQuerySchema, slugify, CATEGORY_TREE } from '@orvia/types';
@@ -44,7 +44,11 @@ export function publicRoutes(app: FastifyInstance, ctx: Ctx): void {
       const [trendingNow, forYou, dealsList, fresh, best, local, recents] = await Promise.all([
         trending(c, 8), recommendedForYou({ country: c, userId: req.user?.id, viewedIds: viewed }, 8), deals(c, 8), newArrivals(c, 8), bestSellers(c, 8), countryTrending(c, 8), recentlyViewed(viewed, c),
       ]);
-      const cats = await Product.aggregate<{ _id: string; n: number }>([{ $match: { state: { $in: ['PUBLISHED', 'TESTING', 'WINNER', 'SCALING', 'DECLINING'] }, 'markets.country': c } }, { $group: { _id: '$topCategory', n: { $sum: 1 } } }]);
+      const cats = await Product.aggregate<{ _id: string; n: number; image?: string; title?: string; slug?: string }>([
+        { $match: { state: { $in: ['PUBLISHED', 'TESTING', 'WINNER', 'SCALING', 'DECLINING'] }, 'markets.country': c, ...listableImageFilter() } },
+        { $sort: { 'stats.trendScore': -1, createdAt: -1 } },
+        { $group: { _id: '$topCategory', n: { $sum: 1 }, image: { $first: { $arrayElemAt: ['$images.url', 0] } }, title: { $first: '$title' }, slug: { $first: '$slug' } } },
+      ]);
       const cfg = await getCountry(c);
       const now = new Date();
       const promos = await Promotion.find({ public: true, active: true, $and: [{ $or: [{ startsAt: null }, { startsAt: { $lte: now } }] }, { $or: [{ endsAt: null }, { endsAt: { $gte: now } }] }, { $or: [{ countries: { $size: 0 } }, { countries: c }] }] }).limit(4).select('name type percent code endsAt').lean();
@@ -54,7 +58,7 @@ export function publicRoutes(app: FastifyInstance, ctx: Ctx): void {
         testimonials: topReviews.map((r) => ({ rating: r.rating, title: r.title ?? '', body: r.body ?? '', authorName: r.authorName ?? 'Customer', product: rp.get(String(r.productId)) ?? '', verifiedPurchase: true })),
         promotions: promos.map((p) => ({ id: String(p._id), name: p.name, type: p.type, percent: p.percent, code: p.code ?? undefined, endsAt: p.endsAt })),
         country: c, currency: cfg.currency, trending: trendingNow, recommended: forYou, deals: dealsList, newArrivals: fresh, bestSellers: best, countryTrending: local, recentlyViewed: recents,
-        categories: CATEGORY_TREE.filter((t) => !('dynamic' in t && t.dynamic)).map((t) => ({ slug: t.slug, name: t.name, count: cats.find((x) => x._id === t.slug)?.n ?? 0 })),
+        categories: CATEGORY_TREE.filter((t) => !('dynamic' in t && t.dynamic)).map((t) => { const x = cats.find((y) => y._id === t.slug); return { slug: t.slug, name: t.name, count: x?.n ?? 0, image: x?.image, imageAlt: x?.title }; }),
       };
     },
   });

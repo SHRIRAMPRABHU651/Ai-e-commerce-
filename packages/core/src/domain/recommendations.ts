@@ -1,3 +1,4 @@
+import { listableImageFilter } from './images';
 import { AnalyticsEvent, Order, Product } from '@orvia/database';
 import { SELLABLE_STATES } from '@orvia/types';
 import type { CountryCode } from '@orvia/types';
@@ -12,7 +13,7 @@ export interface RecContext {
   viewedIds?: string[];
 }
 
-const baseFilter = (country: CountryCode, extra: Record<string, unknown> = {}) => ({ state: { $in: SELLABLE_STATES }, markets: { $elemMatch: { country, enabled: true, price: { $gt: 0 }, stock: { $gt: 0 } } }, ...extra });
+const baseFilter = (country: CountryCode, extra: Record<string, unknown> = {}) => ({ state: { $in: SELLABLE_STATES }, ...listableImageFilter(), markets: { $elemMatch: { country, enabled: true, price: { $gt: 0 }, stock: { $gt: 0 } } }, ...extra });
 const project = (rows: Awaited<ReturnType<typeof Product.find>>, country: CountryCode): StoreProduct[] => (rows as never as Parameters<typeof toStoreProduct>[0][]).map((p) => toStoreProduct(p, country));
 
 export async function trending(country: CountryCode, limit = 12, category?: string) {
@@ -62,7 +63,7 @@ export async function recommendedForYou(ctx: RecContext, limit = 12) {
 }
 export async function recentlyViewed(ids: string[], country: CountryCode) {
   if (!ids.length) return [];
-  const rows = await Product.find({ _id: { $in: ids.slice(0, 12) }, state: { $in: SELLABLE_STATES } }).lean();
+  const rows = await Product.find({ _id: { $in: ids.slice(0, 12) }, state: { $in: SELLABLE_STATES }, ...listableImageFilter() }).lean();
   const order = new Map(ids.map((id, i) => [id, i]));
   return project(rows.sort((a, b) => order.get(String(a._id))! - order.get(String(b._id))!) as never, country);
 }

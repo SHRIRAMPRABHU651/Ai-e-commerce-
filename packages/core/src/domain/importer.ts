@@ -1,3 +1,4 @@
+import { usableImages } from './images';
 import { Product, ProductScore, ProductVariant, Supplier, SupplierProduct } from '@orvia/database';
 import { scoreOpportunity } from '@orvia/analytics';
 import { MOCK_MARKET_SIGNALS } from '@orvia/suppliers';
@@ -95,7 +96,7 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
     faqs: content.faqs,
     seo: { title: content.seoTitle, metaDescription: content.metaDescription, keywords: content.keywords },
     social: { instagram: content.social.instagram, tiktokScript: content.social.tiktokScript, facebookAd: content.social.facebookAd },
-    images: sp.images.map((url, i) => ({ url, alt: `${sp.title} — image ${i + 1}` })),
+    images: usableImages(sp.images).map((url, i) => ({ url, alt: `${sp.title} — image ${i + 1}` })),
     videos: sp.videos.map((url) => ({ url, licensed: true })),
     category,
     topCategory,
@@ -122,7 +123,7 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
     { upsert: true },
   );
   await ProductVariant.insertMany(
-    sp.variants.map((v) => ({ productId: product._id, sku: `${slug}-${slugify(v.label)}`.toUpperCase().slice(0, 60), options: v.options, label: v.label, supplierSku: v.sku, image: sp.images[0] })),
+    sp.variants.map((v) => ({ productId: product._id, sku: `${slug}-${slugify(v.label)}`.toUpperCase().slice(0, 60), options: v.options, label: v.label, supplierSku: v.sku, image: usableImages([v.image, ...sp.images])[0] })),
     { ordered: false },
   ).catch(() => undefined);
   await transitionProduct(ctx, pid, 'ANALYZING', actor, 'compliance and economics analysis');

@@ -22,6 +22,8 @@ export interface SupplierVariant {
   sku: string;
   label: string;
   options: Record<string, string>;
+  /** Variant-specific photo from the supplier, when it provides one. */
+  image?: string;
 }
 
 export interface SearchParams {

@@ -22,7 +22,7 @@ export interface CartView {
 export interface User { id: string; email: string; name: string; role: string; emailVerified: boolean }
 export interface HomeData {
   country: string; currency: string; trending: StoreProduct[]; recommended: StoreProduct[]; deals: StoreProduct[]; newArrivals: StoreProduct[]; bestSellers: StoreProduct[]; countryTrending: StoreProduct[]; recentlyViewed: StoreProduct[];
-  categories: { slug: string; name: string; count: number }[]; testimonials: { rating: number; title: string; body: string; authorName: string; product: string; verifiedPurchase: boolean }[]; promotions: { id: string; name: string; type: string; percent: number; code?: string }[];
+  categories: { slug: string; name: string; count: number; image?: string; imageAlt?: string }[]; testimonials: { rating: number; title: string; body: string; authorName: string; product: string; verifiedPurchase: boolean }[]; promotions: { id: string; name: string; type: string; percent: number; code?: string }[];
 }
 export interface ProductPage {
   product: StoreProduct; variants: { sku: string; label: string; options: Record<string, string>; image?: string }[]; delivery: { label: string } | null; shipsFrom: string | null; availableIn: string[]; paymentMethods: string[]; legalNotice: string;

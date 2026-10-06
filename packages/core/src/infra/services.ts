@@ -1,3 +1,4 @@
+import { setImagePolicy } from '../domain/images';
 import { AdsRegistry } from '@orvia/ads';
 import { AIService } from '@orvia/ai';
 import { createLogger, integrationStatus, loadConfig } from '@orvia/config';
@@ -22,6 +23,8 @@ export function buildCtx(o: BuildOptions): Ctx {
   const cfg = o.cfg ?? loadConfig();
   const log = o.log ?? createLogger({ level: cfg.LOG_LEVEL, service: o.service });
   const kv = new MongoKVStore();
+  // demo art stands in for supplier photos only with the mock supplier outside production
+  setImagePolicy({ allowDemoArt: cfg.SUPPLIER_MODE === 'mock' && !cfg.isProduction });
   const ctx: Ctx = {
     cfg,
     log,

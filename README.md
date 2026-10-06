@@ -2,7 +2,7 @@
 
 Orvia is a complete storefront **and** an operations console ("commerce OS") for a multi-country dropshipping business (US, Canada, India — extensible). It runs the repeatable work — sourcing, content, pricing, order routing, tracking, support, ad rules, reporting — automatically, and escalates the genuinely ambiguous cases to a human exception queue.
 
-> **Status — read this first.** Everything in this repo builds and passes its automated checks (lint, typecheck, 112 unit/integration/failure/security tests, 42 Playwright desktop+mobile E2E tests). It runs end-to-end **against mock providers** (supplier, payments, ads, notifications) that are refused in production. The live adapters (CJ Dropshipping, Stripe, Razorpay, Meta/TikTok/Google Ads, Resend, Twilio, Gemini) are written against the vendors' public docs but **have not been exercised against live sandbox accounts** from this repo. Treat them as "implemented, needs staging verification" — see [docs/LIMITATIONS.md](docs/LIMITATIONS.md). Do not take real money before completing the [launch checklist](docs/OPERATIONS.md#launch-checklist).
+> **Status — read this first.** Everything in this repo builds and passes its automated checks (lint, typecheck, 115 unit/integration/failure/security tests, 42 Playwright desktop+mobile E2E tests). It runs end-to-end **against mock providers** (supplier, payments, ads, notifications) that are refused in production. The live adapters (CJ Dropshipping, Stripe, Razorpay, Meta/TikTok/Google Ads, Resend, Twilio, Gemini) are written against the vendors' public docs but **have not been exercised against live sandbox accounts** from this repo. Treat them as "implemented, needs staging verification" — see [docs/LIMITATIONS.md](docs/LIMITATIONS.md). Do not take real money before completing the [launch checklist](docs/OPERATIONS.md#launch-checklist).
 
 ## Quick start (no Docker needed)
 
@@ -27,7 +27,7 @@ Place a test order: add anything to the cart → checkout → "Pay now" (the moc
 |---|---|
 | `npm run dev` | whole stack with hot reload |
 | `npm run build` | production bundles (api, worker, web) |
-| `npm test` | 112 unit/integration/failure/security tests (in-memory Mongo) |
+| `npm test` | 115 unit/integration/failure/security tests (in-memory Mongo) |
 | `npm run e2e` | 42 Playwright tests, desktop + mobile: full purchase→delivery journey, responsive/a11y on every key page (builds if needed) |
 | `npm run lint` / `typecheck` | eslint (zero warnings) / tsc everywhere |
 | `npm run seed` / `migrate` / `worker` | demo data / indexes / worker only |

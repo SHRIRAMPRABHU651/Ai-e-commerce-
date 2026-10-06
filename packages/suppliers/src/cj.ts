@@ -35,6 +35,25 @@ interface CjEnvelope<T> {
 
 const toMinorUsd = (v: unknown): number => Math.round(Number(v ?? 0) * 100);
 
+/** Collect product photos from every field CJ uses (single URL, JSON-encoded array, or array), https only, deduped. */
+export function extractImages(d: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const add = (v: unknown): void => {
+    if (Array.isArray(v)) return v.forEach(add);
+    if (typeof v !== 'string') return;
+    const t = v.trim();
+    if (t.startsWith('[')) {
+      try { return add(JSON.parse(t)); } catch { return; }
+    }
+    if (/^https?:\/\//i.test(t) && !out.includes(t)) out.push(t.replace(/^http:\/\//i, 'https://'));
+  };
+  add(d['productImageSet']);
+  add(d['productImage']);
+  add(d['bigImage']);
+  add(d['image']);
+  return out;
+}
+
 export class CjDropshippingProvider implements SupplierProvider {
   readonly key = 'cj';
   private token?: { value: string; expiresAt: number };
@@ -80,9 +99,7 @@ export class CjDropshippingProvider implements SupplierProvider {
   }
 
   private mapProduct(d: Record<string, unknown>): SupplierProductSummary {
-    const images = String(d['productImage'] ?? '').startsWith('[')
-      ? (JSON.parse(String(d['productImage'])) as string[])
-      : [String(d['productImage'] ?? d['bigImage'] ?? '')].filter(Boolean);
+    const images = extractImages(d);
     const cost = String(d['sellPrice'] ?? '0').split('--')[0];
     return {
       externalId: String(d['pid'] ?? d['id']),
@@ -126,6 +143,7 @@ export class CjDropshippingProvider implements SupplierProvider {
       sku: String(v['vid']),
       label: String(v['variantNameEn'] ?? v['variantKey'] ?? v['vid']),
       options: { Option: String(v['variantKey'] ?? '') },
+      image: extractImages({ image: v['variantImage'] })[0],
     }));
   }
 

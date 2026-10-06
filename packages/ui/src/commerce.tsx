@@ -12,7 +12,7 @@ export function ProductArt({ src, alt, className, priority }: { src?: string; al
   return (
     <div className={cn('relative aspect-square overflow-hidden bg-sunken', className)}>
       {src && !failed ? (
-        <img src={src} alt={alt} loading={priority ? 'eager' : 'lazy'} decoding="async" onError={() => setFailed(true)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+        <img src={src} alt={alt} loading={priority ? 'eager' : 'lazy'} decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
       ) : (
         <div className="grid size-full place-items-center text-ink-3" role="img" aria-label={alt}><Sparkles className="size-8 opacity-40" /></div>
       )}
