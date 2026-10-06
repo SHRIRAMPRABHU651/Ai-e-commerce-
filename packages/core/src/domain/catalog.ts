@@ -1,5 +1,6 @@
 import { Product, ProductVariant, Category } from '@orvia/database';
 import { effectiveImages, hasUsableImage } from './images';
+import { claimViolations } from './organic';
 import { CATEGORY_TREE, PRODUCT_TRANSITIONS, SELLABLE_STATES, slugify } from '@orvia/types';
 import type { CountryCode, ProductState } from '@orvia/types';
 import { audit } from '../infra/audit';
@@ -60,6 +61,8 @@ export async function canPublish(ctx: Ctx, productId: string): Promise<PublishCh
   if (p.compliance?.status !== 'passed') problems.push(`Compliance status is "${p.compliance?.status ?? 'pending'}"`);
   if (!hasUsableImage((p.images ?? []).map((i) => i.url)) && !(p.markets ?? []).some((m) => m.enabled && hasUsableImage(m.images))) problems.push('No product image from the supplier — products without a real photo cannot be sold');
   if (!p.description || p.description.length < 20) problems.push('Missing description');
+  const violations = claimViolations(p as never);
+  if (violations.length) problems.push(`Unverified claim${violations.length > 1 ? 's' : ''} in the listing (${[...new Set(violations.map((v) => `"${v.match.toLowerCase()}" in ${v.field}`))].slice(0, 4).join(', ')}) — add verified certification evidence or remove the wording`);
   const pricing = await ctx.settings.get('pricing');
   const live = (p.markets ?? []).filter((m) => m.enabled && m.price > 0);
   if (!live.length) problems.push('No priced market');

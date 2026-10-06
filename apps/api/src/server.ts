@@ -12,6 +12,7 @@ import { shopRoutes } from './routes/shop';
 import { systemRoutes } from './routes/system';
 import { mediaRoutes } from './routes/media';
 import { marketRoutes } from './routes/market';
+import { launchRoutes } from './routes/launch';
 import multipart from '@fastify/multipart';
 
 export interface ServerOptions {
@@ -33,6 +34,7 @@ export async function buildServer(ctx: Ctx, opts: ServerOptions = {}): Promise<F
   adminOpsRoutes(app, ctx);
   mediaRoutes(app, ctx);
   marketRoutes(app, ctx);
+  launchRoutes(app, ctx);
   await app.ready();
   return app;
 }

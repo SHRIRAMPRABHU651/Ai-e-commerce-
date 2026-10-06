@@ -1,5 +1,5 @@
 'use client';
-import { TrendingUp, Activity, AlertTriangle, BarChart3, Bell, Bot, Boxes, Cpu, CreditCard, FileClock, Globe, Headset, LayoutDashboard, LogOut, Megaphone, Menu, Moon, MousePointerClick, Package, RotateCcw, Settings, ShoppingBag, Star, Sun, Tag, Truck, Users, Warehouse, Layers, Store } from 'lucide-react';
+import { TrendingUp, ShieldCheck, Activity, AlertTriangle, BarChart3, Bell, Bot, Boxes, Cpu, CreditCard, FileClock, Globe, Headset, LayoutDashboard, LogOut, Megaphone, Menu, Moon, MousePointerClick, Package, RotateCcw, Settings, ShoppingBag, Star, Sun, Tag, Truck, Users, Warehouse, Layers, Store } from 'lucide-react';
 import NextLink from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
@@ -22,6 +22,7 @@ const NAV: { group: string; items: { href: string; label: string; icon: typeof P
   ] },
   { group: 'Grow', items: [
     { href: '/admin/market', label: 'Market intel', icon: TrendingUp, perm: 'market:read' },
+    { href: '/admin/launch-readiness', label: 'Launch readiness', icon: ShieldCheck, perm: 'launch:read' },
     { href: '/admin/marketing', label: 'Marketing', icon: Megaphone, perm: 'marketing:read' },
     { href: '/admin/ads', label: 'Ads', icon: MousePointerClick, perm: 'ads:read' },
     { href: '/admin/promotions', label: 'Promotions', icon: Tag, perm: 'promotions:read' },

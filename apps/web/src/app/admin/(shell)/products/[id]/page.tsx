@@ -5,6 +5,7 @@ import { Badge, Button, Card, Field, Input, Modal, ProductArt, Select, StatusBad
 import { ErrorBox, Loading, PageHeader, Panel, cur, pctf, useAction, useAdmin, useFetch, when } from '@/components/admin/kit';
 import { api } from '@/lib/api';
 import { ProductImages } from '@/components/admin/product-images';
+import { ProductClaims } from '@/components/admin/product-claims';
 
 interface CmpRow { supplierId: string; supplierName: string; supplierCode: string; warehouseCountry: string; productCost: number; shippingCost: number; duties: number; landedCost: number; minDays: number; maxDays: number; stock: number; reliability: number; rating: number; expectedProfit: number; margin: number; cxScore: number; finalScore: number; eligible: boolean; ineligibleReason?: string; currency: string }
 interface Detail {
@@ -62,7 +63,7 @@ export default function ProductDetail() {
           {market && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {[['Selling price', cur(market.price, market.currency)], ['Typical elsewhere', market.compareAtPrice ? cur(market.compareAtPrice, market.currency) : '—'], ['Landed cost', cur(market.landedCost, market.currency)], ['Expected margin', pctf(market.expectedMargin)]].map(([k, v]) => <Card key={k} className="p-4"><p className="text-xs font-semibold text-ink-3">{k}</p><p className="mt-1 text-xl font-bold tabular-nums">{v}</p></Card>)}
           </div>}
-          <Tabs tabs={[{ id: 'suppliers', label: 'Supplier comparison' }, { id: 'economics', label: 'Unit economics' }, { id: 'campaigns', label: `Campaigns (${d.campaigns.length})` }, { id: 'images', label: p.imageStatus === 'READY' ? 'Images' : 'Images ⚠' }, { id: 'content', label: 'Content' }]} value={tab} onChange={setTab} />
+          <Tabs tabs={[{ id: 'suppliers', label: 'Supplier comparison' }, { id: 'economics', label: 'Unit economics' }, { id: 'campaigns', label: `Campaigns (${d.campaigns.length})` }, { id: 'images', label: p.imageStatus === 'READY' ? 'Images' : 'Images ⚠' }, { id: 'claims', label: 'Claims' }, { id: 'content', label: 'Content' }]} value={tab} onChange={setTab} />
           {tab === 'suppliers' && cmp && (
             <div className="space-y-3">
               {cmp.rows.map((r, i) => (
@@ -84,6 +85,7 @@ export default function ProductDetail() {
           )}
           {tab === 'campaigns' && <Panel pad>{d.campaigns.length === 0 ? <p className="text-sm text-ink-3">No campaigns yet.</p> : <ul className="divide-y divide-line">{d.campaigns.map((c) => <li key={c._id} className="flex items-center justify-between gap-3 py-2.5 text-sm"><span>{c.name} <span className="text-ink-3">· {c.platform} · {c.country}</span></span><StatusBadge status={c.status} /></li>)}</ul>}</Panel>}
           {tab === 'images' && <ProductImages productId={id} canWrite={can('products:write')} onChange={() => void reload()} />}
+          {tab === 'claims' && <ProductClaims productId={id} canWrite={can('products:write')} organic={(p as unknown as { organic?: never }).organic} onChange={() => void reload()} />}
           {tab === 'content' && <Panel title="Listing content"><p className="text-sm leading-relaxed text-ink-2">{p.description}</p><ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-2">{p.bullets.map((b) => <li key={b}>{b}</li>)}</ul></Panel>}
           {can('products:write') && (
             <Panel title="Source from another supplier" subtitle="Use a different supplier for other countries. Photos, price and delivery for those countries then come from that supplier.">

@@ -128,6 +128,17 @@ const productSchema = new Schema({
   /** Customer-facing image projection, rebuilt from ProductAsset by syncProductImages(). */
   images: [{ _id: false, url: String, alt: String, card: String, thumb: String, zoom: String, assetId: String, source: String, license: String }],
   imageStatus: { type: String, enum: ['MISSING', 'PENDING', 'READY', 'FAILED'], default: 'MISSING', index: true },
+  /** Organic / eco / non-toxic claims are only allowed with verified evidence; supplier wording is kept here for audit. */
+  organic: {
+    sourceTitle: String,
+    removedClaims: [String],
+    evidence: [{
+      _id: false, claim: { type: String, enum: ['organic', 'non_toxic', 'eco', 'biodegradable', 'plant_based'], required: true },
+      type: { type: String, enum: ['certification', 'test_report', 'supplier_statement'], required: true },
+      body: String, certId: String, certUrl: String, sourceUrl: String, observedAt: Date, jurisdiction: [String], expiresAt: Date,
+      verified: { type: Boolean, default: false }, verifiedBy: String, verifiedAt: Date, note: String,
+    }],
+  },
   videos: [{ _id: false, url: String, licensed: Boolean }],
   category: { type: String, index: true }, // sub-category slug
   topCategory: { type: String, index: true }, // pet|kids|fashion|gadgets

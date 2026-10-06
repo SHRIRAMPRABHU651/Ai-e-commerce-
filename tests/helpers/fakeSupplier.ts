@@ -6,7 +6,7 @@ export interface FakeSupplier {
   /** "METHOD /path" of every request received (authorised or not). */
   seen: string[];
   /** let tests flip behaviour at runtime */
-  state: { failing: boolean; stock: number };
+  state: { failing: boolean; stock: number; title: string; description: string };
   start(): Promise<void>;
   stop(): Promise<void>;
   orderCount(): number;
@@ -16,14 +16,14 @@ export interface FakeSupplier {
 export function fakeSupplier(key: string, cdn: string, port: number, ship: { cost: number; min: number; max: number }): FakeSupplier {
   const orders = new Map<string, { tracking?: { number: string; carrier: string } }>();
   const seen: string[] = [];
-  const state = { failing: false, stock: 120 };
+  const state = { failing: false, stock: 120, title: 'Spiral Slow Feeder Dog Bowl', description: 'A durable bowl with a spiral maze that slows down fast eaters.' };
   const server: Server = createServer((req, res) => {
     const url = new URL(req.url!, `http://localhost:${port}`);
     seen.push(`${req.method} ${url.pathname}`);
     res.setHeader('content-type', 'application/json');
     if (req.headers.authorization !== `Bearer ${key}`) { res.statusCode = 401; return res.end('{"error":"bad key"}'); }
     if (state.failing) { res.statusCode = 503; return res.end('{"error":"down"}'); }
-    const product = (id: string) => ({ id, title: 'Spiral Slow Feeder Dog Bowl', description: 'A durable bowl with a spiral maze that slows down fast eaters.', category: 'Pet', price: 4.5, stock: state.stock, images: [`${cdn}/${id}/1.jpg`, `${cdn}/${id}/2.jpg`], shipping: { cost: ship.cost, minDays: ship.min, maxDays: ship.max } });
+    const product = (id: string) => ({ id, title: state.title, description: state.description, category: 'Pet', price: 4.5, stock: state.stock, images: [`${cdn}/${id}/1.jpg`, `${cdn}/${id}/2.jpg`], shipping: { cost: ship.cost, minDays: ship.min, maxDays: ship.max } });
     if (req.method === 'GET' && url.pathname === '/products') return res.end(JSON.stringify({ items: [product('P100')] }));
     const m = /^\/products\/(\w+)$/.exec(url.pathname);
     if (req.method === 'GET' && m) return res.end(JSON.stringify(product(m[1]!)));

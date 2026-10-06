@@ -35,3 +35,5 @@ export * from './domain/manualSupplier';
 export * from './domain/supplierOps';
 export * from './domain/reconciliation';
 export * from './market';
+export * from './domain/organic';
+export * from './domain/launch';

@@ -46,3 +46,34 @@ export function fence(label: string, text: string): string {
   const safe = text.replace(/<\/?untrusted[^>]*>/gi, '');
   return `<untrusted source="${label}">\n${safe}\n</untrusted>`;
 }
+
+/**
+ * Environmental / health-adjacent marketing claims. Each needs real, verified evidence (a certificate or test report)
+ * before it may appear in customer-facing copy. The AI may never introduce them on its own.
+ */
+export type ClaimKind = 'organic' | 'non_toxic' | 'eco' | 'biodegradable' | 'plant_based';
+export const CLAIM_PATTERNS: { kind: ClaimKind; label: string; re: RegExp }[] = [
+  { kind: 'organic', label: 'organic', re: /\b(?:100%\s*|certified\s+|usda\s+|fully\s+|all[- ])?organic(?:ally(?:\s+(?:grown|sourced))?)?\b/gi },
+  { kind: 'non_toxic', label: 'non-toxic / chemical-free', re: /\b(?:non[- ]?toxic|chemical[- ]free|toxin[- ]free|toxic[- ]free|free (?:of|from) (?:harmful )?chemicals|bpa[- ]free|phthalate[- ]free|pesticide[- ]free)\b/gi },
+  { kind: 'eco', label: 'eco-certified / sustainable', re: /\b(?:eco[- ]?certified|certified (?:sustainable|eco[- ]friendly|green)|carbon[- ]neutral|climate[- ]neutral|fair[- ]?trade|ethically sourced|sustainably (?:sourced|made|harvested))\b/gi },
+  { kind: 'biodegradable', label: 'biodegradable / compostable', re: /\b(?:biodegradable|compostable|home[- ]compostable|plastic[- ]free|zero[- ]waste)\b/gi },
+  { kind: 'plant_based', label: 'plant-based / vegan', re: /\b(?:plant[- ]based|vegan|cruelty[- ]free)\b/gi },
+];
+
+export function findEnvironmentalClaims(text: string): { kind: ClaimKind; label: string; match: string }[] {
+  const out: { kind: ClaimKind; label: string; match: string }[] = [];
+  for (const p of CLAIM_PATTERNS) for (const m of text.matchAll(new RegExp(p.re.source, 'gi'))) out.push({ kind: p.kind, label: p.label, match: m[0] });
+  return out;
+}
+
+/** Remove claim phrases that lack evidence (`allowed` kinds are left alone). Keeps the sentence readable. */
+export function stripEnvironmentalClaims(text: string, allowed: ClaimKind[] = []): { text: string; removed: string[] } {
+  const removed: string[] = [];
+  let out = text;
+  for (const p of CLAIM_PATTERNS) {
+    if (allowed.includes(p.kind)) continue;
+    out = out.replace(new RegExp(`${p.re.source}(?:\\s*[,;]\\s*)?`, 'gi'), (m) => { removed.push(m.replace(/[\s,;]+$/, '')); return ''; });
+  }
+  out = out.replace(/\s{2,}/g, ' ').replace(/\s+([,.;:!?])/g, '$1').replace(/\(\s*\)/g, '').replace(/,\s*([.;!?])/g, '$1').replace(/\s[-–—]\s*([,.;!?]|$)/g, '$1').replace(/^\s*[-–—,]\s*/, '').replace(/\s{2,}/g, ' ').trim();
+  return { text: out, removed };
+}

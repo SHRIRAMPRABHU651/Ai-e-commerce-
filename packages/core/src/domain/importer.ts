@@ -1,5 +1,6 @@
 import { providerFor } from './supplierAccess';
 import { usableImages } from './images';
+import { sanitizeCopy } from './organic';
 import { intelFromIndex } from '../market';
 import type { ResolvedIntel } from '../market';
 import { syncProductStateForImages } from './imagePipeline';
@@ -93,6 +94,20 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
   const aiContent = await ctx.ai.productContent(sourceFor(sp));
   const content = aiContent.data;
   notes.push(...aiContent.notes);
+  // "organic", "non-toxic", "eco-certified"… only with verified evidence. A new import has none, so supplier wording and AI copy are stripped of those claims.
+  const removedClaims: string[] = [];
+  const clean = (t: string): string => { const r = sanitizeCopy(t); removedClaims.push(...r.removed); return r.text; };
+  const cleanTitle = clean(sp.title) || sp.title.replace(/organic/gi, '').trim();
+  content.description = clean(content.description);
+  content.bullets = content.bullets.map(clean).filter(Boolean);
+  content.features = content.features.map(clean).filter(Boolean);
+  content.benefits = content.benefits.map(clean).filter(Boolean);
+  content.faqs = content.faqs.map((f) => ({ q: clean(f.q), a: clean(f.a) }));
+  content.seoTitle = clean(content.seoTitle);
+  content.metaDescription = clean(content.metaDescription);
+  content.keywords = content.keywords.map(clean).filter(Boolean);
+  content.social = { instagram: clean(content.social.instagram), tiktokScript: clean(content.social.tiktokScript), facebookAd: clean(content.social.facebookAd) };
+  if (removedClaims.length) notes.push(`Unverified claim(s) removed from the listing: ${[...new Set(removedClaims.map((c) => c.toLowerCase()))].join(', ')}`);
 
   const { category, topCategory } = categorySlugFor(sp.category);
   const compliance = checkCompliance({
@@ -110,7 +125,8 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
   const product = await Product.create({
     slug,
     sku: `ORV-${slugify(sp.externalId).toUpperCase().slice(0, 24)}-${Date.now().toString(36).toUpperCase()}`,
-    title: sp.title,
+    title: cleanTitle,
+    organic: { sourceTitle: sp.title, removedClaims: [...new Set(removedClaims.map((c) => c.toLowerCase()))], evidence: [] },
     description: content.description,
     bullets: content.bullets,
     features: content.features,
@@ -133,6 +149,9 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
     isDemo: ctx.cfg.APP_ENV !== 'production' && supplier.isDemo,
   });
   const pid = String(product._id);
+  if (removedClaims.length) {
+    await raiseException(ctx, { kind: 'ORGANIC_CLAIM', priority: 'low', productId: pid, issue: `The supplier markets "${sp.title}" with claim wording (${[...new Set(removedClaims.map((c) => c.toLowerCase()))].join(', ')}) that Orvia cannot verify. It was removed from the listing.`, aiRecommendation: 'If the claim is true, attach the certificate (Admin → Product → Claims) and edit the copy; otherwise leave it as is.', suggestedAction: 'Review claims', actionCode: 'review_product', dedupeKey: `claims:${pid}` });
+  }
 
   await SupplierProduct.updateOne(
     { supplierId: supplier._id, externalId: sp.externalId },

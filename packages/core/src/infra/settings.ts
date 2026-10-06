@@ -60,7 +60,28 @@ export interface MarketSettings {
   minInternalSample: number;
 }
 
+export interface LegalSettings {
+  /** Counsel/operator confirmation that the legal pages and policies were reviewed for the markets being sold in. */
+  reviewConfirmed: boolean;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  businessName: string;
+  registeredAddress: string;
+  supportEmail: string;
+  /** Operator attestations that cannot be detected from code */
+  emailDomainVerified: boolean;
+  taxRegistrations: string;
+}
+
+/** Evidence from the last verification run (`npm run verify:staging` or the Launch readiness page). */
+export interface LaunchVerification {
+  results: Record<string, { status: 'PASS' | 'WARN' | 'FAIL'; at: string; detail: string }>;
+  certification?: { at: string; commit?: string; checks: Record<string, string> };
+}
+
 export interface SettingsMap {
+  legal: LegalSettings;
+  launch: LaunchVerification;
   market: MarketSettings;
   sourcing: SourcingSettings;
   pricing: PricingSettings;
@@ -100,6 +121,8 @@ export function buildDefaults(production: boolean): SettingsMap {
     },
     sourcing: { weights: DEFAULT_RANK_WEIGHTS, staleAfterMinutes: 360, manualOfferTtlHours: 72, failingAfterChecks: 3 },
     market: { weights: { recency: 0.2, velocity: 0.25, crossSource: 0.15, mentionGrowth: 0.15, searchGrowth: 0.1, availability: 0.05, priceMomentum: 0.05, internalConversion: 0.05 }, minConfidence: 0.35, priceStaleDays: 14, minInternalSample: 10 },
+    legal: { reviewConfirmed: false, businessName: '', registeredAddress: '', supportEmail: '', emailDomainVerified: false, taxRegistrations: '' },
+    launch: { results: {} },
     ads: DEFAULT_AD_RULES,
     automation: { modes: defaultAutomationModes(production), autoRefundLimitUsd: 5000 },
     ops: {

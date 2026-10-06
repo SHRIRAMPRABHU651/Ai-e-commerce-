@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AuditLog, Customer, ExceptionModel, Inventory, Order, Payment, Product, Refund, Shipment, Supplier, SupplierOffer, SupplierProduct, ProductScore, Campaign, AiDecision, Warehouse } from '@orvia/database';
 import {
-  automationReadiness, fulfillmentModeOf, recordManualFulfillment, runSupplierTest, setFulfillmentMode, setManualOffer, getCountryConfigs, servesCountry, usableImages, changeSupplier, cancelOrder, compareSuppliers, DomainError, importProduct, providerFor, sealCredentials, insights, financials, notFound, notify, parseRange, productPerformance, publishProduct, refreshProductMarkets,
+  addClaimEvidence, claimViolations, removeClaimEvidence, automationReadiness, fulfillmentModeOf, recordManualFulfillment, runSupplierTest, setFulfillmentMode, setManualOffer, getCountryConfigs, servesCountry, usableImages, changeSupplier, cancelOrder, compareSuppliers, DomainError, importProduct, providerFor, sealCredentials, insights, financials, notFound, notify, parseRange, productPerformance, publishProduct, refreshProductMarkets,
   refundOrder, retrySupplierOrder, countryAnalytics, liveStats, setManualPrice, supplierHealth, syncInventory, syncProductOffers, timeseries, transitionProduct, createTestPlan, planMarket, automationOverview, scoreProduct, invalidateSearchIndex, launchCampaign,
 } from '@orvia/core';
 import { PLANNED_PROVIDERS, PROVIDER_DEFINITIONS, SUPPLIER_TEST_KINDS, capabilitiesForSupplier, restSupplierConfigSchema } from '@orvia/suppliers';
@@ -154,6 +154,11 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
       if (body.description !== undefined) p.description = body.description;
       if (body.bullets) p.bullets = body.bullets;
       if (body.tags) p.tags = body.tags;
+      // editing text must not smuggle in an unverified organic/eco/non-toxic claim
+      if (body.title || body.description !== undefined || body.bullets) {
+        const bad = claimViolations({ title: body.title ?? p.title, description: body.description ?? p.description ?? '', bullets: body.bullets ?? p.bullets, organic: p.organic as never, markets: p.markets as never });
+        if (bad.length && ['PUBLISHED', 'TESTING', 'WINNER', 'SCALING', 'DECLINING'].includes(p.state)) throw new DomainError(`Unverified claim${bad.length > 1 ? 's' : ''}: ${[...new Set(bad.map((b) => `"${b.match}"`))].join(', ')}. Add verified certification evidence first (Product → Claims).`, 'VALIDATION', 422, bad);
+      }
       if (body.pricingStrategy) p.pricingConfig = { ...(p.pricingConfig as object), strategy: body.pricingStrategy, targetMarginPct: body.targetMarginPct ?? p.pricingConfig?.targetMarginPct ?? 0.4 } as never;
       else if (body.targetMarginPct) p.pricingConfig = { ...(p.pricingConfig as object), targetMarginPct: body.targetMarginPct } as never;
       await p.save();
@@ -295,6 +300,19 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
     method: 'POST', url: '/admin/orders/:id/manual-fulfillment', summary: 'Record a supplier order placed by hand (manual/assisted suppliers)', tags: ['Admin'], auth: A, permission: 'orders:write',
     body: z.object({ supplierId: objectId, supplierOrderId: z.string().min(1).max(120), trackingNumber: z.string().max(120).optional(), carrier: z.string().max(80).optional(), lineKey: z.string().max(80).optional() }),
     handler: async ({ req, body }) => recordManualFulfillment(ctx, idOf(req), body, req.actor),
+  });
+  route(app, ctx, {
+    method: 'POST', url: '/admin/products/:id/claim-evidence', summary: 'Attach evidence for an organic / eco / non-toxic claim', tags: ['Admin'], auth: A, permission: 'products:write',
+    body: z.object({
+      claim: z.enum(['organic', 'non_toxic', 'eco', 'biodegradable', 'plant_based']), type: z.enum(['certification', 'test_report', 'supplier_statement']),
+      body: z.string().max(120).optional(), certId: z.string().max(120).optional(), certUrl: z.string().url().max(500).optional(), sourceUrl: z.string().url().max(500).optional(),
+      jurisdiction: z.array(z.enum(['US', 'CA', 'IN', 'EU', 'GLOBAL'])).max(6).default([]), expiresAt: z.string().datetime().optional(), verified: z.boolean().default(false), note: z.string().max(300).optional(),
+    }),
+    handler: async ({ req, body, reply }) => { await addClaimEvidence(ctx, idOf(req), { ...body, expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined }, req.actor); invalidateSearchIndex(); return reply.status(201).send({ ok: true }); },
+  });
+  route(app, ctx, {
+    method: 'DELETE', url: '/admin/products/:id/claim-evidence/:index', summary: 'Remove claim evidence', tags: ['Admin'], auth: A, permission: 'products:write',
+    handler: async ({ req }) => { await removeClaimEvidence(ctx, idOf(req), Number((req.params as { index: string }).index), req.actor); invalidateSearchIndex(); return { ok: true }; },
   });
   route(app, ctx, {
     method: 'POST', url: '/admin/products/:id/link-supplier', summary: 'Source an existing product from another supplier (e.g. a different country)', tags: ['Admin'], auth: A, permission: 'products:write',
