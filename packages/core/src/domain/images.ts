@@ -26,5 +26,14 @@ export const hasUsableImage = (urls: unknown[] | undefined | null): boolean => u
 
 /** Mongo filter fragment: the first image must be usable. Spread into listing queries. */
 export function listableImageFilter(): Record<string, unknown> {
-  return { 'images.0.url': allowDemoArt ? { $regex: '^(https?://|/art/)' } : { $regex: '^https?://' } };
+  const rx = { $regex: allowDemoArt ? '^(https?://|/art/)' : '^https?://' };
+  return { $or: [{ 'images.0.url': rx }, { 'markets.images.0': rx }] };
+}
+
+/** Photos to show for a country: the serving supplier's own images when known, else the product's primary images. */
+export function effectiveImages(p: { images?: { url?: string | null; alt?: string | null }[] | null; markets?: { country: string; images?: string[] | null }[] | null; title?: string }, country: string): { url: string; alt?: string }[] {
+  const m = usableImages((p.markets ?? []).find((x) => x.country === country)?.images ?? []);
+  if (m.length) return m.map((url, i) => ({ url, alt: `${p.title ?? 'Product'} — image ${i + 1}` }));
+  const own = usableImages((p.images ?? []).map((i) => i.url));
+  return (p.images ?? []).filter((i) => own.includes(i.url ?? '')).map((i) => ({ url: i.url ?? '', alt: i.alt ?? undefined }));
 }

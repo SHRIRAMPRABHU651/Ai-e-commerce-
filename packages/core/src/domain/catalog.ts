@@ -1,5 +1,5 @@
 import { Product, ProductVariant, Category } from '@orvia/database';
-import { hasUsableImage } from './images';
+import { effectiveImages, hasUsableImage } from './images';
 import { CATEGORY_TREE, PRODUCT_TRANSITIONS, SELLABLE_STATES, slugify } from '@orvia/types';
 import type { CountryCode, ProductState } from '@orvia/types';
 import { audit } from '../infra/audit';
@@ -58,7 +58,7 @@ export async function canPublish(ctx: Ctx, productId: string): Promise<PublishCh
   if (!p) throw notFound('Product');
   const problems: string[] = [];
   if (p.compliance?.status !== 'passed') problems.push(`Compliance status is "${p.compliance?.status ?? 'pending'}"`);
-  if (!hasUsableImage((p.images ?? []).map((i) => i.url))) problems.push('No product image from the supplier — products without a real photo cannot be sold');
+  if (!hasUsableImage((p.images ?? []).map((i) => i.url)) && !(p.markets ?? []).some((m) => m.enabled && hasUsableImage(m.images))) problems.push('No product image from the supplier — products without a real photo cannot be sold');
   if (!p.description || p.description.length < 20) problems.push('Missing description');
   const pricing = await ctx.settings.get('pricing');
   const live = (p.markets ?? []).filter((m) => m.enabled && m.price > 0);
@@ -128,7 +128,8 @@ type LeanProduct = Awaited<ReturnType<typeof loadLeanProduct>>;
 /** Customer-facing projection for a country. Never exposes cost, supplier or margin data. */
 export function toStoreProduct(p: NonNullable<LeanProduct>, country: CountryCode, returnWindowDays?: number): StoreProduct {
   const m = (p.markets ?? []).find((x) => x.country === country && x.enabled);
-  const available = !!m && m.price > 0 && (m.stock ?? 0) > 0 && isSellable(p.state);
+  const imgs = effectiveImages(p as never, country);
+  const available = !!m && m.price > 0 && (m.stock ?? 0) > 0 && isSellable(p.state) && imgs.length > 0;
   const attrs = p.attributes ? Object.fromEntries(Object.entries(p.attributes as unknown as Record<string, string>)) : {};
   return {
     id: String(p._id),
@@ -140,7 +141,7 @@ export function toStoreProduct(p: NonNullable<LeanProduct>, country: CountryCode
     features: p.features ?? [],
     benefits: p.benefits ?? [],
     faqs: (p.faqs ?? []).map((f) => ({ q: f.q ?? '', a: f.a ?? '' })),
-    images: (p.images ?? []).map((i) => ({ url: i.url ?? '', alt: i.alt ?? undefined })),
+    images: imgs,
     category: p.category ?? '',
     topCategory: p.topCategory ?? '',
     attributes: attrs,

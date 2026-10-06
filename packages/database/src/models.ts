@@ -107,6 +107,8 @@ const marketSchema = new Schema(
     minDays: Number,
     maxDays: Number,
     stock: { type: Number, default: 0 },
+    /** Photos from the supplier that serves this country (set when the market is refreshed); falls back to product.images. */
+    images: [String],
   },
   { _id: false },
 );
@@ -185,6 +187,12 @@ const supplierSchema = new Schema({
   provider: { type: String, required: true }, // adapter key: mock | cj | ...
   country: COUNTRY,
   servesCountries: [String],
+  /** Lower number = preferred when several suppliers can serve the same country at similar value. */
+  priority: { type: Number, default: 100 },
+  /** AES-GCM encrypted JSON of credentials ({apiKey, apiSecret}); never returned by the API. */
+  credentialsEnc: { type: String, select: false },
+  /** Non-secret adapter mapping (used by the configurable "rest" provider). */
+  config: Mixed,
   rating: { type: Number, default: 4, min: 0, max: 5 },
   reliability: { type: Number, default: 80, min: 0, max: 100 },
   returnPolicyDays: { type: Number, default: 14 },

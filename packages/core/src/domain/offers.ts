@@ -1,3 +1,4 @@
+import { providerFor, servesCountry } from './supplierAccess';
 import { Product, Supplier, SupplierOffer, SupplierProduct } from '@orvia/database';
 import { fetchLiveOffer } from '@orvia/suppliers';
 import type { LiveOffer } from '@orvia/suppliers';
@@ -29,7 +30,7 @@ export async function syncProductOffers(ctx: Ctx, productId: string): Promise<Of
     if (!supplier || !supplier.active) continue;
     let provider;
     try {
-      provider = ctx.suppliers.resolve({ provider: supplier.provider, code: supplier.code });
+      provider = await providerFor(ctx, supplier);
     } catch (e) {
       supplier.apiStatus = 'unconfigured';
       supplier.apiStatusMessage = (e as Error).message;
@@ -39,6 +40,7 @@ export async function syncProductOffers(ctx: Ctx, productId: string): Promise<Of
     }
     let supplierOk = true;
     for (const c of countries) {
+      if (!servesCountry(supplier, c.code)) continue; // this supplier doesn't serve that country
       let live: LiveOffer;
       try {
         live = await fetchLiveOffer(provider, link.externalId, c.code, 1, link.variants?.[0]?.sku ?? undefined);
@@ -204,9 +206,9 @@ export async function selectSupplierLive(
   for (const link of links) {
     if (p.excludeSupplierIds?.includes(String(link.supplierId))) continue;
     const s = await Supplier.findById(link.supplierId).lean();
-    if (!s || !s.active) continue;
+    if (!s || !s.active || !servesCountry(s, p.country)) continue;
     try {
-      const provider = ctx.suppliers.resolve({ provider: s.provider, code: s.code });
+      const provider = await providerFor(ctx, s);
       const sku = link.variants?.[0]?.sku ?? undefined;
       const live = await fetchLiveOffer(provider, link.externalId, p.country, p.quantity, sku);
       // convert into the market currency if the supplier quoted otherwise

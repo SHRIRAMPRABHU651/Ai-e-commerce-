@@ -3,10 +3,19 @@
 ## Interface (`packages/suppliers/src/types.ts`)
 `SupplierProvider`: `searchProducts`, `getProduct`, `getOffer` (price, stock, shipping options per destination country, handling/delivery estimates), `createOrder` (idempotent), `getOrder`/`getTracking`, `cancelOrder`. Errors are `ProviderError` with `retryable` set — transient (timeout, 5xx, 429) retry with backoff; permanent (invalid SKU, out of stock) do not.
 
+## One supplier per country (or several)
+Nothing in the platform depends on a single supplier. Every supplier record carries its **own** API key (encrypted at rest with `ENCRYPTION_KEY`), the **countries it ships to**, a priority, and (for the `rest` adapter) its own API mapping. Typical setup: a US/Canada supplier for `US, CA` and a different one for `IN`.
+- **Add** suppliers in *Admin → Suppliers*; the coverage cards show which suppliers serve each country and warn when a country has none (nothing sells there).
+- **Source a product per country:** import it from one supplier, then *Product → Source from another supplier* and enter that supplier's own product id. Each country then uses the offers, price, delivery estimate and **photos** of the supplier that serves it (`markets[].images`).
+- **Routing:** price sync and live selection only consider suppliers that serve the destination; the best expected-profit + experience offer wins, and the order is sent with *that* supplier's key and *that* supplier's variant id (matched by id, then label, then the only variant).
+- Verified by `tests/integration/multi-supplier.test.ts` (two independent fake supplier APIs: keys, countries, photos, order routing).
+- `CJ_API_KEY` in the environment is only a fallback for a `cj` supplier with no key of its own.
+
 ## Adapters
 | Adapter | Mode | Status |
 |---|---|---|
 | `MockSupplierProvider` | `SUPPLIER_MODE=mock` (dev/test only) | 43 demo products (3 deliberately non-compliant to prove filtering), deterministic stock/price/tracking, fault + override injection routes under `/dev/*` |
+| `RestSupplierProvider` (`rest`) | any | **Configurable adapter for any JSON/HTTP supplier**: describe endpoints (search, product, quote, create order, order status) and field paths in the supplier's *API mapping* (starter template included in the Add-supplier dialog). Covers photos, destination price/stock/shipping, idempotent ordering and tracking. Suppliers whose API doesn't fit (signed requests, SOAP, CSV feeds, OAuth flows) need a dedicated adapter — send the API docs |
 | `CjDropshippingProvider` | `SUPPLIER_MODE=live` + `CJ_API_KEY` | Written against CJ's public API docs. **Not verified against a live CJ account** — run it in staging with a real key and a test order before trusting it |
 
 Add a supplier: implement the interface, register it in `SupplierRegistry`, add an `Supplier` document (country coverage, reliability seed). Nothing else in the engine is supplier-specific.

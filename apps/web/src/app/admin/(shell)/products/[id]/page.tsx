@@ -19,6 +19,9 @@ export default function ProductDetail() {
   const { can } = useAdmin();
   const { data: d, error, reload } = useFetch<Detail>(`/admin/products/${id}`);
   const { run, busy } = useAction();
+  const sup = useFetch<{ items: { id: string; code: string; name: string; active: boolean; servesCountries: string[] }[] }>('/admin/suppliers');
+  const [linkSup, setLinkSup] = React.useState('');
+  const [linkExt, setLinkExt] = React.useState('');
   const [country, setCountry] = React.useState('US');
   const [tab, setTab] = React.useState('suppliers');
   const [priceModal, setPriceModal] = React.useState(false);
@@ -79,6 +82,15 @@ export default function ProductDetail() {
           )}
           {tab === 'campaigns' && <Panel pad>{d.campaigns.length === 0 ? <p className="text-sm text-ink-3">No campaigns yet.</p> : <ul className="divide-y divide-line">{d.campaigns.map((c) => <li key={c._id} className="flex items-center justify-between gap-3 py-2.5 text-sm"><span>{c.name} <span className="text-ink-3">· {c.platform} · {c.country}</span></span><StatusBadge status={c.status} /></li>)}</ul>}</Panel>}
           {tab === 'content' && <Panel title="Listing content"><p className="text-sm leading-relaxed text-ink-2">{p.description}</p><ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-2">{p.bullets.map((b) => <li key={b}>{b}</li>)}</ul></Panel>}
+          {can('products:write') && (
+            <Panel title="Source from another supplier" subtitle="Use a different supplier for other countries. Photos, price and delivery for those countries then come from that supplier.">
+              <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <Field label="Supplier"><Select value={linkSup} onChange={(e) => setLinkSup(e.target.value)}><option value="">Choose…</option>{sup.data?.items.filter((x) => x.active).map((x) => <option key={x.id} value={x.id}>{x.name} ({x.servesCountries.join(', ') || 'all'})</option>)}</Select></Field>
+                <Field label="Their product id"><Input value={linkExt} onChange={(e) => setLinkExt(e.target.value)} /></Field>
+                <Button loading={busy === 'link'} disabled={!linkSup || !linkExt} onClick={() => void run('link', async () => { const r = await api<{ images: number }>(`/admin/products/${id}/link-supplier`, { body: { supplierId: linkSup, externalId: linkExt } }); setLinkExt(''); await reload(); if (!r.images) throw new Error('Linked, but this supplier returned no photos — it cannot sell this product until it does'); }, 'Supplier linked')}>Link supplier</Button>
+              </div>
+            </Panel>
+          )}
           <Panel title="Lifecycle history"><ol className="space-y-1.5 text-sm">{[...p.stateHistory].reverse().slice(0, 8).map((s, i) => <li key={i}><StatusBadge status={s.state} /> <span className="text-ink-3">{when(s.at)} · {s.by} — {s.reason}</span></li>)}</ol></Panel>
         </div>
       </div>

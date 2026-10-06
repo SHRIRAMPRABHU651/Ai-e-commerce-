@@ -1,3 +1,4 @@
+import { pickSupplierSku, providerFor } from './supplierAccess';
 import { randomBytes } from 'node:crypto';
 import { calcPaymentFee, paymentFeeModelFor } from '@orvia/analytics';
 import { Cart, Customer, Order, OrderItem, Payment, Product, ProductVariant, AnalyticsEvent, WebhookEvent, Shipment, Supplier, Refund } from '@orvia/database';
@@ -282,7 +283,7 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
       res.skipped++;
       continue;
     }
-    const variant = await ProductVariant.findOne({ sku: it.sku }).select('supplierSku').lean();
+    const variant = await ProductVariant.findOne({ sku: it.sku }).select('supplierSku label').lean();
     const excluded: string[] = (await Shipment.find({ orderId: order._id, lineKey: it.lineKey, status: 'FAILED' }).select('supplierId').lean()).map((s) => String(s.supplierId));
     let placed = false;
     // pending row from a previous attempt pins the supplier (the supplier may already hold this order)
@@ -333,8 +334,10 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
       }
       if (!supplierDoc || !pending) break;
       try {
-        const provider = ctx.suppliers.resolve({ provider: supplierDoc.provider, code: supplierDoc.code });
-        const so = await provider.createOrder({ idempotencyKey: pending.idempotencyKey, orderRef: order.orderNumber, externalId, sku: variant?.supplierSku ?? sku ?? it.sku, quantity: it.quantity, destination: { fullName: order.address?.fullName ?? '', line1: order.address?.line1 ?? '', line2: order.address?.line2 ?? '', city: order.address?.city ?? '', region: order.address?.region ?? '', postalCode: order.address?.postalCode ?? '', country: order.country as CountryCode, phone: order.address?.phone ?? '' } });
+        const provider = await providerFor(ctx, supplierDoc);
+        const SPm = (await import('@orvia/database')).SupplierProduct;
+        const spLink = await SPm.findOne({ productId: it.productId, supplierId: supplierDoc._id }).select('variants').lean();
+        const so = await provider.createOrder({ idempotencyKey: pending.idempotencyKey, orderRef: order.orderNumber, externalId, sku: pickSupplierSku(spLink?.variants, variant) ?? sku ?? externalId, quantity: it.quantity, destination: { fullName: order.address?.fullName ?? '', line1: order.address?.line1 ?? '', line2: order.address?.line2 ?? '', city: order.address?.city ?? '', region: order.address?.region ?? '', postalCode: order.address?.postalCode ?? '', country: order.country as CountryCode, phone: order.address?.phone ?? '' } });
         const fx = (await ctx.settings.get('ops')).fx;
         const conv = (n: number) => convertMinor(n, so.cost.currency, order.currency as Currency, fx);
         pending.supplierOrderId = so.supplierOrderId;
@@ -436,7 +439,7 @@ export async function changeSupplier(ctx: Ctx, orderId: string, lineKey: string,
   if (sh && sh.supplierOrderId) {
     const sup = await Supplier.findById(sh.supplierId);
     if (sup) {
-      const prov = ctx.suppliers.resolve({ provider: sup.provider, code: sup.code });
+      const prov = await providerFor(ctx, sup);
       const c = await prov.cancelOrder(sh.supplierOrderId);
       if (!c.cancelled) throw conflict(`Cannot change supplier: ${c.reason ?? 'already shipped'}`);
     }
@@ -465,7 +468,7 @@ export async function syncTracking(ctx: Ctx, opts: { orderId?: string; limit?: n
     const sup = await Supplier.findById(sh.supplierId);
     if (!sup || !sh.supplierOrderId) continue;
     try {
-      const prov = ctx.suppliers.resolve({ provider: sup.provider, code: sup.code });
+      const prov = await providerFor(ctx, sup);
       const t = await prov.getTracking(sh.supplierOrderId);
       sh.lastTrackedAt = ctx.now();
       if (!t.available) {
@@ -536,7 +539,7 @@ export async function cancelOrder(ctx: Ctx, orderId: string, actor: Actor, reaso
       continue;
     }
     const sup = await Supplier.findById(s.supplierId);
-    const prov = sup ? ctx.suppliers.resolve({ provider: sup.provider, code: sup.code }) : null;
+    const prov = sup ? await providerFor(ctx, sup) : null;
     const c = prov ? await prov.cancelOrder(s.supplierOrderId) : { cancelled: false, reason: 'supplier missing' };
     if (!c.cancelled) throw conflict(`Supplier could not cancel: ${c.reason ?? 'already shipped'}`, 'SUPPLIER_CANCEL_FAILED');
     s.status = 'CANCELLED';

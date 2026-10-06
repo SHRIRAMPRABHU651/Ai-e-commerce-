@@ -29,3 +29,4 @@ export * from './domain/brief';
 export * from './agents/runner';
 export * from './agents/registry';
 export * from './jobs';
+export * from './domain/supplierAccess';

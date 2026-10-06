@@ -1,3 +1,4 @@
+import { providerFor } from './supplierAccess';
 import { Product, Supplier, SupplierProduct } from '@orvia/database';
 import { scoreOpportunity } from '@orvia/analytics';
 import { AnalyticsEvent } from '@orvia/database';
@@ -26,7 +27,7 @@ export async function runDiscovery(ctx: Ctx, opts: { perSupplier?: number } = {}
   for (const s of suppliers) {
     let provider;
     try {
-      provider = ctx.suppliers.resolve({ provider: s.provider, code: s.code });
+      provider = await providerFor(ctx, s);
     } catch (e) {
       sum.errors.push(`${s.code}: ${(e as Error).message}`);
       continue;

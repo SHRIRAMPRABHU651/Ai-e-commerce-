@@ -11,7 +11,7 @@ All variables are validated at startup (`packages/config`); invalid or unsafe pr
 | Modes | `SUPPLIER_MODE`, `PAYMENT_MODE`, `ADS_MODE` = `mock|live`; `NOTIFY_MODE` = `log|live`; `MOCK_TIME_SCALE`; `MOCK_PAYMENT_WEBHOOK_SECRET` | mock/log forbidden in production |
 | AI | `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TIMEOUT_MS` | |
 | Payments | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | |
-| Supplier | `CJ_API_KEY`, `CJ_API_SECRET` | |
+| Supplier | `CJ_API_KEY`, `CJ_API_SECRET` | Fallback only — each supplier stores its own encrypted credentials (set `ENCRYPTION_KEY`) |
 | Ads | `META_*`, `TIKTOK_*`, `GOOGLE_ADS_*` | |
 | Notifications | `EMAIL_PROVIDER_KEY`, `EMAIL_FROM`, `TWILIO_*` | |
 | AWS | `AWS_*`, `S3_BUCKET` | |

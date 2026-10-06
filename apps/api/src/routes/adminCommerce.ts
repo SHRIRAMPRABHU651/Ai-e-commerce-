@@ -2,9 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AuditLog, Customer, ExceptionModel, Inventory, Order, Payment, Product, Refund, Shipment, Supplier, SupplierOffer, SupplierProduct, ProductScore, Campaign, AiDecision, Warehouse } from '@orvia/database';
 import {
-  changeSupplier, cancelOrder, compareSuppliers, DomainError, importProduct, insights, financials, notFound, notify, parseRange, productPerformance, publishProduct, refreshProductMarkets,
+  getCountryConfigs, servesCountry, usableImages, changeSupplier, cancelOrder, compareSuppliers, DomainError, importProduct, providerFor, sealCredentials, insights, financials, notFound, notify, parseRange, productPerformance, publishProduct, refreshProductMarkets,
   refundOrder, retrySupplierOrder, countryAnalytics, liveStats, setManualPrice, supplierHealth, syncInventory, syncProductOffers, timeseries, transitionProduct, createTestPlan, planMarket, automationOverview, scoreProduct, invalidateSearchIndex, launchCampaign,
 } from '@orvia/core';
+import { restSupplierConfigSchema } from '@orvia/suppliers';
 import { PRODUCT_STATES, ORDER_STATUSES, countrySchema, objectId, paginationSchema } from '@orvia/types';
 import type { CountryCode } from '@orvia/types';
 import type { Ctx } from '@orvia/core';
@@ -127,7 +128,7 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
     handler: async ({ req, query }) => {
       const s = await Supplier.findById(idOf(req));
       if (!s) throw notFound('Supplier');
-      const res = await ctx.suppliers.resolve({ provider: s.provider, code: s.code }).searchProducts({ query: query.q, cursor: query.cursor, limit: 20 });
+      const res = await (await providerFor(ctx, s)).searchProducts({ query: query.q, cursor: query.cursor, limit: 20 });
       const linked = await SupplierProduct.find({ supplierId: s._id, externalId: { $in: res.items.map((i) => i.externalId) } }).select('externalId productId importStatus').lean();
       const lm = new Map(linked.map((l) => [l.externalId, l]));
       return { items: res.items.map((i) => ({ externalId: i.externalId, title: i.title, category: i.category, image: i.images[0], baseCostUsd: i.baseCostUsd, imported: !!lm.get(i.externalId)?.productId, importStatus: lm.get(i.externalId)?.importStatus ?? null })), nextCursor: res.nextCursor };
@@ -194,22 +195,89 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
   });
 
   // ------------------------------------------------------------- suppliers
-  route(app, ctx, { method: 'GET', url: '/admin/suppliers', summary: 'Supplier dashboard', tags: ['Admin'], auth: A, permission: 'suppliers:read', handler: async () => ({ items: await supplierHealth(), adapters: ctx.suppliers.adapters() }) });
   route(app, ctx, {
-    method: 'POST', url: '/admin/suppliers', summary: 'Add a supplier', tags: ['Admin'], auth: A, permission: 'suppliers:write',
-    body: z.object({ code: z.string().regex(/^[a-z0-9-]{3,40}$/), name: z.string().min(2).max(80), provider: z.enum(['cj', 'mock']), country: countrySchema.optional(), returnPolicyDays: z.number().int().min(0).max(120).default(14) }),
+    method: 'GET', url: '/admin/suppliers', summary: 'Supplier dashboard + per-country coverage', tags: ['Admin'], auth: A, permission: 'suppliers:read',
+    handler: async () => {
+      const [items, docs, countries] = await Promise.all([supplierHealth(), Supplier.find().select('+credentialsEnc code servesCountries active priority provider config').lean(), getCountryConfigs()]);
+      const meta = new Map(docs.map((d) => [d.code, d]));
+      const enabled = Object.values(countries).filter((c) => c.enabled);
+      return {
+        items: items.map((i: { code: string }) => { const d = meta.get(i.code); return { ...i, servesCountries: d?.servesCountries ?? [], priority: d?.priority ?? 100, credentialsSet: !!d?.credentialsEnc, mappingSet: !!d?.config }; }),
+        adapters: ctx.suppliers.adapters(),
+        // which active suppliers can serve each enabled country — a country with none can't sell anything
+        coverage: enabled.map((c) => ({ country: c.code, name: c.name, suppliers: docs.filter((d) => d.active && servesCountry(d, c.code)).sort((x, y) => (x.priority ?? 100) - (y.priority ?? 100)).map((d) => d.code) })),
+      };
+    },
+  });
+  const supplierBody = {
+    name: z.string().min(2).max(80),
+    provider: z.enum(['cj', 'rest', 'mock']),
+    country: countrySchema.optional(),
+    servesCountries: z.array(countrySchema).max(10).default([]),
+    priority: z.number().int().min(1).max(1000).default(100),
+    returnPolicyDays: z.number().int().min(0).max(120).default(14),
+    credentials: z.object({ apiKey: z.string().min(4).max(500), apiSecret: z.string().max(500).optional() }).optional(),
+    config: z.record(z.unknown()).optional(),
+  };
+  const checkConfig = (provider: string, config: unknown) => {
+    if (provider !== 'rest') return;
+    const r = restSupplierConfigSchema.safeParse(config);
+    if (!r.success) throw new DomainError(`Invalid API mapping: ${r.error.issues.slice(0, 4).map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`, 'VALIDATION', 422);
+  };
+  route(app, ctx, {
+    method: 'POST', url: '/admin/suppliers', summary: 'Add a supplier (its own credentials, countries and API mapping)', tags: ['Admin'], auth: A, permission: 'suppliers:write',
+    body: z.object({ code: z.string().regex(/^[a-z0-9-]{3,40}$/), ...supplierBody }),
     handler: async ({ req, body, reply }) => {
       if (body.provider === 'mock' && ctx.cfg.isProduction) throw new DomainError('Mock suppliers are not allowed in production', 'FORBIDDEN', 403);
-      const s = await Supplier.create({ ...body, apiStatus: 'unconfigured', active: true });
+      if (body.provider === 'rest') checkConfig('rest', body.config);
+      const { credentials, ...rest } = body;
+      const s = await Supplier.create({ ...rest, ...(credentials ? { credentialsEnc: sealCredentials(ctx, credentials as Record<string, string>) } : {}), apiStatus: 'unconfigured', active: true });
       const { audit } = await import('@orvia/core');
-      await audit(ctx, req.actor, { action: 'supplier.created', resource: 'supplier', resourceId: String(s._id), newValue: body });
-      return reply.status(201).send(s);
+      await audit(ctx, req.actor, { action: 'supplier.created', resource: 'supplier', resourceId: String(s._id), newValue: { ...rest, credentials: credentials ? '[set]' : undefined } });
+      return reply.status(201).send({ id: String(s._id), code: s.code });
     },
   });
   route(app, ctx, {
-    method: 'PATCH', url: '/admin/suppliers/:id', summary: 'Update supplier settings', tags: ['Admin'], auth: A, permission: 'suppliers:write',
-    body: z.object({ active: z.boolean().optional(), name: z.string().min(2).max(80).optional(), returnPolicyDays: z.number().int().min(0).max(120).optional(), rating: z.number().min(0).max(5).optional() }),
-    handler: async ({ req, body }) => (await Supplier.updateOne({ _id: idOf(req) }, { $set: body }), { ok: true }),
+    method: 'PATCH', url: '/admin/suppliers/:id', summary: 'Update supplier settings, countries, credentials or mapping', tags: ['Admin'], auth: A, permission: 'suppliers:write',
+    body: z.object({ active: z.boolean().optional(), name: supplierBody.name.optional(), returnPolicyDays: supplierBody.returnPolicyDays.optional(), rating: z.number().min(0).max(5).optional(), servesCountries: supplierBody.servesCountries.optional(), priority: supplierBody.priority.optional(), credentials: supplierBody.credentials, config: supplierBody.config }),
+    handler: async ({ req, body }) => {
+      const cur = await Supplier.findById(idOf(req));
+      if (!cur) throw notFound('Supplier');
+      const { credentials, config, ...rest } = body;
+      if (config) checkConfig(cur.provider, config);
+      const set: Record<string, unknown> = { ...rest };
+      if (config) set['config'] = config;
+      if (credentials) set['credentialsEnc'] = sealCredentials(ctx, credentials as Record<string, string>);
+      if (credentials || config) set['apiStatus'] = 'unconfigured';
+      await Supplier.updateOne({ _id: cur._id }, { $set: set });
+      const { audit } = await import('@orvia/core');
+      await audit(ctx, req.actor, { action: 'supplier.updated', resource: 'supplier', resourceId: String(cur._id), newValue: { ...rest, credentials: credentials ? '[replaced]' : undefined, config: config ? '[replaced]' : undefined } });
+      return { ok: true };
+    },
+  });
+  route(app, ctx, {
+    method: 'POST', url: '/admin/products/:id/link-supplier', summary: 'Source an existing product from another supplier (e.g. a different country)', tags: ['Admin'], auth: A, permission: 'products:write',
+    body: z.object({ supplierId: objectId, externalId: z.string().min(1).max(120) }),
+    handler: async ({ req, body }) => {
+      const product = await Product.findById(idOf(req));
+      if (!product) throw notFound('Product');
+      const sup = await Supplier.findById(body.supplierId);
+      if (!sup || !sup.active) throw notFound('Supplier');
+      const sp = await (await providerFor(ctx, sup)).getProduct(body.externalId);
+      if (!sp) throw notFound('Supplier product');
+      const images = usableImages(sp.images);
+      await SupplierProduct.updateOne(
+        { supplierId: sup._id, externalId: sp.externalId },
+        { $set: { productId: product._id, title: sp.title, description: sp.description, images, videos: [], category: sp.category, variants: sp.variants, cost: sp.baseCostUsd, currency: 'USD', lastSyncAt: ctx.now(), importStatus: 'imported' } },
+        { upsert: true },
+      );
+      const sync = await syncProductOffers(ctx, String(product._id));
+      const markets = await refreshProductMarkets(ctx, String(product._id));
+      invalidateSearchIndex();
+      const { audit } = await import('@orvia/core');
+      await audit(ctx, req.actor, { action: 'product.supplier_linked', resource: 'product', resourceId: String(product._id), newValue: { supplier: sup.code, externalId: sp.externalId, images: images.length } });
+      return { linked: true, images: images.length, serves: sup.servesCountries, sync, markets };
+    },
   });
   route(app, ctx, {
     method: 'POST', url: '/admin/suppliers/:id/check', summary: 'Run an API health check', tags: ['Admin'], auth: A, permission: 'suppliers:write',
@@ -217,7 +285,7 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
       const s = await Supplier.findById(idOf(req));
       if (!s) throw notFound('Supplier');
       try {
-        const h = await ctx.suppliers.resolve({ provider: s.provider, code: s.code }).healthCheck();
+        const h = await (await providerFor(ctx, s)).healthCheck();
         s.apiStatus = h.ok ? 'ok' : 'down';
         s.apiStatusMessage = h.message;
       } catch (e) {

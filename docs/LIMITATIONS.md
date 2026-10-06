@@ -2,7 +2,7 @@
 
 Verified in this repo: lint, typecheck, 112 unit/integration/failure/security tests, Playwright E2E (desktop + mobile), production builds. Not verified:
 
-1. **Live provider adapters** (CJ, Stripe, Razorpay, Meta, TikTok, Google Ads, Resend, Twilio, Gemini) have never run against real or sandbox accounts from this repo. Expect to fix field-mapping details during staging verification.
+1. **Live provider adapters** (the generic `rest` supplier adapter is tested against fake HTTP suppliers only; real suppliers' payload shapes will need mapping tweaks) (CJ, Stripe, Razorpay, Meta, TikTok, Google Ads, Resend, Twilio, Gemini) have never run against real or sandbox accounts from this repo. Expect to fix field-mapping details during staging verification.
 2. **Ads**: Google creates campaign + budget only; TikTok creates campaign + ad group only (no creative upload). Meta creates the full chain paused. Pixel/CAPI/product-feed setup is manual.
 3. **Market intelligence**: no real competitor-price/trend provider; discovery and competitor-based pricing use mock signals in dev and need a provider integration for real decisions.
 4. **Terraform** is unapplied and unvalidated here (no binary); MongoDB Atlas networking is out of module scope.

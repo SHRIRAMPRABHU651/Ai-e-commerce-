@@ -36,8 +36,9 @@ describe('product images come from the supplier', () => {
   it('a product with no usable image cannot be published, listed or added to a cart', async () => {
     const p = await Product.findOne({ state: 'PUBLISHED' });
     const original = p!.images;
+    const originalMarkets = p!.markets;
     const c = client;
-    await Product.updateOne({ _id: p!._id }, { $set: { images: [] } });
+    await Product.updateOne({ _id: p!._id }, { $set: { images: [], 'markets.$[].images': [] } });
     invalidateSearchIndex();
     const gate = await canPublish(ctx, String(p!._id));
     expect(gate.ok).toBe(false);
@@ -46,7 +47,7 @@ describe('product images come from the supplier', () => {
     expect(add.status).toBe(409);
     const list = await c.get('/api/v1/products?pageSize=48&country=US');
     expect(list.body.items.some((x: { id: string }) => x.id === String(p!._id))).toBe(false);
-    await Product.updateOne({ _id: p!._id }, { $set: { images: original } });
+    await Product.updateOne({ _id: p!._id }, { $set: { images: original, markets: originalMarkets } });
     invalidateSearchIndex();
     const ok = await c.post('/api/v1/cart/items?country=US', { productId: String(p!._id), quantity: 1 });
     expect(ok.status).toBe(200);

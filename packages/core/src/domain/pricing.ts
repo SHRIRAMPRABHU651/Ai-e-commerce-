@@ -1,4 +1,5 @@
-import { AdMetric, Product } from '@orvia/database';
+import { AdMetric, Product, SupplierProduct } from '@orvia/database';
+import { usableImages } from './images';
 import { computePrice, paymentFeeModelFor, productEconomics, evaluatePrice } from '@orvia/analytics';
 import type { PricingResult, PricingStrategy, RankedOffer } from '@orvia/analytics';
 import { convertMinor, SELLABLE_STATES } from '@orvia/types';
@@ -149,6 +150,8 @@ export async function refreshProductMarkets(ctx: Ctx, productId: string, opts: {
     m.minDays = plan.best.minDays;
     m.maxDays = plan.best.maxDays;
     m.stock = plan.best.stock;
+    const link = await SupplierProduct.findOne({ productId, supplierId: plan.best.supplierId }).select('images').lean();
+    m.images = usableImages(link?.images ?? []) as never;
     const cur = evaluatePrice(
       {
         strategy: plan.strategy, currency: cfg.currency, landedCost: plan.best.landedCost, paymentFee: paymentFeeModelFor(cfg.code), refundRate: plan.best.refundRate,

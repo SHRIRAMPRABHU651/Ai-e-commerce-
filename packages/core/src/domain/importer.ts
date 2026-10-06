@@ -1,3 +1,4 @@
+import { providerFor } from './supplierAccess';
 import { usableImages } from './images';
 import { Product, ProductScore, ProductVariant, Supplier, SupplierProduct } from '@orvia/database';
 import { scoreOpportunity } from '@orvia/analytics';
@@ -56,7 +57,7 @@ function sourceFor(sp: SupplierProductSummary) {
 export async function importProduct(ctx: Ctx, input: { supplierId: string; externalId: string }, actor: Actor): Promise<ImportResult> {
   const supplier = await Supplier.findById(input.supplierId);
   if (!supplier) throw notFound('Supplier');
-  const provider = ctx.suppliers.resolve({ provider: supplier.provider, code: supplier.code });
+  const provider = await providerFor(ctx, supplier);
   const existing = await SupplierProduct.findOne({ supplierId: supplier._id, externalId: input.externalId });
   if (existing?.productId) {
     const p = await Product.findById(existing.productId).lean();
@@ -66,6 +67,8 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
   }
   const sp = await provider.getProduct(input.externalId);
   if (!sp) throw new DomainError('Supplier product not found', 'NOT_FOUND', 404);
+  // suppliers without variant lists sell a single standard variant (its id is the product id)
+  if (!sp.variants.length) sp.variants = [{ sku: sp.externalId, label: 'Standard', options: {} }];
   const notes: string[] = [];
 
   const aiContent = await ctx.ai.productContent(sourceFor(sp));
