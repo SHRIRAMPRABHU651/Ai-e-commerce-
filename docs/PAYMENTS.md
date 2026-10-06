@@ -19,3 +19,6 @@ Refunds: full/partial, idempotent, executed through the provider; refunds above 
 1. Create Stripe/Razorpay accounts; set keys + webhook secrets as secrets; register `https://<domain>/api/v1/webhooks/payments/stripe|razorpay`.
 2. In staging with `PAYMENT_MODE=live` and **test keys**: place orders, fail a card, replay a webhook, refund. 
 3. Only then switch to live keys. Tax: the app estimates tax for display/margin; use Stripe Tax/TaxJar for filing-grade tax.
+
+## Verification
+`verify:staging` makes read-only Stripe/Razorpay calls. A test payment, webhook delivery and refund must still be confirmed in the provider dashboards before launch.

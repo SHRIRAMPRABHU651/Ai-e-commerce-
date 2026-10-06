@@ -32,3 +32,6 @@ Atlas continuous backup/PITR; S3 versioning optional; the queue is in Mongo, so 
 
 ## Docker Compose (single host)
 `docker-compose.prod.yml` runs the three images against external Mongo/Redis with `.env.production`. Put a TLS-terminating proxy (Caddy/nginx/ALB) in front.
+
+## Launch gate additions
+Production needs `OBJECT_STORAGE_PROVIDER=s3`, a bucket, and an https `CDN_BASE_URL` (Terraform takes `cdn_base_url`; you provision the CDN). Before an existing database is migrated, drop the legacy `orderId_1_lineKey_1` Shipment index. After deploying to staging run `npm run verify:staging`, then see [PRODUCTION_CERTIFICATION.md](PRODUCTION_CERTIFICATION.md). Terraform: `terraform init && terraform validate && terraform plan` (not run in this repo; `npm run terraform:check` is a static check only).

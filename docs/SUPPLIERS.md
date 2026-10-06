@@ -34,3 +34,5 @@ Scheduled rotating sync updates stock/price; products with no available supplier
 
 ## Tracking
 Tracking numbers/carriers/events are stored **only** if the supplier returned them. Until then customers see "Preparing" — never an invented number.
+
+See also [SUPPLIER_ONBOARDING.md](SUPPLIER_ONBOARDING.md) and [PROVIDER_CAPABILITIES.md](PROVIDER_CAPABILITIES.md).

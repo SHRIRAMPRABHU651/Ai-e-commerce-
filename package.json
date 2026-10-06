@@ -22,6 +22,8 @@
     "seed": "tsx scripts/seed.ts",
     "migrate": "tsx scripts/migrate.ts",
     "verify:staging": "tsx scripts/verify-staging.ts",
+    "certify": "tsx scripts/record-certification.ts",
+    "terraform:check": "node scripts/terraform-static-check.mjs",
     "worker": "npm run dev -w @orvia/worker",
     "production-check": "node scripts/production-check.mjs"
   },

@@ -17,3 +17,6 @@
 - Copy comes from the grounded AI service and passes the compliance filter (no unsupported claims).
 
 Credentials: `META_*`, `TIKTOK_*`, `GOOGLE_ADS_*`. Platform policies (ad account approval, pixel/CAPI, product feeds) are operator tasks.
+
+## Capability honesty
+See [PROVIDER_CAPABILITIES.md](PROVIDER_CAPABILITIES.md): platforms are NOT_CONFIGURED / UNVERIFIED / VERIFIED / ERROR; no conversion tracking exists, so AI ad spend is proposal-only.

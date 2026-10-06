@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { can } from '@orvia/auth';
+import { AD_CAPABILITIES, platformStatus } from '@orvia/ads';
 import { DomainError, audit, launchReadiness } from '@orvia/core';
 import type { Ctx } from '@orvia/core';
 import { route } from '../http';
@@ -15,6 +16,14 @@ export function launchRoutes(app: FastifyInstance, ctx: Ctx): void {
       const r = await launchReadiness(ctx, { live: query.live === 'true' });
       if (query.live === 'true') await audit(ctx, req.actor, { action: 'launch.live_checks_run', resource: 'launch', newValue: { verdict: r.verdict, blockers: r.summary.blockers } });
       return r;
+    },
+  });
+  route(app, ctx, {
+    method: 'GET', url: '/admin/ads/capabilities', summary: 'Ad platform capability registry with honest status (NOT_CONFIGURED / UNVERIFIED / VERIFIED / ERROR)', tags: ['Admin'], auth: 'staff', permission: 'marketing:read',
+    handler: async () => {
+      const results = (await ctx.settings.get('launch')).results;
+      const cfg = ctx.ads.status();
+      return { mode: ctx.cfg.ADS_MODE, platforms: (Object.keys(AD_CAPABILITIES) as (keyof typeof AD_CAPABILITIES)[]).map((p) => ({ platform: p, status: platformStatus(cfg[p].configured, results[`ads:${p}`]), capabilities: AD_CAPABILITIES[p], lastCheck: results[`ads:${p}`] ?? null })), note: 'SUPPORTED = implemented in code. Only a successful live check makes a platform VERIFIED; conversion tracking is not implemented, so AI ad spend stays proposal-only.' };
     },
   });
   route(app, ctx, {

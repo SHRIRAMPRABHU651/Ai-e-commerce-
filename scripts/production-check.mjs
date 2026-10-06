@@ -1,7 +1,7 @@
 // Release gate. Exits non-zero unless everything that can be verified locally actually passes.
 // Usage: npm run production-check [-- --skip-e2e]
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const skipE2e = process.argv.includes('--skip-e2e') || process.argv.includes('--scan-only');
@@ -56,8 +56,12 @@ step('no committed credentials (key patterns)', () => {
   const bad = r.stdout.split('\n').filter((f) => f && !f.endsWith('package-lock.json') && (() => { try { return rx.test(readFileSync(f, 'utf8')); } catch { return false; } })());
   return { ok: bad.length === 0, note: bad.join(', ') };
 });
+step('terraform static structure (not terraform validate)', () => { const r = spawnSync('node', ['scripts/terraform-static-check.mjs'], { encoding: 'utf8' }); return { ok: r.status === 0, note: r.status === 0 ? 'structure ok; run terraform validate separately' : r.stdout.trim().split('\n').slice(1).join('; ') }; });
 if (!skipE2e) step('end-to-end (Playwright desktop + mobile)', () => sh('npm', ['run', 'e2e']));
 
+const commit = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+writeFileSync('.certification.json', JSON.stringify({ at: new Date().toISOString(), commit, checks: Object.fromEntries(results.map((r) => [r.name, r.ok ? 'PASS' : 'FAIL'])), partial: skipE2e || scanOnly }, null, 2));
+console.log('Wrote .certification.json (store it with: npx tsx scripts/record-certification.ts)');
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${failed.length === 0 ? 'ALL CHECKS PASSED' : `${failed.length} CHECK(S) FAILED: ${failed.map((f) => f.name).join('; ')}`}`);
 console.log('Note: passing checks do not prove live-provider integrations (Stripe, Razorpay, CJ, Meta, TikTok, Google) — verify those in staging with real sandbox credentials.');

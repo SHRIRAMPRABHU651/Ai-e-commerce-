@@ -11,3 +11,6 @@
 - **Decision log**: every automated proposal/decision is stored in `ai_decisions` with inputs, reasoning, mode and outcome.
 
 Limits: AI is advisory unless an automation is AUTOMATIC; it never bypasses guardrails, compliance, or approval thresholds.
+
+## Evidence-only
+The Copilot `trend_explain` intent explains stored market evidence and says so when evidence is thin; it never invents trends, prices or certifications. See [MARKET_INTELLIGENCE.md](MARKET_INTELLIGENCE.md), [ORGANIC_PRODUCTS.md](ORGANIC_PRODUCTS.md).

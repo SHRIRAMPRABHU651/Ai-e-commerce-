@@ -21,3 +21,6 @@ All variables are validated at startup (`packages/config`); invalid or unsafe pr
 
 ## Production guard (`assertSafeForEnvironment`)
 With `APP_ENV=production` the process refuses to start if: any `*_MODE` is mock/log, `JWT_SECRET` is short or the dev default, cookies aren't secure, or `SEED_ON_START` is set. The dev-only routes (`/dev/*`) are not registered in staging/production, and OpenAPI UI is disabled in production.
+
+## Added variables
+`OBJECT_STORAGE_PROVIDER|BUCKET|REGION|ENDPOINT|ACCESS_KEY|SECRET`, `CDN_BASE_URL`, `LOCAL_MEDIA_DIR`, `MEDIA_MAX_BYTES`, `MEDIA_MIN_DIMENSION`, `ALLOW_PRIVATE_FETCH` (must be false in production), `LEGAL_REVIEW_REQUIRED`, `MARKET_CRAWLER_CONTACT`, `RATE_LIMIT_PER_MINUTE`. See `.env.example` for grouped defaults and which are production-required.

@@ -25,3 +25,6 @@ JSON logs (pino) with request ids and channels (`app, order, payment, supplier, 
 - [ ] Rotate all seed/demo credentials; create real staff users; remove `isDemo` data (production never seeds).
 - [ ] Alarms subscribed; backup restore tested; on-call owner for the exception queue.
 - [ ] `npm run production-check` passes on the release commit.
+
+## Launch readiness
+Admin → Launch readiness shows per-area PASS/WARN/FAIL, blockers and provider verification. Run `npm run verify:staging` against staging; confirm legal review there. See [PRODUCTION_CERTIFICATION.md](PRODUCTION_CERTIFICATION.md).

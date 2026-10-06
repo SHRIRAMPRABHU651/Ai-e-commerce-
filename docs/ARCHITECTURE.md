@@ -28,3 +28,6 @@
 
 ## Frontend
 Next.js App Router. Server components fetch the API with the visitor's cookie; country comes from cookie → CDN geo header → US. A framework-free design system (`@orvia/ui`) provides tokens (light/dark), components and dependency-free SVG charts with tooltips, legends and table views. The browser only talks to its own origin (`/api/v1/*` is proxied), so cookies are first-party and no secret ever ships to the client.
+
+## Added modules
+`domain/{images,imagePipeline,offers,supplierOps,reconciliation,organic,launch}`, `market/*` (robots, fetcher, parsers, trend), `infra/{storage,ssrf}`, `packages/{ads/capabilities,shipping/tax}`. Jobs: supplier_health, reconciliation, market_crawl, market_index, image_ingestion.

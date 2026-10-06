@@ -26,3 +26,6 @@
 
 ## Reporting a vulnerability
 Open a private security advisory on the repository. Don't file public issues for vulnerabilities.
+
+## Added controls
+SSRF-guarded fetching (images, crawler), HTML-escaped emails, robots-respecting crawler, per-supplier encrypted credentials, launch-gate endpoint behind `METRICS_TOKEN`, organic-claim evidence gates, production refuses `ALLOW_PRIVATE_FETCH`.

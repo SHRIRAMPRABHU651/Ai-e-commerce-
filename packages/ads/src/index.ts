@@ -5,3 +5,4 @@ export * from './tiktok';
 export * from './google';
 export * from './rules';
 export * from './registry';
+export * from './capabilities';

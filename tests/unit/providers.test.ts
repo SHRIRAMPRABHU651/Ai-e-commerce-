@@ -224,3 +224,16 @@ describe('notifications', () => {
     expect(t.html).toContain('Track order');
   });
 });
+
+describe('ad capability registry', () => {
+  it('never reports an unchecked platform as verified and never allows auto-spend without tracking', async () => {
+    const { platformStatus, canAutoSpend } = await import('@orvia/ads');
+    expect(platformStatus(false)).toBe('NOT_CONFIGURED');
+    expect(platformStatus(true)).toBe('UNVERIFIED');
+    expect(platformStatus(true, { status: 'PASS' })).toBe('VERIFIED');
+    expect(platformStatus(true, { status: 'FAIL' })).toBe('ERROR');
+    expect(canAutoSpend('UNVERIFIED', true).ok).toBe(false);
+    expect(canAutoSpend('VERIFIED', false).ok).toBe(false);
+    expect(canAutoSpend('VERIFIED', true).ok).toBe(true);
+  });
+});

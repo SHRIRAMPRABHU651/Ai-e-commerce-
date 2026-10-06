@@ -284,7 +284,7 @@ resource "aws_iam_role_policy" "task_s3" {
   role = aws_iam_role.task.id
   policy = jsonencode({
     Version   = "2012-10-17"
-    Statement = [{ Effect = "Allow", Action = ["s3:GetObject", "s3:PutObject"], Resource = "${aws_s3_bucket.media.arn}/*" }]
+    Statement = [{ Effect = "Allow", Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"], Resource = "${aws_s3_bucket.media.arn}/*" }, { Effect = "Allow", Action = ["s3:ListBucket"], Resource = aws_s3_bucket.media.arn }]
   })
 }
 
@@ -301,6 +301,10 @@ locals {
     { name = "ADS_MODE", value = "live" },
     { name = "NOTIFY_MODE", value = "live" },
     { name = "S3_BUCKET", value = aws_s3_bucket.media.bucket },
+    { name = "OBJECT_STORAGE_PROVIDER", value = "s3" },
+    { name = "OBJECT_STORAGE_BUCKET", value = aws_s3_bucket.media.bucket },
+    { name = "OBJECT_STORAGE_REGION", value = var.region },
+    { name = "CDN_BASE_URL", value = var.cdn_base_url },
     { name = "AWS_REGION", value = var.region },
     { name = "REDIS_URL", value = "rediss://${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379" },
   ]

@@ -44,3 +44,12 @@ variable "alarm_email" {
   type    = string
   default = ""
 }
+
+variable "cdn_base_url" {
+  type        = string
+  description = "Public https base URL of a CDN (e.g. CloudFront distribution) that serves the media bucket. Not provisioned by this module; the API refuses to start in production without it."
+  validation {
+    condition     = can(regex("^https://", var.cdn_base_url))
+    error_message = "cdn_base_url must start with https://"
+  }
+}

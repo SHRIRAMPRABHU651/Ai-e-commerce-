@@ -16,3 +16,4 @@ playwright-report
 apps/web/AGENTS.md
 apps/web/CLAUDE.md
 .media/
+.certification.json
