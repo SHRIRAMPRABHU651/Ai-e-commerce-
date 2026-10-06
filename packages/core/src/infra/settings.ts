@@ -1,5 +1,6 @@
 import { SystemSetting } from '@orvia/database';
 import { DEFAULT_AD_RULES } from '@orvia/ads';
+import { DEFAULT_RANK_WEIGHTS } from '@orvia/analytics';
 import type { AdRulesConfig } from '@orvia/ads';
 import { AUTOMATION_KEYS, DEFAULT_FX } from '@orvia/types';
 import type { AutomationKey, AutomationMode, Currency, FxTable } from '@orvia/types';
@@ -37,7 +38,19 @@ export interface OpsSettings {
   fx: FxTable;
 }
 
+export interface SourcingSettings {
+  /** Supplier selection weights (normalised at use). Everything that matters to a customer is an explicit, tunable factor. */
+  weights: { profit: number; delivery: number; reliability: number; stockConfidence: number; tracking: number; returns: number; destinationFit: number; risk: number };
+  /** Price/stock data older than this is not trusted for fulfilment decisions (live quotes are re-fetched before ordering anyway). */
+  staleAfterMinutes: number;
+  /** Manual-supplier offers (no API) expire after this long without being re-confirmed. */
+  manualOfferTtlHours: number;
+  /** Consecutive failed health checks before a supplier is treated as FAILING and excluded from new orders. */
+  failingAfterChecks: number;
+}
+
 export interface SettingsMap {
+  sourcing: SourcingSettings;
   pricing: PricingSettings;
   ads: AdRulesConfig;
   automation: AutomationSettings;
@@ -73,6 +86,7 @@ export function buildDefaults(production: boolean): SettingsMap {
       assumedAdCostPct: 0.2,
       minPriceChangePct: 0.02,
     },
+    sourcing: { weights: DEFAULT_RANK_WEIGHTS, staleAfterMinutes: 360, manualOfferTtlHours: 72, failingAfterChecks: 3 },
     ads: DEFAULT_AD_RULES,
     automation: { modes: defaultAutomationModes(production), autoRefundLimitUsd: 5000 },
     ops: {

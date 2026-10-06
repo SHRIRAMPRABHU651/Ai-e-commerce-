@@ -25,10 +25,16 @@ export interface AdapterInfo {
 /** Resolves a supplier DB record to a concrete provider. Mock adapters are refused outside dev/test. */
 export class SupplierRegistry {
   private cache = new Map<string, SupplierProvider>();
+  private factories = new Map<string, (s: { code: string; config?: unknown }) => SupplierProvider>();
   constructor(
     private readonly cfg: SupplierRegistryConfig,
     private readonly store: MockStateStore,
   ) {}
+
+  /** Lets higher layers (which can read the database) provide adapters such as the manual supplier. */
+  registerFactory(provider: string, f: (s: { code: string; config?: unknown }) => SupplierProvider): void {
+    this.factories.set(provider, f);
+  }
 
   /**
    * `credentials` (decrypted `apiKey`/`apiSecret`) and `config` come from the supplier record so every supplier can have
@@ -63,6 +69,8 @@ export class SupplierRegistry {
         throw new ProviderError(`Supplier ${supplier.code}: invalid API mapping — ${parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`, { provider: supplier.code, retryable: false });
       }
       p = new RestSupplierProvider(supplier.code, parsed.data, key, { fetchImpl: this.cfg.fetchImpl });
+    } else if (this.factories.has(supplier.provider)) {
+      p = this.factories.get(supplier.provider)!(supplier);
     } else {
       throw new ProviderError(`No adapter registered for provider "${supplier.provider}"`, { provider: supplier.provider, retryable: false });
     }

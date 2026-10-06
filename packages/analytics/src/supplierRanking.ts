@@ -18,6 +18,38 @@ export interface RankableOffer {
   returnPolicyDays: number;
   trackingAvailable: boolean;
   available?: boolean;
+  /** Historical share of this supplier's orders that failed (0-1). */
+  failureRate?: number;
+  /** Typical API/response latency in ms (optional). */
+  responseMs?: number;
+  /** Age of the price/stock data in ms (live quotes are ~0). */
+  freshnessMs?: number;
+}
+
+/** Configurable weights (normalised to sum 1). Profit and customer-experience factors are all explicit. */
+export interface RankWeights {
+  profit: number;
+  delivery: number;
+  reliability: number;
+  stockConfidence: number;
+  tracking: number;
+  returns: number;
+  destinationFit: number;
+  risk: number;
+}
+export const DEFAULT_RANK_WEIGHTS: RankWeights = { profit: 0.45, delivery: 0.15, reliability: 0.12, stockConfidence: 0.07, tracking: 0.04, returns: 0.04, destinationFit: 0.09, risk: 0.04 };
+export function normaliseWeights(w?: Partial<RankWeights>): RankWeights {
+  const m = { ...DEFAULT_RANK_WEIGHTS, ...(w ?? {}) };
+  const sum = Object.values(m).reduce((a, b) => a + Math.max(0, b), 0) || 1;
+  return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, Math.max(0, v) / sum])) as unknown as RankWeights;
+}
+
+/** Warehouse in the customer's country is best; neighbours next; overseas lowest. */
+export function destinationFit(warehouse: string, destination: string): number {
+  if (warehouse === destination) return 100;
+  const near = [['US', 'CA'], ['CA', 'US']];
+  if (near.some(([a, b]) => a === warehouse && b === destination)) return 70;
+  return 40;
 }
 
 export interface RankContext {
@@ -30,7 +62,11 @@ export interface RankContext {
   otherVariable?: number;
   /** Minimum acceptable contribution margin (fraction). Offers below are ineligible. */
   minMargin: number;
-  profitWeight?: number; // default 0.6
+  /** @deprecated use weights. Kept so older callers keep the profit/experience blend. */
+  profitWeight?: number;
+  weights?: Partial<RankWeights>;
+  /** Stock/price data older than this is treated as unreliable (default 6h). */
+  staleAfterMs?: number;
 }
 
 export interface RankedOffer extends RankableOffer {
@@ -43,6 +79,9 @@ export interface RankedOffer extends RankableOffer {
   margin: number;
   cxScore: number;
   profitScore: number;
+  /** 0-100 per factor, so admins can see exactly why a supplier won. */
+  breakdown: Record<keyof RankWeights, number>;
+  stale: boolean;
   finalScore: number;
   eligible: boolean;
   ineligibleReason?: string;
@@ -62,7 +101,8 @@ export function customerExperienceScore(o: RankableOffer): number {
 }
 
 export function rankSupplierOffers(offers: RankableOffer[], ctx: RankContext): RankedOffer[] {
-  const pw = ctx.profitWeight ?? 0.6;
+  const w = normaliseWeights(ctx.weights ?? (ctx.profitWeight !== undefined ? { profit: ctx.profitWeight, delivery: (1 - ctx.profitWeight) * 0.35, reliability: (1 - ctx.profitWeight) * 0.35, returns: (1 - ctx.profitWeight) * 0.1, tracking: (1 - ctx.profitWeight) * 0.05, stockConfidence: 0, destinationFit: 0, risk: (1 - ctx.profitWeight) * 0.15 } : undefined));
+  const staleAfter = ctx.staleAfterMs ?? 6 * 3_600_000;
   const ranked = offers.map((o): RankedOffer => {
     const declared = (o.productCost + o.shippingCost) * ctx.quantity;
     const duties = estimateDuties(o.warehouseCountry, ctx.country, declared);
@@ -87,6 +127,19 @@ export function rankSupplierOffers(offers: RankableOffer[], ctx: RankContext): R
     const margin = revenue > 0 ? profit / revenue : 0;
     const cx = customerExperienceScore(o);
     const profitScore = clamp((margin / 0.5) * 100, 0, 100);
+    const stale = (o.freshnessMs ?? 0) > staleAfter;
+    const freshness = stale ? 0.3 : 1 - Math.min(0.5, (o.freshnessMs ?? 0) / staleAfter / 2);
+    const breakdown: Record<keyof RankWeights, number> = {
+      profit: Math.round(profitScore),
+      delivery: Math.round(clamp(100 - ((o.maxDays - 5) / 20) * 100, 0, 100)),
+      reliability: Math.round(o.reliability),
+      stockConfidence: Math.round(clamp(Math.min(100, (o.stock / Math.max(1, ctx.quantity)) * 20) * freshness, 0, 100)),
+      tracking: o.trackingAvailable ? 100 : 0,
+      returns: Math.round(clamp((o.returnPolicyDays / 30) * 100, 0, 100)),
+      destinationFit: destinationFit(o.warehouseCountry, ctx.country.code),
+      risk: Math.round(clamp(100 - (o.failureRate ?? 0) * 200 - Math.min(20, (o.responseMs ?? 0) / 500), 0, 100)),
+    };
+    const finalScore = (Object.keys(w) as (keyof RankWeights)[]).reduce((a, k) => a + w[k] * breakdown[k], 0);
     let ineligibleReason: string | undefined;
     if (o.available === false) ineligibleReason = 'Supplier unavailable';
     else if (o.stock < ctx.quantity) ineligibleReason = 'Insufficient stock';
@@ -102,7 +155,9 @@ export function rankSupplierOffers(offers: RankableOffer[], ctx: RankContext): R
       margin,
       cxScore: cx,
       profitScore: Math.round(profitScore),
-      finalScore: Math.round((profitScore * pw + cx * (1 - pw)) * 10) / 10,
+      breakdown,
+      stale,
+      finalScore: Math.round(finalScore * 10) / 10,
       eligible: !ineligibleReason,
       ineligibleReason,
     };

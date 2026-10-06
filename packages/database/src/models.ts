@@ -195,6 +195,16 @@ const supplierSchema = new Schema({
   credentialsEnc: { type: String, select: false },
   /** Non-secret adapter mapping (used by the configurable "rest" provider). */
   config: Mixed,
+  /** AUTOMATED = we place/track orders via API; ASSISTED = API order after human approval; MANUAL = a human places each order. Unset ⇒ derived (mock: AUTOMATED, others: ASSISTED). */
+  fulfillmentMode: { type: String, enum: ['AUTOMATED', 'ASSISTED', 'MANUAL'] },
+  sandbox: { type: Boolean, default: false },
+  /** Operator-run validation results per check: { connection: { status: 'pass'|'fail', at, message } … } */
+  validation: Mixed,
+  healthState: { type: String, enum: ['HEALTHY', 'DEGRADED', 'FAILING', 'DISABLED', 'NOT_CONFIGURED'], default: 'NOT_CONFIGURED' },
+  consecutiveFailures: { type: Number, default: 0 },
+  lastHealthAt: Date,
+  lastSuccessfulOrderAt: Date,
+  avgResponseMs: Number,
   rating: { type: Number, default: 4, min: 0, max: 5 },
   reliability: { type: Number, default: 80, min: 0, max: 100 },
   returnPolicyDays: { type: Number, default: 14 },
@@ -260,6 +270,9 @@ const offerSchema = new Schema({
   lastPriceChangePct: { type: Number, default: 0 },
   priceHistory: [{ _id: false, at: Date, productCost: Number, shippingCost: Number }],
   syncedAt: Date,
+  /** 'manual' offers are typed in by an operator; they expire (confirmedAt + TTL) instead of being refreshed by an API. */
+  source: { type: String, enum: ['api', 'manual'], default: 'api' },
+  confirmedAt: Date,
 }, schemaOpts);
 offerSchema.index({ productId: 1, supplierId: 1, destination: 1 }, { unique: true });
 offerSchema.index({ supplierId: 1, syncedAt: 1 });
@@ -415,7 +428,8 @@ const shipmentSchema = new Schema({
   lastTrackedAt: Date,
   notified: { type: [String], default: [] },
 }, schemaOpts);
-shipmentSchema.index({ orderId: 1, lineKey: 1 }, { unique: true });
+// One ACTIVE supplier order per order line. FAILED/CANCELLED rows are history, so failover and change-supplier can place a replacement.
+shipmentSchema.index({ orderId: 1, lineKey: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['PENDING_CREATE', 'CREATED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'RETURNED'] } } });
 shipmentSchema.index({ status: 1, lastTrackedAt: 1 });
 export const Shipment = defineModel('Shipment', shipmentSchema, 'shipments');
 

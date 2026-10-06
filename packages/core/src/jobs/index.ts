@@ -10,6 +10,7 @@ import { runPricingAgent } from '../domain/pricing';
 import { proposePublish, scoreProduct } from '../domain/importer';
 import { canPublish } from '../domain/catalog';
 import { ingestSupplierImages } from '../domain/imagePipeline';
+import { runSupplierHealthChecks } from '../domain/supplierOps';
 import { generateDailyBrief } from '../domain/brief';
 import { recommendPromotions } from '../domain/marketing';
 import { syncAdMetrics } from '../domain/adsService';
@@ -26,6 +27,7 @@ const DAY = 24 * HOUR;
 
 export const DEFAULT_SCHEDULES: (ScheduleDef & { automation?: AutomationKey; risk: 'low' | 'medium' | 'high' })[] = [
   { name: 'order_sync', everyMs: 5 * MIN, job: 'order_sync', description: 'Re-request fulfilment for paid orders that have none queued', automation: 'order_fulfillment', risk: 'high' },
+  { name: 'supplier_health', everyMs: 10 * MIN, job: 'supplier_health', description: 'Probe supplier APIs; failing suppliers are excluded from new orders', risk: 'low' },
   { name: 'tracking_sync', everyMs: 5 * MIN, job: 'sync_tracking', description: 'Poll suppliers for shipment tracking and notify customers', automation: 'tracking', risk: 'low' },
   { name: 'payment_verification', everyMs: 5 * MIN, job: 'payment_verification', description: 'Confirm stale unpaid orders directly with the payment provider', risk: 'medium' },
   { name: 'inventory_sync', everyMs: 5 * MIN, job: 'sync_inventory', payload: { limit: 60 }, description: 'Rotating supplier stock + price refresh; pause/restore products', automation: 'inventory_sync', risk: 'medium' },
@@ -53,6 +55,7 @@ export function registerJobs(ctx: Ctx): void {
   q.onDead = (job, err) => onJobDead(ctx, job as { name: string; payload: unknown }, err);
   q.register('send_notification', (p: { notificationId: string; html?: string }) => deliverNotification(ctx, p));
   q.register('fulfill_order', (p: { orderId: string; force?: boolean }) => fulfillOrder(ctx, p.orderId, { force: p.force }));
+  q.register('supplier_health', () => runSupplierHealthChecks(ctx));
   q.register('image_ingestion', async (p: { productId: string }) => {
     const r = await ingestSupplierImages(ctx, p.productId);
     const prod = await Product.findById(p.productId).select('state title markets').lean();

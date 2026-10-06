@@ -2,10 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AuditLog, Customer, ExceptionModel, Inventory, Order, Payment, Product, Refund, Shipment, Supplier, SupplierOffer, SupplierProduct, ProductScore, Campaign, AiDecision, Warehouse } from '@orvia/database';
 import {
-  getCountryConfigs, servesCountry, usableImages, changeSupplier, cancelOrder, compareSuppliers, DomainError, importProduct, providerFor, sealCredentials, insights, financials, notFound, notify, parseRange, productPerformance, publishProduct, refreshProductMarkets,
+  automationReadiness, fulfillmentModeOf, recordManualFulfillment, runSupplierTest, setFulfillmentMode, setManualOffer, getCountryConfigs, servesCountry, usableImages, changeSupplier, cancelOrder, compareSuppliers, DomainError, importProduct, providerFor, sealCredentials, insights, financials, notFound, notify, parseRange, productPerformance, publishProduct, refreshProductMarkets,
   refundOrder, retrySupplierOrder, countryAnalytics, liveStats, setManualPrice, supplierHealth, syncInventory, syncProductOffers, timeseries, transitionProduct, createTestPlan, planMarket, automationOverview, scoreProduct, invalidateSearchIndex, launchCampaign,
 } from '@orvia/core';
-import { restSupplierConfigSchema } from '@orvia/suppliers';
+import { PLANNED_PROVIDERS, PROVIDER_DEFINITIONS, SUPPLIER_TEST_KINDS, capabilitiesForSupplier, restSupplierConfigSchema } from '@orvia/suppliers';
 import { PRODUCT_STATES, ORDER_STATUSES, countrySchema, objectId, paginationSchema } from '@orvia/types';
 import type { CountryCode } from '@orvia/types';
 import type { Ctx } from '@orvia/core';
@@ -199,12 +199,21 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
   route(app, ctx, {
     method: 'GET', url: '/admin/suppliers', summary: 'Supplier dashboard + per-country coverage', tags: ['Admin'], auth: A, permission: 'suppliers:read',
     handler: async () => {
-      const [items, docs, countries] = await Promise.all([supplierHealth(), Supplier.find().select('+credentialsEnc code servesCountries active priority provider config').lean(), getCountryConfigs()]);
+      const [items, docs, countries] = await Promise.all([supplierHealth(), Supplier.find().select('+credentialsEnc code servesCountries active priority provider config fulfillmentMode healthState sandbox validation').lean(), getCountryConfigs()]);
       const meta = new Map(docs.map((d) => [d.code, d]));
       const enabled = Object.values(countries).filter((c) => c.enabled);
       return {
-        items: items.map((i: { code: string }) => { const d = meta.get(i.code); return { ...i, servesCountries: d?.servesCountries ?? [], priority: d?.priority ?? 100, credentialsSet: !!d?.credentialsEnc, mappingSet: !!d?.config }; }),
+        items: items.map((i: { code: string }) => {
+          const d = meta.get(i.code);
+          const caps = d ? capabilitiesForSupplier(d) : null;
+          return {
+            ...i, servesCountries: d?.servesCountries ?? [], priority: d?.priority ?? 100, credentialsSet: !!d?.credentialsEnc, mappingSet: !!d?.config,
+            fulfillmentMode: d ? fulfillmentModeOf(d) : 'ASSISTED', healthState: d?.healthState ?? 'NOT_CONFIGURED', sandbox: !!d?.sandbox, capabilities: caps?.capabilities, integrationStatus: caps?.integrationStatus,
+            validation: d?.validation ?? {}, readiness: d ? automationReadiness(d) : null,
+          };
+        }),
         adapters: ctx.suppliers.adapters(),
+        providerDefinitions: PROVIDER_DEFINITIONS, plannedProviders: PLANNED_PROVIDERS,
         // which active suppliers can serve each enabled country — a country with none can't sell anything
         coverage: enabled.map((c) => ({ country: c.code, name: c.name, suppliers: docs.filter((d) => d.active && servesCountry(d, c.code)).sort((x, y) => (x.priority ?? 100) - (y.priority ?? 100)).map((d) => d.code) })),
       };
@@ -212,7 +221,8 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
   });
   const supplierBody = {
     name: z.string().min(2).max(80),
-    provider: z.enum(['cj', 'rest', 'mock']),
+    provider: z.enum(['cj', 'rest', 'manual', 'mock']),
+    sandbox: z.boolean().optional(),
     country: countrySchema.optional(),
     servesCountries: z.array(countrySchema).max(10).default([]),
     priority: z.number().int().min(1).max(1000).default(100),
@@ -240,7 +250,7 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
   });
   route(app, ctx, {
     method: 'PATCH', url: '/admin/suppliers/:id', summary: 'Update supplier settings, countries, credentials or mapping', tags: ['Admin'], auth: A, permission: 'suppliers:write',
-    body: z.object({ active: z.boolean().optional(), name: supplierBody.name.optional(), returnPolicyDays: supplierBody.returnPolicyDays.optional(), rating: z.number().min(0).max(5).optional(), servesCountries: supplierBody.servesCountries.optional(), priority: supplierBody.priority.optional(), credentials: supplierBody.credentials, config: supplierBody.config }),
+    body: z.object({ active: z.boolean().optional(), name: supplierBody.name.optional(), returnPolicyDays: supplierBody.returnPolicyDays.optional(), rating: z.number().min(0).max(5).optional(), sandbox: z.boolean().optional(), servesCountries: supplierBody.servesCountries.optional(), priority: supplierBody.priority.optional(), credentials: supplierBody.credentials, config: supplierBody.config }),
     handler: async ({ req, body }) => {
       const cur = await Supplier.findById(idOf(req));
       if (!cur) throw notFound('Supplier');
@@ -255,6 +265,36 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
       await audit(ctx, req.actor, { action: 'supplier.updated', resource: 'supplier', resourceId: String(cur._id), newValue: { ...rest, credentials: credentials ? '[replaced]' : undefined, config: config ? '[replaced]' : undefined } });
       return { ok: true };
     },
+  });
+  route(app, ctx, {
+    method: 'POST', url: '/admin/suppliers/:id/test/:kind', summary: 'Run a supplier validation check against its real API', tags: ['Admin'], auth: A, permission: 'suppliers:write',
+    body: z.object({ params: z.record(z.unknown()).default({}) }),
+    rateLimit: { max: 30, timeWindow: '1 minute' },
+    handler: async ({ req, body }) => {
+      const kind = (req.params as { kind: string }).kind;
+      if (!SUPPLIER_TEST_KINDS.includes(kind as never)) throw new DomainError('Unknown test', 'VALIDATION', 422);
+      return runSupplierTest(ctx, idOf(req), kind as never, body.params, req.actor);
+    },
+  });
+  route(app, ctx, {
+    method: 'PUT', url: '/admin/suppliers/:id/fulfillment-mode', summary: 'Set AUTOMATED / ASSISTED / MANUAL fulfilment (AUTOMATED requires passed validation)', tags: ['Admin'], auth: A, permission: 'suppliers:write',
+    body: z.object({ mode: z.enum(['AUTOMATED', 'ASSISTED', 'MANUAL']) }),
+    handler: async ({ req, body }) => { await setFulfillmentMode(ctx, idOf(req), body.mode, req.actor); return { ok: true, mode: body.mode }; },
+  });
+  route(app, ctx, {
+    method: 'POST', url: '/admin/products/:id/manual-offer', summary: 'Enter/re-confirm a manual supplier offer (expires automatically)', tags: ['Admin'], auth: A, permission: 'products:write',
+    body: z.object({ supplierId: objectId, externalId: z.string().max(120).optional(), countries: z.array(countrySchema).min(1).max(10), currency: z.enum(['USD', 'CAD', 'INR']), productCost: z.number().int().min(0), shippingCost: z.number().int().min(0), stock: z.number().int().min(0), minDays: z.number().int().min(0).max(120), maxDays: z.number().int().min(0).max(180), warehouseCountry: z.string().length(2), images: z.array(z.string().url()).max(12).optional() }),
+    handler: async ({ req, body }) => {
+      const r = await setManualOffer(ctx, { ...body, productId: idOf(req) }, req.actor);
+      await refreshProductMarkets(ctx, idOf(req));
+      invalidateSearchIndex();
+      return r;
+    },
+  });
+  route(app, ctx, {
+    method: 'POST', url: '/admin/orders/:id/manual-fulfillment', summary: 'Record a supplier order placed by hand (manual/assisted suppliers)', tags: ['Admin'], auth: A, permission: 'orders:write',
+    body: z.object({ supplierId: objectId, supplierOrderId: z.string().min(1).max(120), trackingNumber: z.string().max(120).optional(), carrier: z.string().max(80).optional(), lineKey: z.string().max(80).optional() }),
+    handler: async ({ req, body }) => recordManualFulfillment(ctx, idOf(req), body, req.actor),
   });
   route(app, ctx, {
     method: 'POST', url: '/admin/products/:id/link-supplier', summary: 'Source an existing product from another supplier (e.g. a different country)', tags: ['Admin'], auth: A, permission: 'products:write',

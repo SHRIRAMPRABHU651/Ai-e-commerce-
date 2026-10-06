@@ -128,6 +128,7 @@ export async function compareSuppliers(
 ): Promise<SupplierComparison> {
   const cfg = await getCountry(country);
   const pricing = await ctx.settings.get('pricing');
+  const sourcing = await ctx.settings.get('sourcing');
   const product = await Product.findById(productId).select('markets').lean();
   if (!product) throw new DomainError('Product not found', 'NOT_FOUND', 404);
   const market = product.markets.find((m) => m.country === country);
@@ -153,7 +154,10 @@ export async function compareSuppliers(
       reliability: s.reliability,
       returnPolicyDays: s.returnPolicyDays,
       trackingAvailable: s.trackingAvailable,
-      available: off.available && s.apiStatus !== 'down',
+      available: off.available && s.apiStatus !== 'down' && s.healthState !== 'FAILING',
+      failureRate: s.stats?.ordersTotal ? (s.stats.ordersFailed ?? 0) / s.stats.ordersTotal : 0,
+      responseMs: s.avgResponseMs ?? undefined,
+      freshnessMs: Date.now() - new Date((off.source === 'manual' ? off.confirmedAt : off.syncedAt) ?? 0).getTime(),
       code: s.code,
       cur,
       syncedAt: off.syncedAt ?? undefined,
@@ -168,6 +172,8 @@ export async function compareSuppliers(
     baseRefundRate: pricing.baseRefundRate,
     adCostPerOrder: Math.round(price * pricing.assumedAdCostPct),
     minMargin: Math.max(0, pricing.minMarginPct - 0.1), // supplier eligibility is looser than the publish gate
+    weights: sourcing.weights,
+    staleAfterMs: sourcing.staleAfterMinutes * 60_000,
   });
   const meta = new Map(rankable.map((r) => [r.supplierId, r]));
   const rec = recommendSupplier(ranked);
@@ -200,6 +206,7 @@ export async function selectSupplierLive(
   const cfg = await getCountry(p.country);
   const pricing = await ctx.settings.get('pricing');
   const fx = (await ctx.settings.get('ops')).fx;
+  const sourcing = await ctx.settings.get('sourcing');
   const links = await SupplierProduct.find({ productId: p.productId }).limit(20).lean();
   const failures: LiveSelection['failures'] = [];
   const rankable: (RankableOffer & { code: string; externalId: string; sku?: string; cur: Currency })[] = [];
@@ -207,6 +214,7 @@ export async function selectSupplierLive(
     if (p.excludeSupplierIds?.includes(String(link.supplierId))) continue;
     const s = await Supplier.findById(link.supplierId).lean();
     if (!s || !s.active || !servesCountry(s, p.country)) continue;
+    if (s.healthState === 'FAILING') { failures.push({ supplierCode: s.code, error: 'supplier health is FAILING — excluded from new orders' }); continue; }
     try {
       const provider = await providerFor(ctx, s);
       const sku = link.variants?.[0]?.sku ?? undefined;
@@ -228,6 +236,9 @@ export async function selectSupplierLive(
         returnPolicyDays: s.returnPolicyDays,
         trackingAvailable: live.trackingAvailable && s.trackingAvailable,
         available: live.available,
+        failureRate: s.stats?.ordersTotal ? (s.stats.ordersFailed ?? 0) / s.stats.ordersTotal : 0,
+        responseMs: s.avgResponseMs ?? undefined,
+        freshnessMs: 0, // fetched live a moment ago
         code: s.code,
         externalId: link.externalId,
         sku,
@@ -251,6 +262,7 @@ export async function selectSupplierLive(
     adCostPerOrder: Math.round(p.unitPrice * pricing.assumedAdCostPct),
     // Customer already paid: only refuse a supplier that loses money outright after ads are ignored.
     minMargin: -1,
+    weights: sourcing.weights,
   });
   const meta = new Map(rankable.map((r) => [r.supplierId, r]));
   const rec = recommendSupplier(ranked);

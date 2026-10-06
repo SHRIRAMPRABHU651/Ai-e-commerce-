@@ -1,3 +1,4 @@
+import { ManualSupplierProvider, manualOfferTtl } from '../domain/manualSupplier';
 import { buildStorage } from './storage';
 import { setImagePolicy } from '../domain/images';
 import { AdsRegistry } from '@orvia/ads';
@@ -77,6 +78,7 @@ export function buildCtx(o: BuildOptions): Ctx {
     now: () => new Date(),
     ...o.overrides,
   };
+  ctx.suppliers.registerFactory('manual', (sp) => new ManualSupplierProvider(sp.code, () => manualOfferTtl.hours));
   log.info({ channel: 'app', integrations: integrationStatus(cfg) }, 'services initialised');
   return ctx;
 }

@@ -340,7 +340,7 @@ export function adminOpsRoutes(app: FastifyInstance, ctx: Ctx): void {
   // --------------------------------------------------------------- settings
   route(app, ctx, {
     method: 'GET', url: '/admin/settings', summary: 'System settings (no secrets)', tags: ['Admin'], auth: A, permission: 'settings:read',
-    handler: async () => ({ pricing: await ctx.settings.get('pricing'), ads: await ctx.settings.get('ads'), ops: await ctx.settings.get('ops'), automation: await ctx.settings.get('automation'), integrations: integrationStatus(ctx.cfg), environment: ctx.cfg.APP_ENV, modes: { supplier: ctx.cfg.SUPPLIER_MODE, payment: ctx.cfg.PAYMENT_MODE, ads: ctx.cfg.ADS_MODE, notify: ctx.cfg.NOTIFY_MODE } }),
+    handler: async () => ({ pricing: await ctx.settings.get('pricing'), ads: await ctx.settings.get('ads'), ops: await ctx.settings.get('ops'), sourcing: await ctx.settings.get('sourcing'), automation: await ctx.settings.get('automation'), integrations: integrationStatus(ctx.cfg), environment: ctx.cfg.APP_ENV, modes: { supplier: ctx.cfg.SUPPLIER_MODE, payment: ctx.cfg.PAYMENT_MODE, ads: ctx.cfg.ADS_MODE, notify: ctx.cfg.NOTIFY_MODE } }),
   });
   const cur = z.object({ USD: z.number().int().min(0), CAD: z.number().int().min(0), INR: z.number().int().min(0) });
   route(app, ctx, {
@@ -357,6 +357,20 @@ export function adminOpsRoutes(app: FastifyInstance, ctx: Ctx): void {
     method: 'PUT', url: '/admin/settings/ops', summary: 'Update operational thresholds', tags: ['Admin'], auth: A, permission: 'settings:write',
     body: z.object({ lowStockThreshold: z.number().int().min(0).optional(), supplierPriceSpikePct: z.number().min(0.01).max(1).optional(), fraudHighScore: z.number().int().min(30).max(100).optional(), fraudMediumScore: z.number().int().min(10).max(90).optional(), highValueOrderUsd: z.number().int().min(1000).optional(), fulfillmentMaxAttempts: z.number().int().min(1).max(10).optional() }),
     handler: async ({ req, body }) => { const prev = await ctx.settings.get('ops'); const next = await ctx.settings.set('ops', body as Partial<OpsSettings>, req.actor.id); await audit(ctx, req.actor, { action: 'settings.ops', resource: 'settings', previousValue: prev, newValue: next }); return next; },
+  });
+
+  route(app, ctx, {
+    method: 'PUT', url: '/admin/settings/sourcing', summary: 'Supplier selection weights and data-freshness limits', tags: ['Admin'], auth: A, permission: 'settings:write',
+    body: z.object({
+      weights: z.object({ profit: z.number().min(0).max(1), delivery: z.number().min(0).max(1), reliability: z.number().min(0).max(1), stockConfidence: z.number().min(0).max(1), tracking: z.number().min(0).max(1), returns: z.number().min(0).max(1), destinationFit: z.number().min(0).max(1), risk: z.number().min(0).max(1) }).partial().optional(),
+      staleAfterMinutes: z.number().int().min(5).max(7 * 24 * 60).optional(), manualOfferTtlHours: z.number().int().min(1).max(24 * 30).optional(), failingAfterChecks: z.number().int().min(1).max(20).optional(),
+    }),
+    handler: async ({ req, body }) => {
+      const prev = await ctx.settings.get('sourcing');
+      const next = await ctx.settings.set('sourcing', body as never, req.actor.id);
+      await audit(ctx, req.actor, { action: 'settings.sourcing_updated', resource: 'settings', previousValue: prev, newValue: next });
+      return next;
+    },
   });
 
   // ------------------------------------------------------------------ audit

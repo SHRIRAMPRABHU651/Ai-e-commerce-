@@ -90,6 +90,8 @@ const get = (o: unknown, path: string | undefined): unknown => {
   return path.split('.').reduce<unknown>((acc, k) => (acc && typeof acc === 'object' ? (acc as Record<string, unknown>)[k] : undefined), o);
 };
 const fill = (s: string, vars: Record<string, unknown>): string => s.replace(/\{([\w.]+)\}/g, (_, k: string) => String(get(vars, k) ?? ''));
+/** Path placeholders are URL-encoded so an id can never inject extra path segments or query strings. */
+const fillPath = (s: string, vars: Record<string, unknown>): string => s.replace(/\{([\w.]+)\}/g, (_, k: string) => encodeURIComponent(String(get(vars, k) ?? '')));
 const fillDeep = (v: unknown, vars: Record<string, unknown>): unknown => {
   if (typeof v === 'string') {
     const m = /^\{([\w.]+)\}$/.exec(v);
@@ -131,7 +133,7 @@ export class RestSupplierProvider implements SupplierProvider {
   }
 
   private async call(ep: z.infer<typeof endpoint>, vars: Record<string, unknown>, idempotent?: boolean): Promise<unknown> {
-    const url = new URL(this.cfg.baseUrl.replace(/\/$/, '') + fill(ep.path, vars));
+    const url = new URL(this.cfg.baseUrl.replace(/\/$/, '') + fillPath(ep.path, vars));
     for (const [k, v] of Object.entries(ep.query ?? {})) url.searchParams.set(k, fill(v, vars));
     const headers: Record<string, string> = {};
     if (this.cfg.auth.type === 'bearer') headers[this.cfg.auth.name || 'Authorization'] = `Bearer ${this.apiKey}`;

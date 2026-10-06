@@ -31,3 +31,5 @@ export * from './agents/runner';
 export * from './agents/registry';
 export * from './jobs';
 export * from './domain/supplierAccess';
+export * from './domain/manualSupplier';
+export * from './domain/supplierOps';

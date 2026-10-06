@@ -1,4 +1,5 @@
 import { pickSupplierSku, providerFor } from './supplierAccess';
+import { fulfillmentModeOf } from './supplierOps';
 import { randomBytes } from 'node:crypto';
 import { calcPaymentFee, paymentFeeModelFor } from '@orvia/analytics';
 import { Cart, Customer, Order, OrderItem, Payment, Product, ProductVariant, AnalyticsEvent, WebhookEvent, Shipment, Supplier, Refund } from '@orvia/database';
@@ -278,7 +279,7 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
   let retryableError: Error | null = null;
 
   for (const it of order.items) {
-    const done = await Shipment.findOne({ orderId: order._id, lineKey: it.lineKey });
+    const done = await Shipment.findOne({ orderId: order._id, lineKey: it.lineKey, status: { $nin: ['FAILED', 'CANCELLED'] } });
     if (done && ['CREATED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(done.status)) {
       res.skipped++;
       continue;
@@ -319,6 +320,18 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
           break;
         }
         supplierDoc = await Supplier.findById(sel.best.supplierId);
+        const mode = supplierDoc ? fulfillmentModeOf(supplierDoc) : 'MANUAL';
+        if (supplierDoc && mode !== 'AUTOMATED' && !opts.force) {
+          await raiseException(ctx, {
+            kind: 'MANUAL_FULFILLMENT', priority: 'medium', orderId, customerEmail: order.email, productId: String(it.productId),
+            issue: `"${it.title}" is routed to ${supplierDoc.name}, which is in ${mode} mode — ${mode === 'ASSISTED' ? 'approve to place the order through its API' : 'place the order with the supplier and record the supplier order id'}.`,
+            aiRecommendation: `Best supplier: ${supplierDoc.name} (${sel.best.warehouseCountry} warehouse, ~${sel.best.maxDays} days).`,
+            suggestedAction: mode === 'ASSISTED' ? 'Approve fulfilment' : 'Record manual fulfilment', actionCode: mode === 'ASSISTED' ? 'approve_fulfillment' : 'review_product',
+            details: { supplier: supplierDoc.code, supplierId: String(supplierDoc._id), lineKey: it.lineKey, mode }, dedupeKey: `manual:${orderId}:${it.lineKey}`,
+          });
+          res.failed++;
+          break;
+        }
         externalId = sel.best.externalId;
         sku = sel.best.sku;
         costInfo = { productCost: sel.best.productCost * it.quantity, shippingCost: sel.best.shippingCost, duties: sel.best.duties };
@@ -435,7 +448,7 @@ export async function retrySupplierOrder(ctx: Ctx, orderId: string, actor: Actor
 
 /** Change supplier for an unshipped line: cancel at the old supplier, then re-place excluding it. */
 export async function changeSupplier(ctx: Ctx, orderId: string, lineKey: string, actor: Actor) {
-  const sh = await Shipment.findOne({ orderId, lineKey });
+  const sh = await Shipment.findOne({ orderId, lineKey, status: { $nin: ['FAILED', 'CANCELLED'] } });
   if (sh && sh.supplierOrderId) {
     const sup = await Supplier.findById(sh.supplierId);
     if (sup) {

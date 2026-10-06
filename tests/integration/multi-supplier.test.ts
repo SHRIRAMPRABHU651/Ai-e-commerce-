@@ -1,5 +1,3 @@
-import { createServer } from 'node:http';
-import type { Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Product, Supplier, SupplierOffer } from '@orvia/database';
 import { refreshProductMarkets, syncProductOffers, invalidateSearchIndex } from '@orvia/core';
@@ -8,42 +6,7 @@ import { closeCtx, testCtx } from '../helpers/ctx';
 import { Client, startApi } from '../helpers/client';
 import { runSeed } from '../../scripts/lib/seed';
 import { pay, placeOrder } from '../helpers/shop';
-
-/** Two independent "suppliers" with their own API keys, countries and photo CDNs. */
-function fakeSupplier(key: string, cdn: string, port: number, ship: { cost: number; min: number; max: number }) {
-  const orders = new Map<string, unknown>();
-  const seen: string[] = [];
-  const server: Server = createServer((req, res) => {
-    const url = new URL(req.url!, `http://localhost:${port}`);
-    seen.push(`${req.method} ${url.pathname}`);
-    res.setHeader('content-type', 'application/json');
-    if (req.headers.authorization !== `Bearer ${key}`) { res.statusCode = 401; return res.end('{"error":"bad key"}'); }
-    const product = (id: string) => ({ id, title: 'Spiral Slow Feeder Dog Bowl', description: 'A durable bowl with a spiral maze that slows down fast eaters.', category: 'Pet', price: 4.5, stock: 120, images: [`${cdn}/${id}/1.jpg`, `${cdn}/${id}/2.jpg`], shipping: { cost: ship.cost, minDays: ship.min, maxDays: ship.max } });
-    if (req.method === 'GET' && url.pathname === '/products') return res.end(JSON.stringify({ items: [product('P100')] }));
-    const m = /^\/products\/(\w+)$/.exec(url.pathname);
-    if (req.method === 'GET' && m) return res.end(JSON.stringify(product(m[1]!)));
-    if (req.method === 'POST' && url.pathname === '/orders') {
-      let body = ''; req.on('data', (c) => (body += c)); req.on('end', () => {
-        const j = JSON.parse(body) as { ref: string };
-        const id = `ORD-${key}-${j.ref}`; orders.set(id, j);
-        res.end(JSON.stringify({ id, status: 'pending' }));
-      }); return;
-    }
-    res.statusCode = 404; res.end('{}');
-  });
-  return { server, seen, start: () => new Promise<void>((r) => server.listen(port, r)), stop: () => new Promise<void>((r) => server.close(() => r())) };
-}
-
-const mapping = (base: string, warehouse: string) => ({
-  baseUrl: base, auth: { type: 'bearer' }, currency: 'USD', warehouseCountry: warehouse,
-  endpoints: {
-    search: { path: '/products', query: { q: '{query}' } },
-    product: { path: '/products/{id}' },
-    quote: { path: '/products/{id}', query: { country: '{country}', qty: '{qty}' } },
-    createOrder: { method: 'POST', path: '/orders', body: { ref: '{idempotencyKey}', sku: '{sku}', qty: '{qty}', to: '{address.fullName}' } },
-    order: { path: '/orders/{id}' },
-  },
-});
+import { fakeSupplier, restMapping as mapping } from '../helpers/fakeSupplier';
 
 let ctx: Ctx; let admin: Client; let startApiClient: () => Client;
 const A = fakeSupplier('keyA', 'https://cdn.supplier-a.example', 47811, { cost: 3.5, min: 6, max: 10 });
@@ -130,6 +93,17 @@ describe('different suppliers for different countries', () => {
     // price comfortably above landed cost so the negative-margin guard doesn't hold these test orders
     await Product.updateOne({ _id: productId }, { $set: { 'markets.$[].price': 400000, 'markets.$[].compareAtPrice': 0 } });
     invalidateSearchIndex();
+    // AUTOMATED fulfilment is only allowed once the supplier passed the validation suite against its real (here: fake) API
+    for (const sup of [supA, supB]) {
+      expect((await admin.put(`/api/v1/admin/suppliers/${sup}/fulfillment-mode`, { mode: 'AUTOMATED' })).status).toBe(409);
+      await admin.patch(`/api/v1/admin/suppliers/${sup}`, { sandbox: true });
+      for (const kind of ['connection', 'catalog', 'product', 'inventory', 'price', 'shipping']) expect((await admin.post(`/api/v1/admin/suppliers/${sup}/test/${kind}`, { params: { externalId: 'P100', country: sup === supA ? 'US' : 'IN' } })).body, kind).toMatchObject({ status: 'pass' });
+      const order = await admin.post(`/api/v1/admin/suppliers/${sup}/test/order`, { params: { externalId: 'P100', confirm: 'PLACE TEST ORDER', address: { fullName: 'Test', line1: '1 Test St', city: 'X', region: 'CA', postalCode: '94105', country: 'US' } } });
+      expect(order.body, JSON.stringify(order.body)).toMatchObject({ status: 'pass' });
+      expect((await admin.post(`/api/v1/admin/suppliers/${sup}/test/tracking`, { params: {} })).body.status).toBe('pass');
+      expect((await admin.put(`/api/v1/admin/suppliers/${sup}/fulfillment-mode`, { mode: 'AUTOMATED' })).status).toBe(200);
+    }
+    A.seen.length = 0; B.seen.length = 0;
     const p = await Product.findById(productId).lean();
     const slug = p!.slug;
     for (const [country, sup, other] of [['IN', B, A], ['US', A, B]] as const) {

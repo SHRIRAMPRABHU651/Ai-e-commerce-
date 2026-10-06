@@ -39,6 +39,13 @@ export async function raiseException(ctx: Ctx, i: RaiseInput, actor: Actor = SYS
   return doc;
 }
 
+/** Resolve every open exception carrying this dedupe key (system-initiated, e.g. the supplier recovered). */
+export async function resolveExceptionsFor(ctx: Ctx, dedupeKey: string, resolution = 'Resolved automatically'): Promise<number> {
+  const open = await ExceptionModel.find({ dedupeKey, status: { $in: ['open', 'in_progress'] } }).select('_id').lean();
+  for (const e of open) await resolveException(ctx, String(e._id), SYSTEM, resolution);
+  return open.length;
+}
+
 export async function resolveException(ctx: Ctx, id: string, actor: Actor, resolution: string, status: 'resolved' | 'dismissed' = 'resolved') {
   const ex = await ExceptionModel.findById(id);
   if (!ex) throw notFound('Exception');
