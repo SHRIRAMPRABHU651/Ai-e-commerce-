@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const WEB = process.env.E2E_WEB_URL ?? 'http://localhost:3100';
 const storefront = ['/', '/c/pet', '/search?q=pet', '/cart', '/help', '/track', '/login', '/register', '/legal/terms'];
-const admin = ['/admin', '/admin/orders', '/admin/products', '/admin/exceptions', '/admin/automation', '/admin/analytics', '/admin/settings', '/admin/countries', '/admin/audit'];
+const admin = ['/admin', '/admin/orders', '/admin/products', '/admin/exceptions', '/admin/automation', '/admin/analytics', '/admin/settings', '/admin/countries', '/admin/audit', '/admin/economics'];
 
 const noHorizontalScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
@@ -70,6 +70,19 @@ test.describe('admin console', () => {
     } else {
       await context.addCookies(session);
     }
+  });
+  test('/admin/economics: every figure is marked, assumed CAC is flagged ESTIMATED, CSV exports', async ({ page }) => {
+    await page.goto('/admin/economics', { waitUntil: 'networkidle' });
+    await expect(page.getByRole('heading', { level: 1, name: 'Economics' })).toBeVisible();
+    const table = page.getByTestId('economics-table');
+    await expect(table).toBeVisible();
+    await expect(table.locator('[data-basis="estimated"]').first()).toBeVisible();
+    await expect(table.locator('[data-basis="set"]').first()).toBeVisible();
+    expect(await table.locator('tbody tr').count()).toBeGreaterThan(3);
+    await expect(page.getByText('CAC assumed → needs human approval').first()).toBeVisible();
+    await expect(page.getByRole('note', { name: 'Legend' })).toContainText('ESTIMATED');
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export CSV' }).click()]);
+    expect(dl.suggestedFilename()).toMatch(/^orvia-economics-.*\.csv$/);
   });
   for (const path of admin) {
     test(`${path}: renders, no horizontal overflow`, async ({ page }) => {

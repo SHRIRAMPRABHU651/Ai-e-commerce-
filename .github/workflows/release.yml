@@ -1,0 +1,20 @@
+name: Release
+# Tag a release (v*) → verify, generate a CycloneDX SBOM of the production dependency tree, and publish it with the release.
+on:
+  push: { tags: ['v*'] }
+permissions: { contents: write }
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run sbom
+      - uses: actions/upload-artifact@v4
+        with: { name: sbom-${{ github.ref_name }}, path: sbom.cdx.json }
+      - name: Attach SBOM to the release
+        uses: softprops/action-gh-release@v2
+        with: { files: sbom.cdx.json }

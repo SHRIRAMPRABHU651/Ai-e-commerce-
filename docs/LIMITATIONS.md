@@ -1,6 +1,6 @@
 # Honest limitations
 
-Verified in this repo: lint, typecheck, 195 unit/integration/failure/security tests, Playwright E2E (desktop + mobile), production builds. Not verified:
+Verified in this repo: lint, typecheck, 245 unit/integration/failure/security tests (coverage floors on `packages/core`: lines ≥ 80%, branches ≥ 70%), Playwright E2E (desktop + mobile), production builds, a high-severity `npm audit` — all against in-repo mock providers. Not verified:
 
 1. **Live provider adapters** (the generic `rest` supplier adapter is tested against fake HTTP suppliers only; real suppliers' payload shapes will need mapping tweaks) (CJ, Stripe, Razorpay, Meta, TikTok, Google Ads, Resend, Twilio, Gemini) have never run against real or sandbox accounts from this repo. Expect to fix field-mapping details during staging verification.
 2. **Ads**: Google creates campaign + budget only; TikTok creates campaign + ad group only (no creative upload). Meta creates the full chain paused. Pixel/CAPI/product-feed setup is manual.

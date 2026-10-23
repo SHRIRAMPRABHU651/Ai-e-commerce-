@@ -19,8 +19,9 @@ const sh = (cmd, args, env = {}) => spawnSync(cmd, args, { stdio: 'inherit', env
 if (!scanOnly) {
   step('lint', () => sh('npm', ['run', 'lint']));
   step('typecheck', () => sh('npm', ['run', 'typecheck']));
-  step('unit + integration + failure + security tests', () => sh('npm', ['test']));
+  step('tests + coverage floors (core: lines ≥80%, branches ≥70%)', () => sh('npm', ['run', 'test:coverage']));
   step('production build', () => sh('npm', ['run', 'build']));
+  step('dependency audit (high+)', () => sh('npm', ['audit', '--audit-level=high']));
 }
 
 // Production configuration must refuse mock providers and weak secrets (proves the guard is live).

@@ -70,7 +70,7 @@ export default function EconomicsPage() {
             <p className="mt-2 text-ink-3">Minimum margin {pctf(data.minMarginPct, 0)} · CAC scenarios as share of price: {Object.entries(data.cacScenarios).map(([k, v]) => `${k} ${pctf(v, 0)}`).join(' · ')}</p>
           </Card>
           {!data.rows.length ? <Card className="p-6 text-sm text-ink-2">No priced products yet.</Card> : (
-            <Card className="overflow-x-auto p-0">
+            <Card className="relative overflow-x-auto p-0">
               <table className="w-full min-w-[1400px] text-sm" data-testid="economics-table">
                 <thead className="bg-sunken text-left text-xs text-ink-3">
                   <tr>
