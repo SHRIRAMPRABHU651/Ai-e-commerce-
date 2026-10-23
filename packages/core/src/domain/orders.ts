@@ -9,6 +9,7 @@ import type { CheckoutInput, CountryCode, Currency } from '@orvia/types';
 import { audit } from '../infra/audit';
 import { getCountry } from '../infra/countries';
 import { aiActor, conflict, DomainError, notFound, SYSTEM } from '../infra/context';
+import { exportGate, exportGateMessage } from './exportGate';
 import type { Actor, Ctx } from '../infra/context';
 import { proposeOrExecute, registerExecutor } from './automation';
 import { priceCart } from './cart';
@@ -268,6 +269,11 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
   if (['CANCELLED', 'REFUNDED'].includes(order.status)) return { ...res, state: 'cancelled' };
   if (order.exceptionOpen && !opts.force) {
     ctx.log.info({ channel: 'order', orderId }, 'fulfilment skipped: open exception');
+    return { ...res, state: 'held' };
+  }
+  const gate = await exportGate(ctx, order.country);
+  if (gate.required && !gate.attested && !opts.force) {
+    await raiseException(ctx, { kind: 'EXPORT_ATTESTATION', priority: 'high', orderId, customerEmail: order.email, issue: `Fulfilment held: ${exportGateMessage(order.country)}`, aiRecommendation: 'Record the adviser attestation for this destination, then retry fulfilment.', suggestedAction: 'Record export attestation', actionCode: 'review_product', dedupeKey: `export:${order.country}:${orderId}` });
     return { ...res, state: 'held' };
   }
   const addr = order.address && validateAddress({ country: order.country as CountryCode, region: order.address.region ?? '', postalCode: order.address.postalCode ?? '', line1: order.address.line1 ?? '', city: order.address.city ?? '' });

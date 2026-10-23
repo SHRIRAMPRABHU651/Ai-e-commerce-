@@ -84,8 +84,9 @@ export async function runSeed(ctx: Ctx, opts: SeedOptions = {}) {
     await syncProductOffers(ctx, res.productId);
     await refreshProductMarkets(ctx, res.productId, { forcePrice: true });
     const gate = await canPublish(ctx, res.productId);
-    if (gate.ok) {
-      await publishProduct(ctx, res.productId, SYSTEM, 'seed publish');
+    if (!gate.hardProblems.length) {
+      // Dev-only demo catalog: stands in for the person who would approve on assumed acquisition cost.
+      await publishProduct(ctx, res.productId, SYSTEM, 'seed publish', { humanApproved: true });
       published++;
     } else held++;
   }

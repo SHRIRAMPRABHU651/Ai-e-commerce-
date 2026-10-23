@@ -24,6 +24,9 @@ export interface RankableOffer {
   responseMs?: number;
   /** Age of the price/stock data in ms (live quotes are ~0). */
   freshnessMs?: number;
+  /** Measured refund rate for this product–supplier–destination (fraction) and the number of orders behind it. */
+  measuredRefundRate?: number;
+  measuredRefundSample?: number;
 }
 
 /** Configurable weights (normalised to sum 1). Profit and customer-experience factors are all explicit. */
@@ -74,6 +77,9 @@ export interface RankedOffer extends RankableOffer {
   landedCost: number;
   paymentFeeAmount: number;
   refundRate: number;
+  /** `measured` only when real orders back the rate; otherwise it is an ESTIMATE from base rate, reliability and transit time. */
+  refundSource: 'measured' | 'estimated';
+  refundSampleSize: number;
   expectedRefundCost: number;
   expectedProfit: number;
   margin: number;
@@ -114,7 +120,8 @@ export function rankSupplierOffers(offers: RankableOffer[], ctx: RankContext): R
     });
     const revenue = ctx.sellingPrice * ctx.quantity;
     const fee = calcPaymentFee(revenue, ctx.paymentFee);
-    const rr = supplierRefundRate(ctx.baseRefundRate, o.reliability, o.maxDays);
+    const hasMeasured = o.measuredRefundRate !== undefined && (o.measuredRefundSample ?? 0) > 0;
+    const rr = hasMeasured ? clamp(o.measuredRefundRate!, 0, 0.6) : supplierRefundRate(ctx.baseRefundRate, o.reliability, o.maxDays);
     const refundCost = Math.round(revenue * rr);
     const profit = contributionProfit({
       sellingPrice: revenue,
@@ -150,6 +157,8 @@ export function rankSupplierOffers(offers: RankableOffer[], ctx: RankContext): R
       landedCost: landed,
       paymentFeeAmount: fee,
       refundRate: rr,
+      refundSource: hasMeasured ? 'measured' : 'estimated',
+      refundSampleSize: hasMeasured ? (o.measuredRefundSample ?? 0) : 0,
       expectedRefundCost: refundCost,
       expectedProfit: profit,
       margin,

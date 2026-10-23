@@ -107,6 +107,16 @@ const marketSchema = new Schema(
     minDays: Number,
     maxDays: Number,
     stock: { type: Number, default: 0 },
+    /**
+     * Cost-structure provenance used by the publish gate. Anything not `measured` is an ESTIMATE.
+     * `cpaSource` defaults to `assumed`, so legacy / hand-built markets can never be auto-published.
+     */
+    cpa: { type: Number, default: 0 },
+    cpaSource: { type: String, enum: ['measured', 'category', 'store', 'assumed'], default: 'assumed' },
+    cpaSampleSize: { type: Number, default: 0 },
+    refundRate: { type: Number, default: 0 },
+    refundSource: { type: String, enum: ['measured', 'estimated'], default: 'estimated' },
+    refundSampleSize: { type: Number, default: 0 },
     /** Photos from the supplier that serves this country (set when the market is refreshed); falls back to product.images. */
     images: [String],
   },
@@ -653,6 +663,40 @@ const adMetricSchema = new Schema({
 adMetricSchema.index({ campaignId: 1, creativeId: 1, date: 1 }, { unique: true });
 adMetricSchema.index({ date: -1, country: 1 });
 export const AdMetric = defineModel('AdMetric', adMetricSchema, 'ad_metrics');
+
+/**
+ * Measured customer-acquisition cost: real ad spend ÷ attributed orders. `spend` is USD minor units
+ * (same unit as AdMetric.spend). `scope` is the granularity the figure was measured at; `channel` is the
+ * ad platform or `all`. Never written from demo data.
+ */
+const measuredCpaSchema = new Schema({
+  scope: { type: String, enum: ['product', 'category', 'store'], required: true },
+  key: { type: String, required: true },
+  country: { type: String, required: true },
+  channel: { type: String, required: true, default: 'all' },
+  spend: money,
+  orders: { type: Number, default: 0 },
+  windowDays: { type: Number, default: 28 },
+  source: { type: String, enum: ['ad_metrics', 'manual'], default: 'ad_metrics' },
+  note: String,
+  computedAt: { type: Date, default: Date.now },
+}, schemaOpts);
+measuredCpaSchema.index({ scope: 1, key: 1, country: 1, channel: 1 }, { unique: true });
+export const MeasuredCpa = defineModel('MeasuredCpa', measuredCpaSchema, 'measured_cpa');
+
+/** Measured refund rate for one product–supplier–destination: refunded value ÷ order value, over real orders. */
+const measuredRefundSchema = new Schema({
+  productId: { type: oid, ref: 'Product', required: true },
+  supplierId: { type: oid, ref: 'Supplier', required: true },
+  country: { type: String, required: true },
+  orders: { type: Number, default: 0 },
+  orderValue: money,
+  refundedValue: money,
+  windowDays: { type: Number, default: 90 },
+  computedAt: { type: Date, default: Date.now },
+}, schemaOpts);
+measuredRefundSchema.index({ productId: 1, supplierId: 1, country: 1 }, { unique: true });
+export const MeasuredRefund = defineModel('MeasuredRefund', measuredRefundSchema, 'measured_refunds');
 
 /** Storefront behavioural events (page/product views, add-to-cart, checkout). TTL 180d. */
 const analyticsSchema = new Schema(

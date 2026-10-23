@@ -49,10 +49,12 @@ export async function marketIntelFor(ctx: Ctx, externalId: string, title?: strin
 }
 
 /** Ask the automation layer to publish a gate-passing product (ASSISTED → proposal, AUTOMATIC → publish now). */
-export async function proposePublish(ctx: Ctx, pid: string, title: string, pricedMarkets: number): Promise<ImportResult['publish']> {
+export async function proposePublish(ctx: Ctx, pid: string, title: string, pricedMarkets: number, risk: { needsHumanApproval?: boolean; warnings?: string[] } = {}): Promise<ImportResult['publish']> {
+  const notes = [risk.needsHumanApproval ? 'acquisition cost is ASSUMED — human approval required' : '', ...(risk.warnings ?? [])].filter(Boolean);
   const out = await proposeOrExecute(ctx, {
     automationKey: 'auto_publishing', agent: 'ContentAgent', kind: 'publish_product', resource: 'product', resourceId: pid,
-    summary: `Publish "${title}" (compliance passed, ${pricedMarkets} market(s) priced)`, payload: { productId: pid }, confidence: 0.85, dedupeKey: `publish:${pid}`,
+    summary: `Publish "${title}" (compliance passed, ${pricedMarkets} market(s) priced${notes.length ? '; ' + notes.join('; ') : ''})`, payload: { productId: pid }, confidence: 0.85, dedupeKey: `publish:${pid}`,
+    requireHuman: !!risk.needsHumanApproval,
   });
   return out.status === 'executed' ? { outcome: 'published' } : out.status === 'proposed' ? { outcome: 'proposed', decisionId: out.decisionId } : { outcome: 'skipped' };
 }
@@ -205,9 +207,9 @@ export async function importProduct(ctx: Ctx, input: { supplierId: string; exter
     publish = { outcome: 'blocked', problems: compliance.flags.map((f) => f.detail) };
   } else {
     const gate = await canPublish(ctx, pid);
-    if (!gate.ok) publish = { outcome: 'blocked', problems: gate.problems };
+    if (gate.hardProblems.length) publish = { outcome: 'blocked', problems: gate.hardProblems };
     else {
-      publish = await proposePublish(ctx, pid, sp.title, refreshed.filter((m) => m.priced).length);
+      publish = await proposePublish(ctx, pid, sp.title, refreshed.filter((m) => m.priced).length, gate);
     }
   }
   const final = await Product.findById(pid).lean();

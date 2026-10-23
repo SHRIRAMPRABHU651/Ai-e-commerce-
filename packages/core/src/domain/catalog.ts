@@ -6,6 +6,9 @@ import type { CountryCode, ProductState } from '@orvia/types';
 import { audit } from '../infra/audit';
 import { DomainError, notFound } from '../infra/context';
 import type { Actor, Ctx } from '../infra/context';
+import { evaluateMarket } from './economics';
+import type { MarketScenarioView } from './economics';
+import { exportGate, exportGateMessage } from './exportGate';
 
 export async function ensureCategories(): Promise<void> {
   let pos = 0;
@@ -50,30 +53,66 @@ export const isSellable = (state: string): boolean => (SELLABLE_STATES as readon
 
 export interface PublishCheck {
   ok: boolean;
+  /** Everything blocking this publish for THIS caller (includes the approval requirement when not approved). */
   problems: string[];
+  /** Blockers a human cannot waive (compliance, content, margin, export attestation). */
+  hardProblems: string[];
+  /** True when acquisition cost is only assumed for a live market: auto-publishing is forbidden, a person must approve. */
+  needsHumanApproval: boolean;
+  /** Risks that do not block: e.g. margin collapses at the pessimistic CAC. */
+  warnings: string[];
+  scenarios: MarketScenarioView[];
 }
 
-/** Hard publish gates: compliance passed, content, media, at least one priced + stocked market with healthy margin. */
-export async function canPublish(ctx: Ctx, productId: string): Promise<PublishCheck> {
+/**
+ * Hard publish gates: compliance passed, content, media, at least one priced + stocked market whose
+ * EXPECTED-case contribution (acquisition cost = measured CPA, else the configured expected share of price)
+ * clears `minMarginPct`. If acquisition cost is only assumed, a person must approve: pass `humanApproved`
+ * only from a path that is a person's explicit decision.
+ */
+export async function canPublish(ctx: Ctx, productId: string, opts: { humanApproved?: boolean } = {}): Promise<PublishCheck> {
   const p = await Product.findById(productId).lean();
   if (!p) throw notFound('Product');
-  const problems: string[] = [];
-  if (p.compliance?.status !== 'passed') problems.push(`Compliance status is "${p.compliance?.status ?? 'pending'}"`);
-  if (!hasUsableImage((p.images ?? []).map((i) => i.url)) && !(p.markets ?? []).some((m) => m.enabled && hasUsableImage(m.images))) problems.push('No product image from the supplier — products without a real photo cannot be sold');
-  if (!p.description || p.description.length < 20) problems.push('Missing description');
+  const hard: string[] = [];
+  if (p.compliance?.status !== 'passed') hard.push(`Compliance status is "${p.compliance?.status ?? 'pending'}"`);
+  if (!hasUsableImage((p.images ?? []).map((i) => i.url)) && !(p.markets ?? []).some((m) => m.enabled && hasUsableImage(m.images))) hard.push('No product image from the supplier — products without a real photo cannot be sold');
+  if (!p.description || p.description.length < 20) hard.push('Missing description');
   const violations = claimViolations(p as never);
-  if (violations.length) problems.push(`Unverified claim${violations.length > 1 ? 's' : ''} in the listing (${[...new Set(violations.map((v) => `"${v.match.toLowerCase()}" in ${v.field}`))].slice(0, 4).join(', ')}) — add verified certification evidence or remove the wording`);
+  if (violations.length) hard.push(`Unverified claim${violations.length > 1 ? 's' : ''} in the listing (${[...new Set(violations.map((v) => `"${v.match.toLowerCase()}" in ${v.field}`))].slice(0, 4).join(', ')}) — add verified certification evidence or remove the wording`);
   const pricing = await ctx.settings.get('pricing');
   const live = (p.markets ?? []).filter((m) => m.enabled && m.price > 0);
-  if (!live.length) problems.push('No priced market');
+  if (!live.length) hard.push('No priced market');
+  const warnings: string[] = [];
+  const scenarios: MarketScenarioView[] = [];
+  const assumedIn: string[] = [];
+  const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
   for (const m of live) {
-    if (m.expectedMargin < pricing.minMarginPct - 1e-9) problems.push(`Margin below minimum in ${m.country}`);
+    const gate = await exportGate(ctx, m.country);
+    if (gate.required && !gate.attested) hard.push(exportGateMessage(m.country));
+    if (!(m.landedCost > 0)) {
+      hard.push(`No landed cost for ${m.country} — contribution cannot be evaluated`);
+      continue;
+    }
+    const v = await evaluateMarket(ctx, m);
+    scenarios.push(v);
+    const exp = v.scenarios.expected;
+    if (exp.margin < pricing.minMarginPct - 1e-9) {
+      hard.push(`Expected-case margin ${pct(exp.margin)} is below the ${pct(pricing.minMarginPct)} minimum in ${m.country} (CAC ${pct(exp.cac / m.price)} of price, ${v.cpaSource === 'assumed' ? 'assumed' : `${v.cpaSource}, n=${v.cpaSampleSize}`})`);
+    }
+    const pes = v.scenarios.pessimistic;
+    if (pes.profit < 0) warnings.push(`Loses money at pessimistic CAC in ${m.country}: ${pct(pes.margin)} margin at CAC ${pct(pes.cac / m.price)} of price`);
+    else if (pes.margin < pricing.minMarginPct - 1e-9) warnings.push(`Below the ${pct(pricing.minMarginPct)} minimum at pessimistic CAC in ${m.country}: ${pct(pes.margin)} at CAC ${pct(pes.cac / m.price)} of price`);
+    if (v.cpaSource === 'assumed') assumedIn.push(m.country);
   }
-  return { ok: problems.length === 0, problems };
+  const needsHumanApproval = assumedIn.length > 0;
+  const problems = [...hard];
+  if (needsHumanApproval && !opts.humanApproved) problems.push(`Acquisition cost in ${assumedIn.join(', ')} is assumed, not measured — a person must explicitly approve publishing`);
+  return { ok: problems.length === 0, problems, hardProblems: hard, needsHumanApproval, warnings, scenarios };
 }
 
-export async function publishProduct(ctx: Ctx, productId: string, actor: Actor, reason = 'published'): Promise<void> {
-  const check = await canPublish(ctx, productId);
+export async function publishProduct(ctx: Ctx, productId: string, actor: Actor, reason = 'published', opts: { humanApproved?: boolean } = {}): Promise<void> {
+  // Only a person's own action counts as approval; AI / system / webhook actors never do.
+  const check = await canPublish(ctx, productId, { humanApproved: actor.type === 'user' || !!opts.humanApproved });
   if (!check.ok) throw new DomainError(`Cannot publish: ${check.problems.join('; ')}`, 'PUBLISH_BLOCKED', 422, check.problems);
   const p = await Product.findById(productId);
   if (!p) throw notFound('Product');

@@ -191,3 +191,76 @@ export function summarizeFinancials(f: FinancialInputs): FinancialSummary {
     margin: safeDiv(contribution, netRevenue),
   };
 }
+
+/* ------------------------- CAC scenario band ------------------------- */
+
+/** Customer-acquisition cost as a fraction of order value (price), for each scenario. */
+export interface CacScenarios {
+  optimistic: number;
+  expected: number;
+  pessimistic: number;
+}
+export type ScenarioName = keyof CacScenarios;
+export const SCENARIO_NAMES: readonly ScenarioName[] = ['optimistic', 'expected', 'pessimistic'];
+
+/** Where an acquisition-cost figure came from. Only `measured` is real data about this product. */
+export type CpaSource = 'measured' | 'category' | 'store' | 'assumed';
+
+export interface ScenarioResult {
+  /** CAC per order in minor units. */
+  cac: number;
+  /** Contribution per order in minor units. */
+  profit: number;
+  /** Contribution as a fraction of price. */
+  margin: number;
+}
+export type ScenarioReport = Record<ScenarioName, ScenarioResult>;
+
+export interface ScenarioInput {
+  sellingPrice: number;
+  landedCost: number;
+  paymentFee: PaymentFeeModel;
+  refundRate: number;
+  otherVariable?: number;
+}
+
+/**
+ * Contribution at three CAC levels.
+ *
+ * Without data every scenario is `fraction × price`. With a measured/derived CAC (`knownCac`, minor units)
+ * the measurement IS the expected case; the optimistic case is the lower of (configured, measured) and the
+ * pessimistic case the higher, so the band never excludes what was actually observed.
+ */
+export function evaluateCacScenarios(i: ScenarioInput, fractions: CacScenarios, knownCac?: number): ScenarioReport {
+  const at = (cac: number): ScenarioResult => {
+    const c = Math.round(cac);
+    const profit = contributionProfit({
+      sellingPrice: i.sellingPrice,
+      landedCost: i.landedCost,
+      paymentFee: calcPaymentFee(i.sellingPrice, i.paymentFee),
+      expectedRefundCost: Math.round(i.sellingPrice * i.refundRate),
+      adCost: c,
+      otherVariable: i.otherVariable,
+    });
+    return { cac: c, profit, margin: i.sellingPrice > 0 ? profit / i.sellingPrice : 0 };
+  };
+  const cfg = {
+    optimistic: i.sellingPrice * fractions.optimistic,
+    expected: i.sellingPrice * fractions.expected,
+    pessimistic: i.sellingPrice * fractions.pessimistic,
+  };
+  if (knownCac === undefined || !(knownCac >= 0)) {
+    return { optimistic: at(cfg.optimistic), expected: at(cfg.expected), pessimistic: at(cfg.pessimistic) };
+  }
+  return {
+    optimistic: at(Math.min(cfg.optimistic, knownCac)),
+    expected: at(knownCac),
+    pessimistic: at(Math.max(cfg.pessimistic, knownCac)),
+  };
+}
+
+/** Highest CAC (as a fraction of price) at which `minMargin` still holds: preAdMargin − minMargin. */
+export function breakEvenCacPct(i: ScenarioInput, minMargin: number): number {
+  const noAd = evaluateCacScenarios(i, { optimistic: 0, expected: 0, pessimistic: 0 }).expected;
+  return noAd.margin - minMargin;
+}

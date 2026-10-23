@@ -56,7 +56,16 @@ step('no committed credentials (key patterns)', () => {
   const bad = r.stdout.split('\n').filter((f) => f && !f.endsWith('package-lock.json') && (() => { try { return rx.test(readFileSync(f, 'utf8')); } catch { return false; } })());
   return { ok: bad.length === 0, note: bad.join(', ') };
 });
-step('terraform static structure (not terraform validate)', () => { const r = spawnSync('node', ['scripts/terraform-static-check.mjs'], { encoding: 'utf8' }); return { ok: r.status === 0, note: r.status === 0 ? 'structure ok; run terraform validate separately' : r.stdout.trim().split('\n').slice(1).join('; ') }; });
+step('terraform static structure (fast sanity check)', () => { const r = spawnSync('node', ['scripts/terraform-static-check.mjs'], { encoding: 'utf8' }); return { ok: r.status === 0, note: r.status === 0 ? 'structure ok' : r.stdout.trim().split('\n').slice(1).join('; ') }; });
+// Real validation. Without the binary this is a hard FAIL in CI and an explicit, visible SKIP locally (never a silent pass).
+step('terraform validate', () => {
+  const has = spawnSync('terraform', ['version'], { encoding: 'utf8' });
+  if (has.status !== 0) return process.env.CI ? { ok: false, note: 'terraform binary missing on a CI runner' } : { ok: true, note: 'SKIPPED: terraform binary not installed — NOT validated' };
+  const init = spawnSync('terraform', ['-chdir=infra/terraform', 'init', '-backend=false', '-input=false'], { encoding: 'utf8' });
+  if (init.status !== 0) return { ok: false, note: `init failed: ${init.stderr.split('\n').find(Boolean) ?? ''}` };
+  const v = spawnSync('terraform', ['-chdir=infra/terraform', 'validate'], { encoding: 'utf8' });
+  return { ok: v.status === 0, note: v.status === 0 ? 'terraform validate passed' : v.stdout.split('\n').find((l) => /Error/.test(l)) ?? 'validate failed' };
+});
 if (!skipE2e) step('end-to-end (Playwright desktop + mobile)', () => sh('npm', ['run', 'e2e']));
 
 const commit = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
