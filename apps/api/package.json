@@ -16,7 +16,7 @@
     "@fastify/multipart": "^10.1.2",
     "@fastify/rate-limit": "^10.0.0",
     "@fastify/swagger": "^9.0.0",
-    "@fastify/swagger-ui": "^5.0.0",
+    "@fastify/swagger-ui": "^6.1.2",
     "@orvia/ads": "*",
     "@orvia/ai": "*",
     "@orvia/analytics": "*",
@@ -30,7 +30,6 @@
     "@orvia/types": "*",
     "fastify": "^5.0.0",
     "ioredis": "^5.4.0",
-    "zod": "^3.23.8",
-    "zod-to-json-schema": "^3.23.0"
+    "zod": "^4.6.7"
   }
 }

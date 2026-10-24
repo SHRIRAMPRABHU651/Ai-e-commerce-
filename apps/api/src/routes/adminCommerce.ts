@@ -233,7 +233,7 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
     priority: z.number().int().min(1).max(1000).default(100),
     returnPolicyDays: z.number().int().min(0).max(120).default(14),
     credentials: z.object({ apiKey: z.string().min(4).max(500), apiSecret: z.string().max(500).optional() }).optional(),
-    config: z.record(z.unknown()).optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
   };
   const checkConfig = (provider: string, config: unknown) => {
     if (provider !== 'rest') return;
@@ -273,7 +273,7 @@ export function adminCommerceRoutes(app: FastifyInstance, ctx: Ctx): void {
   });
   route(app, ctx, {
     method: 'POST', url: '/admin/suppliers/:id/test/:kind', summary: 'Run a supplier validation check against its real API', tags: ['Admin'], auth: A, permission: 'suppliers:write',
-    body: z.object({ params: z.record(z.unknown()).default({}) }),
+    body: z.object({ params: z.record(z.string(), z.unknown()).default({}) }),
     rateLimit: { max: 30, timeWindow: '1 minute' },
     handler: async ({ req, body }) => {
       const kind = (req.params as { kind: string }).kind;

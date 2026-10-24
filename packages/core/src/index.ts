@@ -37,3 +37,5 @@ export * from './domain/reconciliation';
 export * from './market';
 export * from './domain/organic';
 export * from './domain/launch';
+export * from './domain/economics';
+export * from './domain/exportGate';

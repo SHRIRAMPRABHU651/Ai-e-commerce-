@@ -1,6 +1,6 @@
 import { CircuitBreaker, fetchJson, ProviderError } from '@orvia/config';
 import { z } from 'zod';
-import type { ZodType, ZodTypeDef } from 'zod';
+import type { ZodType } from 'zod';
 import { findForbiddenClaims, findInventedSpecs, findUngroundedNumbers, fence } from './guards';
 import { AIValidationError } from './provider';
 import type { AIProvider, GenerateOptions } from './provider';
@@ -65,7 +65,7 @@ export class GeminiProvider implements AIProvider {
   }
 
   /** Validates against the schema; on failure retries once with the validation errors fed back. */
-  async generateStructuredOutput<T>(prompt: string, schema: ZodType<T, ZodTypeDef, unknown>, o?: GenerateOptions): Promise<T> {
+  async generateStructuredOutput<T>(prompt: string, schema: ZodType<T, unknown>, o?: GenerateOptions): Promise<T> {
     let feedback = '';
     let lastIssues: string[] = [];
     for (let attempt = 0; attempt < 2; attempt++) {

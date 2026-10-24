@@ -1,12 +1,24 @@
 name: CI
 on:
-  push: { branches: [main] }
+  push: { branches: [main, claude/orvia-platform] }
   pull_request:
-concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Hermetic tests: a MongoDB service container, so the suite never downloads a binary at test time.
+    services:
+      mongo:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_MONGO_URI: mongodb://127.0.0.1:27017/
+      MONGOMS_DISABLE_POSTINSTALL: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,9 +26,12 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm run build
-      - name: Secret scan of the browser bundle
+      - name: Dependency audit (high severity)
+        run: npm audit --audit-level=high
+      - uses: hashicorp/setup-terraform@v3
+      - name: Secret scan of the browser bundle + terraform validate
         run: node scripts/production-check.mjs --scan-only
   e2e:
     runs-on: ubuntu-latest

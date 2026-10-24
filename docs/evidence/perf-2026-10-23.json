@@ -1,0 +1,62 @@
+{
+  "at": "2026-10-23T12:27:38.776Z",
+  "host": {
+    "cpus": 4,
+    "model": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "memGB": 17,
+    "node": "v22.22.0"
+  },
+  "mongo": "mongodb-memory-server (in-process, same host)",
+  "results": [
+    {
+      "name": "GET /api/v1/products",
+      "connections": 50,
+      "durationS": 15,
+      "rps": 197,
+      "p50": 243.249052,
+      "p95": 323.08222,
+      "p99": 772.803433,
+      "max": 3116,
+      "samples": 2949,
+      "statusCodes": {
+        "200": 2949
+      },
+      "errors": 0,
+      "timeouts": 0
+    },
+    {
+      "name": "GET /api/v1/products/:slug",
+      "connections": 50,
+      "durationS": 15,
+      "rps": 128,
+      "p50": 373.50485,
+      "p95": 477.79977,
+      "p99": 926.598886,
+      "max": 1376,
+      "samples": 1926,
+      "statusCodes": {
+        "200": 1926
+      },
+      "errors": 0,
+      "timeouts": 0
+    },
+    {
+      "name": "POST /api/v1/cart/items + POST /api/v1/checkout (journey)",
+      "connections": 50,
+      "durationS": 15,
+      "rps": 85,
+      "p50": 630.064307,
+      "p95": 876.365161,
+      "p99": 1190.364538,
+      "max": 1431,
+      "samples": 1269,
+      "statusCodes": {
+        "200": 649,
+        "201": 620
+      },
+      "errors": 0,
+      "timeouts": 0,
+      "note": "two requests per iteration; statusCodes covers both"
+    }
+  ]
+}

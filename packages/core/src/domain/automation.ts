@@ -24,6 +24,8 @@ export interface Proposal {
   confidence?: number;
   /** Re-proposing the same thing while one is pending returns the pending decision. */
   dedupeKey?: string;
+  /** Never auto-execute, even in AUTOMATIC mode: a person must approve (e.g. publishing on assumed acquisition cost). */
+  requireHuman?: boolean;
 }
 
 export interface ProposalOutcome {
@@ -68,7 +70,7 @@ export async function proposeOrExecute(ctx: Ctx, p: Proposal): Promise<ProposalO
     newValue: p.payload,
     reason: p.summary,
   });
-  if (mode === 'ASSISTED') return { mode, status: 'proposed', decisionId: String(decision._id) };
+  if (mode === 'ASSISTED' || p.requireHuman) return { mode, status: 'proposed', decisionId: String(decision._id) };
   const out = await runDecision(ctx, String(decision._id), aiActor(p.agent), 'auto_executed');
   return { mode, status: out.ok ? 'executed' : 'failed', decisionId: String(decision._id), result: out.result, error: out.error };
 }

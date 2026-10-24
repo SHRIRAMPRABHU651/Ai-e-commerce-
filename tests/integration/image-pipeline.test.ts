@@ -37,7 +37,7 @@ afterAll(async () => { await new Promise((r) => fake.close(r)); await closeCtx()
 
 async function bareProduct(title: string, images: string[] = []) {
   const sup = await Supplier.findOne({ provider: 'mock' });
-  const p = await Product.create({ slug: `t-${Math.random().toString(36).slice(2, 8)}`, sku: `T-${Math.random().toString(36).slice(2, 8)}`, title, description: 'A test product with a sufficiently long description.', state: 'DRAFT', images: images.map((url) => ({ url })), imageStatus: images.length ? 'READY' : 'MISSING', compliance: { status: 'passed', flags: [] }, markets: [{ country: 'US', enabled: true, currency: 'USD', price: 3000, stock: 50, expectedMargin: 0.4 }] });
+  const p = await Product.create({ slug: `t-${Math.random().toString(36).slice(2, 8)}`, sku: `T-${Math.random().toString(36).slice(2, 8)}`, title, description: 'A test product with a sufficiently long description.', state: 'DRAFT', images: images.map((url) => ({ url })), imageStatus: images.length ? 'READY' : 'MISSING', compliance: { status: 'passed', flags: [] }, markets: [{ country: 'US', enabled: true, currency: 'USD', price: 3000, stock: 50, expectedMargin: 0.4, landedCost: 1000, cpa: 500, cpaSource: 'measured', cpaSampleSize: 20, refundRate: 0.05, refundSource: 'measured', refundSampleSize: 20 }] });
   return { p, sup: sup! };
 }
 

@@ -1,7 +1,7 @@
-import { AdMetric, Product, SupplierProduct } from '@orvia/database';
+import { Product, SupplierProduct } from '@orvia/database';
 import { usableImages } from './images';
 import { computePrice, paymentFeeModelFor, productEconomics, evaluatePrice } from '@orvia/analytics';
-import type { PricingResult, PricingStrategy, RankedOffer } from '@orvia/analytics';
+import type { CpaSource, PricingResult, PricingStrategy, RankedOffer, ScenarioReport } from '@orvia/analytics';
 import { convertMinor, SELLABLE_STATES } from '@orvia/types';
 import type { CountryCode, Currency } from '@orvia/types';
 import { audit } from '../infra/audit';
@@ -12,6 +12,7 @@ import { proposeOrExecute, registerExecutor } from './automation';
 import { compareSuppliers } from './offers';
 import type { SupplierComparison } from './offers';
 import { raiseException } from './exceptions';
+import { evaluateMarket, resolveCpa } from './economics';
 
 export interface MarketPlan {
   country: CountryCode;
@@ -23,18 +24,19 @@ export interface MarketPlan {
   competitorPrices: number[];
   compareAtPrice: number;
   economics: ReturnType<typeof productEconomics> | null;
+  /** Provenance of the acquisition-cost figure used. `assumed` means no campaign data — an ESTIMATE. */
+  cpa: { perOrder: number; source: CpaSource; sampleSize: number };
+  scenarios: ScenarioReport | null;
 }
 
-/** Real CPA from the last 14 days of ad data when there is enough volume, else an assumption. */
-async function realCpa(ctx: Ctx, productId: string, country: CountryCode, currency: Currency): Promise<number | null> {
-  const since = new Date(ctx.now().getTime() - 14 * 86_400_000);
-  const [agg] = await AdMetric.aggregate<{ spend: number; purchases: number }>([
-    { $match: { productId: new (await import('mongoose')).default.Types.ObjectId(productId), country, date: { $gte: since } } },
-    { $group: { _id: null, spend: { $sum: '$spend' }, purchases: { $sum: '$purchases' } } },
-  ]);
-  if (!agg || agg.purchases < 5) return null;
-  const fx = (await ctx.settings.get('ops')).fx;
-  return Math.round(convertMinor(Math.round(agg.spend / agg.purchases), 'USD', currency, fx));
+/**
+ * The provisional (pre-supplier-ranking) price is the cost-plus multiple implied by the configured margin
+ * structure, not a magic number: landed ÷ (1 − target margin − assumed ad share − payment % − base refund).
+ * Bounded so a pathological configuration cannot produce an absurd or infinite markup.
+ */
+export function provisionalMarkup(p: { targetMarginPct: number; assumedAdCostPct: number; paymentPct: number; baseRefundRate: number }): number {
+  const keep = 1 - p.targetMarginPct - p.assumedAdCostPct - p.paymentPct - p.baseRefundRate;
+  return Math.min(10, 1 / Math.max(0.1, keep));
 }
 
 export async function planMarket(ctx: Ctx, productId: string, country: CountryCode): Promise<MarketPlan> {
@@ -55,7 +57,7 @@ export async function planMarket(ctx: Ctx, productId: string, country: CountryCo
     targetProfitPerOrder: pricing.targetProfitPerOrder[currency],
     targetRoas: pricing.targetRoas,
   };
-  const empty = (comparison: SupplierComparison): MarketPlan => ({ country, currency, comparison, best: null, pricing: null, strategy, competitorPrices, compareAtPrice: 0, economics: null });
+  const empty = (comparison: SupplierComparison): MarketPlan => ({ country, currency, comparison, best: null, pricing: null, strategy, competitorPrices, compareAtPrice: 0, economics: null, cpa: { perOrder: 0, source: 'assumed', sampleSize: 0 }, scenarios: null });
 
   // 1. provisional price from the cheapest in-stock offer so supplier ranking happens at a realistic price
   const rough = await compareSuppliers(ctx, productId, country, { sellingPrice: 1_000_000 });
@@ -77,17 +79,17 @@ export async function planMarket(ctx: Ctx, productId: string, country: CountryCo
     strategy: 'target_margin',
     landedCost: cheapest.landedCost,
     refundRate: cheapest.refundRate,
-    adCostPerOrder: Math.round(cheapest.landedCost * 3 * pricing.assumedAdCostPct),
+    adCostPerOrder: Math.round(cheapest.landedCost * provisionalMarkup({ targetMarginPct: baseInput.targetMarginPct, assumedAdCostPct: pricing.assumedAdCostPct, paymentPct: baseInput.paymentFee.pct, baseRefundRate: pricing.baseRefundRate }) * pricing.assumedAdCostPct),
   });
 
   // 2. rank all offers at that price and take the best expected profit + customer experience
-  const comparison = await compareSuppliers(ctx, productId, country, { sellingPrice: provisional.price });
+  const resolved = await resolveCpa(ctx, { productId, category: product.category ?? undefined, country, currency });
+  const comparison = await compareSuppliers(ctx, productId, country, { sellingPrice: provisional.price, adCostPerOrder: resolved.perOrder ?? undefined });
   const best = comparison.rows.find((r) => r.eligible) ?? null;
   if (!best) return empty(comparison);
 
   // 3. final price using the chosen supplier's real landed cost, refund risk and ad cost
-  const cpa = await realCpa(ctx, productId, country, currency);
-  const adCostPerOrder = cpa ?? Math.round(provisional.price * pricing.assumedAdCostPct);
+  const adCostPerOrder = resolved.perOrder ?? Math.round(provisional.price * pricing.assumedAdCostPct);
   const result = computePrice({ ...baseInput, strategy, landedCost: best.landedCost, refundRate: best.refundRate, adCostPerOrder });
   const sortedComps = [...competitorPrices].sort((a, b) => a - b);
   const medianComp = sortedComps.length ? sortedComps[Math.floor(sortedComps.length / 2)]! : 0;
@@ -103,7 +105,18 @@ export async function planMarket(ctx: Ctx, productId: string, country: CountryCo
     adCostPerOrder,
     conversionRate: product.stats?.conversionRate || undefined,
   });
-  return { country, currency, comparison, best, pricing: result, strategy, competitorPrices, compareAtPrice: compareAt, economics };
+  const view = await evaluateMarket(ctx, { country, price: result.price, landedCost: best.landedCost, cpa: resolved.perOrder ?? undefined, cpaSource: resolved.source, cpaSampleSize: resolved.sampleSize, refundRate: best.refundRate, refundSource: best.refundSource, refundSampleSize: best.refundSampleSize });
+  return { country, currency, comparison, best, pricing: result, strategy, competitorPrices, compareAtPrice: compareAt, economics, cpa: { perOrder: adCostPerOrder, source: resolved.source, sampleSize: resolved.sampleSize }, scenarios: view.scenarios };
+}
+
+/** Persist where each cost figure came from so the publish gate and admin UI can tell measured from estimated. */
+function applyProvenance(m: { cpa: number; cpaSource: string; cpaSampleSize: number; refundRate: number; refundSource: string; refundSampleSize: number }, plan: MarketPlan): void {
+  m.cpa = plan.cpa.perOrder;
+  m.cpaSource = plan.cpa.source;
+  m.cpaSampleSize = plan.cpa.sampleSize;
+  m.refundRate = plan.best?.refundRate ?? 0;
+  m.refundSource = plan.best?.refundSource ?? 'estimated';
+  m.refundSampleSize = plan.best?.refundSampleSize ?? 0;
 }
 
 export interface RefreshResult {
@@ -146,6 +159,7 @@ export async function refreshProductMarkets(ctx: Ctx, productId: string, opts: {
     m.pricingStrategy = plan.strategy;
     m.bestSupplierId = plan.best.supplierId as never;
     m.landedCost = plan.best.landedCost;
+    applyProvenance(m, plan);
     m.shipsFrom = plan.best.warehouseCountry;
     m.minDays = plan.best.minDays;
     m.maxDays = plan.best.maxDays;
@@ -223,6 +237,8 @@ registerExecutor('price_change', async (ctx, payload, actor) => {
   const previous = m.price;
   m.price = final;
   m.compareAtPrice = plan.compareAtPrice;
+  m.landedCost = plan.best!.landedCost;
+  applyProvenance(m, plan);
   const ev = evaluatePrice(
     { strategy: plan.strategy, currency: plan.currency, landedCost: plan.best!.landedCost, paymentFee: paymentFeeModelFor(country), refundRate: plan.best!.refundRate, adCostPerOrder: plan.economics?.estimated_ad_cost ?? 0, guardrails: { minMarginPct: 0, maxDiscountPct: 1, minSellingPrice: 0, targetProfitPerOrder: 0 } },
     final,

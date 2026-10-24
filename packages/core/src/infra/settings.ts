@@ -2,6 +2,7 @@ import { SystemSetting } from '@orvia/database';
 import { DEFAULT_AD_RULES } from '@orvia/ads';
 import { DEFAULT_RANK_WEIGHTS } from '@orvia/analytics';
 import type { AdRulesConfig } from '@orvia/ads';
+import type { CacScenarios } from '@orvia/analytics';
 import { AUTOMATION_KEYS, DEFAULT_FX } from '@orvia/types';
 import type { AutomationKey, AutomationMode, Currency, FxTable } from '@orvia/types';
 
@@ -16,6 +17,20 @@ export interface PricingSettings {
   baseRefundRate: number;
   /** Expected ad cost per order as a fraction of the selling price when no campaign data exists yet. */
   assumedAdCostPct: number;
+  /**
+   * CAC bands as a fraction of order value. The publish gate requires the EXPECTED case to clear
+   * `minMarginPct`; the pessimistic case is surfaced as a risk flag. Once a measured CPA exists it replaces
+   * the expected figure (see evaluateCacScenarios).
+   */
+  cacScenarios: CacScenarios;
+  /** Orders required behind a measured CPA before it is trusted at product / category / store level. */
+  minCpaSample: number;
+  /** Rolling window (days) for measured CPA. */
+  cpaWindowDays: number;
+  /** Orders required behind a measured refund rate (per product–supplier–destination) before it replaces the estimate. */
+  minRefundSample: number;
+  /** Rolling window (days) for measured refund rates. */
+  refundWindowDays: number;
   /** Required relative change before a price update is proposed. */
   minPriceChangePct: number;
 }
@@ -71,12 +86,20 @@ export interface LegalSettings {
   /** Operator attestations that cannot be detected from code */
   emailDomainVerified: boolean;
   taxRegistrations: string;
+  /**
+   * When true, auto-publishing and auto-fulfilment are blocked for any destination without an export
+   * attestation. Defaults ON in production. Not a legal opinion — it only records that a qualified adviser
+   * was consulted for that destination.
+   */
+  requireExportAttestation: boolean;
+  /** Per destination country: the operator attests export + destination-market obligations were established with a qualified adviser. */
+  exportAttestations: Record<string, { confirmedBy: string; confirmedAt: string; reference?: string }>;
 }
 
 /** Evidence from the last verification run (`npm run verify:staging` or the Launch readiness page). */
 export interface LaunchVerification {
   results: Record<string, { status: 'PASS' | 'WARN' | 'FAIL'; at: string; detail: string }>;
-  certification?: { at: string; commit?: string; checks: Record<string, string> };
+  certification?: { at: string; commit?: string; checks: Record<string, string>; partial?: boolean };
 }
 
 export interface SettingsMap {
@@ -117,11 +140,16 @@ export function buildDefaults(production: boolean): SettingsMap {
       targetMarginPct: 0.4,
       baseRefundRate: 0.05,
       assumedAdCostPct: 0.2,
+      cacScenarios: { optimistic: 0.15, expected: 0.26, pessimistic: 0.4 },
+      minCpaSample: 5,
+      cpaWindowDays: 28,
+      minRefundSample: 10,
+      refundWindowDays: 90,
       minPriceChangePct: 0.02,
     },
     sourcing: { weights: DEFAULT_RANK_WEIGHTS, staleAfterMinutes: 360, manualOfferTtlHours: 72, failingAfterChecks: 3 },
     market: { weights: { recency: 0.2, velocity: 0.25, crossSource: 0.15, mentionGrowth: 0.15, searchGrowth: 0.1, availability: 0.05, priceMomentum: 0.05, internalConversion: 0.05 }, minConfidence: 0.35, priceStaleDays: 14, minInternalSample: 10 },
-    legal: { reviewConfirmed: false, businessName: '', registeredAddress: '', supportEmail: '', emailDomainVerified: false, taxRegistrations: '' },
+    legal: { reviewConfirmed: false, businessName: '', registeredAddress: '', supportEmail: '', emailDomainVerified: false, taxRegistrations: '', requireExportAttestation: production, exportAttestations: {} },
     launch: { results: {} },
     ads: DEFAULT_AD_RULES,
     automation: { modes: defaultAutomationModes(production), autoRefundLimitUsd: 5000 },

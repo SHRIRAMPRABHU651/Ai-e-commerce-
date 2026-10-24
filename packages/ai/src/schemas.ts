@@ -4,7 +4,7 @@ export const ProductSourceSchema = z.object({
   title: z.string(),
   description: z.string().default(''),
   category: z.string().default(''),
-  attributes: z.record(z.string()).default({}),
+  attributes: z.record(z.string(), z.string()).default({}),
   tags: z.array(z.string()).default([]),
   safetyStandards: z.array(z.string()).default([]),
   ageRange: z.string().optional(),

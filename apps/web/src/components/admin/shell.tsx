@@ -22,6 +22,7 @@ const NAV: { group: string; items: { href: string; label: string; icon: typeof P
   ] },
   { group: 'Grow', items: [
     { href: '/admin/market', label: 'Market intel', icon: TrendingUp, perm: 'market:read' },
+    { href: '/admin/economics', label: 'Economics', icon: BarChart3, perm: 'products:read' },
     { href: '/admin/launch-readiness', label: 'Launch readiness', icon: ShieldCheck, perm: 'launch:read' },
     { href: '/admin/marketing', label: 'Marketing', icon: Megaphone, perm: 'marketing:read' },
     { href: '/admin/ads', label: 'Ads', icon: MousePointerClick, perm: 'ads:read' },

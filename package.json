@@ -4,8 +4,13 @@
   "version": "1.0.0",
   "description": "Orvia — AI-operated ecommerce & dropshipping platform",
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
-  "engines": { "node": ">=20.11" },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:api": "npm run dev -w @orvia/api",
@@ -13,6 +18,7 @@
     "dev:web": "npm run dev -w @orvia/web",
     "build": "npm run build -w @orvia/api -w @orvia/worker -w @orvia/web",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "e2e": "node scripts/e2e.mjs",
     "lint": "eslint . --max-warnings=0",
@@ -25,11 +31,18 @@
     "certify": "tsx scripts/record-certification.ts",
     "terraform:check": "node scripts/terraform-static-check.mjs",
     "worker": "npm run dev -w @orvia/worker",
-    "production-check": "node scripts/production-check.mjs"
+    "production-check": "node scripts/production-check.mjs",
+    "perf": "node scripts/perf.mjs",
+    "sbom": "cyclonedx-npm --output-format JSON --output-file sbom.cdx.json --omit dev"
   },
   "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "^6.0.1",
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.49.0",
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "autocannon": "^8.0.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
     "mongodb-memory-server": "^10.0.0",
@@ -37,8 +50,6 @@
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^3.0.0",
-    "esbuild": "^0.25.0",
-    "@playwright/test": "^1.49.0"
+    "vitest": "^5.0.5"
   }
 }

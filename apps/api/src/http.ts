@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import type { ZodType, ZodTypeDef } from 'zod';
+import { toJSONSchema } from 'zod';
+import type { ZodType } from 'zod';
 import { can } from '@orvia/auth';
 import type { Permission } from '@orvia/auth';
 import { DomainError } from '@orvia/core';
@@ -25,14 +25,14 @@ export interface RouteDef<B, Q> {
   /** none = public; user = any signed-in account; staff = needs `permission` */
   auth?: 'none' | 'user' | 'optional' | 'staff';
   permission?: Permission;
-  body?: ZodType<B, ZodTypeDef, unknown>;
-  query?: ZodType<Q, ZodTypeDef, unknown>;
+  body?: ZodType<B, unknown>;
+  query?: ZodType<Q, unknown>;
   rateLimit?: { max: number; timeWindow: string };
   handler: (a: { req: FastifyRequest; reply: FastifyReply; body: B; query: Q; user: AuthUser; ctx: Ctx }) => Promise<unknown> | unknown;
 }
 
-const jsonSchema = (z: ZodType<unknown, ZodTypeDef, unknown>) => {
-  const s = zodToJsonSchema(z, { target: 'openApi3', $refStrategy: 'none' }) as Record<string, unknown>;
+const jsonSchema = (z: ZodType<unknown, unknown>) => {
+  const s = toJSONSchema(z, { target: 'openapi-3.0', io: 'input', unrepresentable: 'any', reused: 'inline' }) as Record<string, unknown>;
   delete s['$schema'];
   return s;
 };

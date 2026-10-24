@@ -20,6 +20,19 @@ export interface Readiness {
   verifications: Record<string, { status: CheckStatus; at: string; detail: string }>;
 }
 
+/**
+ * A certification is a full PASS only if every check passed AND none was skipped or flagged partial.
+ * Any FAIL fails it; a SKIP (e.g. terraform validate without the binary), an unknown value, or `partial` is INCOMPLETE (a warning, never PASS).
+ */
+export function certificationStatus(cert: { checks: Record<string, string>; partial?: boolean } | undefined): { status: CheckStatus; reason: string } {
+  if (!cert) return { status: 'WARN', reason: 'no certification record' };
+  const vals = Object.entries(cert.checks);
+  if (vals.some(([, v]) => v === 'FAIL')) return { status: 'FAIL', reason: `failed: ${vals.filter(([, v]) => v === 'FAIL').map(([k]) => k).join(', ')}` };
+  const notPass = vals.filter(([, v]) => v !== 'PASS');
+  if (notPass.length || cert.partial) return { status: 'WARN', reason: `INCOMPLETE — not a full certification${notPass.length ? `; not run: ${notPass.map(([k, v]) => `${k} (${v})`).join(', ')}` : ''}${cert.partial ? '; partial run' : ''}` };
+  return { status: 'PASS', reason: 'all checks passed' };
+}
+
 export const AREAS = ['DATABASE', 'STORAGE', 'AUTH', 'SUPPLIERS', 'PAYMENTS', 'SHIPPING', 'TAX', 'EMAIL', 'SMS', 'ADS', 'AI', 'MARKET INTEL', 'IMAGE SYSTEM', 'SECURITY', 'LEGAL', 'TESTS', 'INFRA'] as const;
 
 const order: Record<CheckStatus, number> = { PASS: 0, WARN: 1, FAIL: 2 };
@@ -164,7 +177,8 @@ export async function launchReadiness(ctx: Ctx, o: { live?: boolean; fetchImpl?:
 
   // TESTS
   const cert = (await ctx.settings.get('launch')).certification;
-  add('TESTS', 'tests.cert', cert ? (Object.values(cert.checks).every((v) => v === 'PASS') ? 'PASS' : 'FAIL') : 'WARN', 'Release certification (lint, typecheck, tests, build, E2E)', cert ? `recorded ${cert.at}${cert.commit ? ` @ ${cert.commit}` : ''}: ${Object.entries(cert.checks).map(([k, v]) => `${k}=${v}`).join(', ')}` : 'no certification record — run npm run production-check on the release commit and store it', false);
+  const certState = certificationStatus(cert);
+  add('TESTS', 'tests.cert', certState.status, 'Release certification (lint, typecheck, tests, build, E2E)', cert ? `recorded ${cert.at}${cert.commit ? ` @ ${cert.commit}` : ''} — ${certState.reason}: ${Object.entries(cert.checks).map(([k, v]) => `${k}=${v}`).join(', ')}` : 'no certification record — run npm run production-check on the release commit and store it', false);
 
   // INFRA
   const lastJob = await Job.findOne({ status: 'completed' }).sort({ completedAt: -1 }).select('completedAt name').lean();

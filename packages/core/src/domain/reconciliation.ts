@@ -3,7 +3,7 @@ import type { Ctx } from '../infra/context';
 import { raiseException } from './exceptions';
 
 export interface ReconciliationFinding {
-  kind: 'payment_without_order' | 'order_without_payment' | 'paid_order_without_supplier_order' | 'supplier_order_without_paid_order' | 'duplicate_supplier_order' | 'refund_mismatch' | 'tracking_mismatch';
+  kind: 'payment_without_order' | 'order_without_payment' | 'paid_order_without_supplier_order' | 'supplier_order_without_paid_order' | 'duplicate_supplier_order' | 'refund_mismatch' | 'tracking_mismatch' | 'refunded_after_shipment';
   orderId?: string;
   detail: string;
 }
@@ -25,7 +25,7 @@ export async function runReconciliation(ctx: Ctx, opts: { sinceDays?: number; gr
   const orderIds = new Set((await Order.find({ _id: { $in: pays.map((p) => p.orderId) } }).select('_id').lean()).map((o) => String(o._id)));
   for (const p of pays) if (!orderIds.has(String(p.orderId))) add({ kind: 'payment_without_order', orderId: String(p.orderId), detail: `Payment ${String(p._id)} succeeded but its order does not exist` });
 
-  const orders = await Order.find({ createdAt: { $gte: since }, status: { $nin: ['PENDING_PAYMENT'] } }).select('orderNumber status payment items amounts exceptionOpen createdAt').limit(5000).lean();
+  const orders = await Order.find({ createdAt: { $gte: since }, status: { $nin: ['PENDING_PAYMENT'] } }).select('orderNumber status payment items amounts costs.refunded exceptionOpen createdAt').limit(5000).lean();
   const ordIds = orders.map((o) => o._id);
   const payByOrder = new Map<string, { status: string; refunded: number }>();
   for (const p of await Payment.find({ orderId: { $in: ordIds } }).select('orderId status refundedAmount').lean()) payByOrder.set(String(p.orderId), { status: p.status, refunded: p.refundedAmount ?? 0 });
@@ -59,6 +59,10 @@ export async function runReconciliation(ctx: Ctx, opts: { sinceDays?: number; gr
     for (const [line, n] of perLine) if (n > 1) add({ kind: 'duplicate_supplier_order', orderId: id, detail: `${o.orderNumber} line ${line} has ${n} active supplier orders` });
     const refunded = refundByOrder.get(id) ?? 0;
     if (pay && Math.abs((pay.refunded ?? 0) - refunded) > 1) add({ kind: 'refund_mismatch', orderId: id, detail: `${o.orderNumber}: payment shows ${pay.refunded} refunded, refund ledger totals ${refunded}` });
+    // Money went back to the customer but a supplier order is still live: we are paying for goods nobody will keep.
+    const total = o.amounts?.total ?? 0;
+    const shipped = mine.filter((s) => ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(s.status));
+    if (shipped.length && total > 0 && (o.costs?.refunded ?? 0) >= total) add({ kind: 'refunded_after_shipment', orderId: id, detail: `${o.orderNumber} was fully refunded but ${shipped.length} supplier shipment(s) are ${shipped.map((s) => s.status).join('/')} — recover the goods or the supplier cost` });
     if (mine.length && mine.every((s) => s.status === 'DELIVERED') && o.status !== 'DELIVERED' && !cancelled) add({ kind: 'tracking_mismatch', orderId: id, detail: `${o.orderNumber}: every shipment is delivered but the order is ${o.status}` });
   }
 

@@ -17,3 +17,6 @@ apps/web/AGENTS.md
 apps/web/CLAUDE.md
 .media/
 .certification.json
+sbom.cdx.json
+perf-results.json
+.terraform/

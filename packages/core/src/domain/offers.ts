@@ -11,6 +11,7 @@ import { getCountry, getCountryConfigs } from '../infra/countries';
 import { DomainError } from '../infra/context';
 import type { Ctx } from '../infra/context';
 import { raiseException } from './exceptions';
+import { measuredRefundRates } from './economics';
 
 export interface OfferSyncResult {
   productId: string;
@@ -124,7 +125,7 @@ export async function compareSuppliers(
   ctx: Ctx,
   productId: string,
   country: CountryCode,
-  o: { sellingPrice?: number; quantity?: number; onlyFresh?: boolean } = {},
+  o: { sellingPrice?: number; quantity?: number; onlyFresh?: boolean; adCostPerOrder?: number } = {},
 ): Promise<SupplierComparison> {
   const cfg = await getCountry(country);
   const pricing = await ctx.settings.get('pricing');
@@ -136,6 +137,7 @@ export async function compareSuppliers(
   const suppliers = await Supplier.find({ _id: { $in: offers.map((x) => x.supplierId) }, active: true }).lean();
   const sMap = new Map(suppliers.map((s) => [String(s._id), s]));
   const rankable: (RankableOffer & { code: string; cur: Currency; syncedAt?: Date })[] = [];
+  const measuredRefunds = await measuredRefundRates(ctx, productId, country);
   for (const off of offers) {
     const s = sMap.get(String(off.supplierId));
     if (!s) continue;
@@ -158,6 +160,8 @@ export async function compareSuppliers(
       failureRate: s.stats?.ordersTotal ? (s.stats.ordersFailed ?? 0) / s.stats.ordersTotal : 0,
       responseMs: s.avgResponseMs ?? undefined,
       freshnessMs: Date.now() - new Date((off.source === 'manual' ? off.confirmedAt : off.syncedAt) ?? 0).getTime(),
+      measuredRefundRate: measuredRefunds.get(String(s._id))?.rate,
+      measuredRefundSample: measuredRefunds.get(String(s._id))?.sample,
       code: s.code,
       cur,
       syncedAt: off.syncedAt ?? undefined,
@@ -170,7 +174,7 @@ export async function compareSuppliers(
     country: cfg,
     paymentFee: paymentFeeModelFor(country),
     baseRefundRate: pricing.baseRefundRate,
-    adCostPerOrder: Math.round(price * pricing.assumedAdCostPct),
+    adCostPerOrder: o.adCostPerOrder ?? Math.round(price * pricing.assumedAdCostPct),
     minMargin: Math.max(0, pricing.minMarginPct - 0.1), // supplier eligibility is looser than the publish gate
     weights: sourcing.weights,
     staleAfterMs: sourcing.staleAfterMinutes * 60_000,

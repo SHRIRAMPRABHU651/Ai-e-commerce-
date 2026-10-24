@@ -9,6 +9,7 @@ import type { CheckoutInput, CountryCode, Currency } from '@orvia/types';
 import { audit } from '../infra/audit';
 import { getCountry } from '../infra/countries';
 import { aiActor, conflict, DomainError, notFound, SYSTEM } from '../infra/context';
+import { exportGate, exportGateMessage } from './exportGate';
 import type { Actor, Ctx } from '../infra/context';
 import { proposeOrExecute, registerExecutor } from './automation';
 import { priceCart } from './cart';
@@ -270,6 +271,12 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
     ctx.log.info({ channel: 'order', orderId }, 'fulfilment skipped: open exception');
     return { ...res, state: 'held' };
   }
+  const gate = await exportGate(ctx, order.country);
+  // Legal gate: NEVER overridable by `force`. `force` waives operational holds (fraud, margin, address, supplier mode), not export compliance.
+  if (gate.required && !gate.attested) {
+    await raiseException(ctx, { kind: 'EXPORT_ATTESTATION', priority: 'high', orderId, customerEmail: order.email, issue: `Fulfilment held: ${exportGateMessage(order.country)}`, aiRecommendation: 'Record the adviser attestation for this destination, then retry fulfilment.', suggestedAction: 'Record export attestation', actionCode: 'review_product', dedupeKey: `export:${order.country}:${orderId}` });
+    return { ...res, state: 'held' };
+  }
   const addr = order.address && validateAddress({ country: order.country as CountryCode, region: order.address.region ?? '', postalCode: order.address.postalCode ?? '', line1: order.address.line1 ?? '', city: order.address.city ?? '' });
   if (addr && !addr.ok && !opts.force) {
     await raiseException(ctx, { kind: 'OTHER', priority: 'medium', orderId, customerEmail: order.email, issue: `Shipping address failed validation: ${addr.problems.join('; ')}`, aiRecommendation: 'Contact the customer to correct the address.', suggestedAction: 'Contact customer', actionCode: 'contact_customer', dedupeKey: `addr:${orderId}` });
@@ -346,6 +353,14 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
         }
       }
       if (!supplierDoc || !pending) break;
+      // Re-check immediately before goods move (outside the supplier try/catch so it is never mistaken for a supplier refusal):
+      // the attestation may have been revoked since the gate at the top of this function.
+      const recheck = await exportGate(ctx, order.country);
+      if (recheck.required && !recheck.attested) {
+        await raiseException(ctx, { kind: 'EXPORT_ATTESTATION', priority: 'high', orderId, customerEmail: order.email, issue: `Fulfilment held: ${exportGateMessage(order.country)}`, aiRecommendation: 'Record the adviser attestation for this destination, then retry fulfilment.', suggestedAction: 'Record export attestation', actionCode: 'review_product', dedupeKey: `export:${order.country}:${orderId}` });
+        await Order.updateOne({ _id: orderId }, { $set: { 'fulfillment.state': 'queued' } });
+        return { ...res, state: 'held' };
+      }
       try {
         const provider = await providerFor(ctx, supplierDoc);
         const SPm = (await import('@orvia/database')).SupplierProduct;
@@ -439,8 +454,10 @@ export async function retrySupplierOrder(ctx: Ctx, orderId: string, actor: Actor
   if (!stillOpen) await Order.updateOne({ _id: orderId }, { $set: { exceptionOpen: false } });
   if (opts.force) {
     const { ExceptionModel } = await import('@orvia/database');
-    await ExceptionModel.updateMany({ orderId, status: { $in: ['open', 'in_progress'] } }, { $set: { status: 'resolved', resolution: `Approved by ${actor.id}`, resolvedBy: actor.id, resolvedAt: new Date() } });
-    await Order.updateOne({ _id: orderId }, { $set: { exceptionOpen: false } });
+    // Operators may approve past operational holds, but never past the export-compliance hold.
+    await ExceptionModel.updateMany({ orderId, kind: { $ne: 'EXPORT_ATTESTATION' }, status: { $in: ['open', 'in_progress'] } }, { $set: { status: 'resolved', resolution: `Approved by ${actor.id}`, resolvedBy: actor.id, resolvedAt: new Date() } });
+    const legalHold = await ExceptionModel.countDocuments({ orderId, kind: 'EXPORT_ATTESTATION', status: { $in: ['open', 'in_progress'] } });
+    await Order.updateOne({ _id: orderId }, { $set: { exceptionOpen: legalHold > 0 } });
   }
   await Order.updateOne({ _id: orderId }, { $set: { 'fulfillment.state': 'queued' } });
   await ctx.queue.enqueue('fulfill_order', { orderId, force: !!opts.force }, { dedupeKey: `fulfill:${orderId}` });

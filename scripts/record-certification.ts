@@ -6,7 +6,7 @@ import { buildCtx } from '@orvia/core';
 
 loadDotEnv();
 const cfg = loadConfig();
-const rec = JSON.parse(readFileSync('.certification.json', 'utf8')) as { at: string; commit?: string; checks: Record<string, string> };
+const rec = JSON.parse(readFileSync('.certification.json', 'utf8')) as { at: string; commit?: string; checks: Record<string, string>; partial?: boolean };
 await connectDb({ uri: cfg.MONGODB_URI });
 const ctx = buildCtx({ cfg, service: 'certify' });
 await ctx.settings.set('launch', { certification: rec } as never, 'production-check');

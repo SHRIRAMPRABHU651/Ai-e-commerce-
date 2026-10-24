@@ -117,6 +117,7 @@ export const EXCEPTION_KINDS = [
   'STOCK_STALE',
   'ORGANIC_CLAIM',
   'MARKET_SOURCE',
+  'EXPORT_ATTESTATION',
   'OTHER',
 ] as const;
 export type ExceptionKind = (typeof EXCEPTION_KINDS)[number];

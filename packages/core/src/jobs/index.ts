@@ -9,6 +9,7 @@ import { deliverNotification, notify } from '../domain/notify';
 import { runPricingAgent } from '../domain/pricing';
 import { proposePublish, scoreProduct } from '../domain/importer';
 import { canPublish } from '../domain/catalog';
+import { refreshMeasuredCpa, refreshMeasuredRefunds } from '../domain/economics';
 import { ingestSupplierImages } from '../domain/imagePipeline';
 import { runSupplierHealthChecks } from '../domain/supplierOps';
 import { runReconciliation } from '../domain/reconciliation';
@@ -79,7 +80,7 @@ export function registerJobs(ctx: Ctx): void {
     const prod = await Product.findById(p.productId).select('state title markets').lean();
     if (prod?.state === 'READY') {
       const gate = await canPublish(ctx, p.productId);
-      if (gate.ok) await proposePublish(ctx, p.productId, prod.title, prod.markets.filter((m) => m.price > 0).length);
+      if (!gate.hardProblems.length) await proposePublish(ctx, p.productId, prod.title, prod.markets.filter((m) => m.price > 0).length, gate);
     }
     invalidateSearchIndex();
     return r;
@@ -94,7 +95,7 @@ export function registerJobs(ctx: Ctx): void {
     return { requeued: stuck.length };
   });
   q.register('sync_inventory', async () => { const r = await runNamedAgent(ctx, 'InventoryAgent', {}); invalidateSearchIndex(); return r; });
-  q.register('sync_ad_metrics', () => syncAdMetrics(ctx));
+  q.register('sync_ad_metrics', async () => ({ ...(await syncAdMetrics(ctx)), cpa: await refreshMeasuredCpa(ctx), refunds: await refreshMeasuredRefunds(ctx) }));
   q.register('optimize_ads', () => runNamedAgent(ctx, 'AdOptimizationAgent'));
   q.register('pricing_analysis', async () => { const r = await runPricingAgent(ctx); invalidateSearchIndex(); return r; });
   q.register('product_performance', async () => {

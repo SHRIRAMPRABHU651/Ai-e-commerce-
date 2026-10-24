@@ -90,7 +90,7 @@ describe('ASSISTED supplier: a human approves, then the API order is placed exac
     await ctx.queue.drain(40);
     await admin.post(`/api/v1/admin/orders/${orderId}/retry-fulfillment`, { force: true });
     await ctx.queue.drain(40);
-    expect(Shipment.countDocuments({ orderId })).resolves.toBe(1);
+    expect(await Shipment.countDocuments({ orderId })).toBe(1);
     expect(A.seen.concat(B.seen).filter((x) => x === 'POST /orders')).toHaveLength(1);
   });
 });
