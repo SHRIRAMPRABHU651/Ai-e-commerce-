@@ -30,7 +30,7 @@ jobs:
       - run: npm run build
       - name: Dependency audit (high severity)
         run: npm audit --audit-level=high
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
       - name: Secret scan of the browser bundle + terraform validate
         run: node scripts/production-check.mjs --scan-only
   e2e:
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
       - run: terraform -chdir=infra/terraform init -backend=false
       - run: terraform -chdir=infra/terraform validate
       - run: terraform -chdir=infra/terraform fmt -check -recursive
