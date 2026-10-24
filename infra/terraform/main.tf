@@ -170,10 +170,10 @@ resource "aws_acm_certificate_validation" "cert" {
   validation_record_fqdns = [for r in aws_route53_record.cert : r.fqdn]
 }
 resource "aws_lb" "main" {
-  name               = local.name
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+  name                       = local.name
+  load_balancer_type         = "application"
+  security_groups            = [aws_security_group.alb.id]
+  subnets                    = aws_subnet.public[*].id
   drop_invalid_header_fields = true
 }
 resource "aws_lb_target_group" "web" {

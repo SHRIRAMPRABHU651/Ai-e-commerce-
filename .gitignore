@@ -19,3 +19,4 @@ apps/web/CLAUDE.md
 .certification.json
 sbom.cdx.json
 perf-results.json
+.terraform/

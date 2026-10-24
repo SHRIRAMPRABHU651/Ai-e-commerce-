@@ -30,17 +30,18 @@ describe('production-check records a skipped Terraform step as SKIP, not PASS', 
     try {
       const env = { ...process.env, PATH: process.env.PATH ?? '' } as NodeJS.ProcessEnv;
       delete env.CI;
-      const r = spawnSync('node', ['scripts/production-check.mjs', '--scan-only'], { env, encoding: 'utf8' });
+      const r = spawnSync('node', ['scripts/production-check.mjs', '--only', 'terraform validate'], { env, encoding: 'utf8' });
       expect(r.stdout).toMatch(/SKIP\s+terraform validate/);
       expect(r.stdout).toMatch(/NOT A FULL CERTIFICATION/);
       expect(r.stdout).not.toMatch(/ALL CHECKS PASSED/);
       const cert = JSON.parse(readFileSync('.certification.json', 'utf8'));
       expect(cert.checks['terraform validate']).toBe('SKIP');
       expect(cert.partial).toBe(true);
+      expect(Object.keys(cert.checks)).toEqual(['terraform validate']);
       expect(Object.values(cert.checks)).not.toContain('FAIL');
       expect(certificationStatus(cert).status).toBe('WARN');
       // and on a CI runner without the binary it is a hard failure
-      const ci = spawnSync('node', ['scripts/production-check.mjs', '--scan-only'], { env: { ...env, CI: 'true' }, encoding: 'utf8' });
+      const ci = spawnSync('node', ['scripts/production-check.mjs', '--only', 'terraform validate'], { env: { ...env, CI: 'true' }, encoding: 'utf8' });
       expect(ci.status).toBe(1);
       expect(ci.stdout).toMatch(/FAIL\s+terraform validate/);
     } finally {

@@ -6,8 +6,11 @@ import { join } from 'node:path';
 
 const skipE2e = process.argv.includes('--skip-e2e') || process.argv.includes('--scan-only');
 const scanOnly = process.argv.includes('--scan-only'); // assumes lint/test/build already ran (CI)
+const onlyIdx = process.argv.indexOf('--only'); // `--only <text>` runs just the steps whose name contains <text> (used by tests; always a partial run)
+const only = onlyIdx > -1 ? process.argv[onlyIdx + 1] : null;
 const results = [];
 const step = (name, fn) => {
+  if (only && !name.includes(only)) return;
   const t = Date.now();
   let ok = false, skipped = false, note = '';
   try { const r = fn(); ok = r === undefined || r === true || r?.ok; skipped = !!r?.skipped; note = r?.note ?? ''; } catch (e) { note = e.message; }
@@ -71,7 +74,7 @@ step('terraform validate', () => {
 if (!skipE2e) step('end-to-end (Playwright desktop + mobile)', () => sh('npm', ['run', 'e2e']));
 
 const commit = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
-writeFileSync('.certification.json', JSON.stringify({ at: new Date().toISOString(), commit, checks: Object.fromEntries(results.map((r) => [r.name, r.status])), partial: skipE2e || scanOnly || results.some((r) => r.skipped) }, null, 2));
+writeFileSync('.certification.json', JSON.stringify({ at: new Date().toISOString(), commit, checks: Object.fromEntries(results.map((r) => [r.name, r.status])), partial: skipE2e || scanOnly || !!only || results.some((r) => r.skipped) }, null, 2));
 console.log('Wrote .certification.json (store it with: npx tsx scripts/record-certification.ts)');
 const failed = results.filter((r) => !r.ok);
 const skippedChecks = results.filter((r) => r.skipped);
