@@ -14,7 +14,7 @@
     "@fastify/cors": "^10.0.0",
     "@fastify/helmet": "^13.0.0",
     "@fastify/multipart": "^10.1.2",
-    "@fastify/rate-limit": "^10.0.0",
+    "@fastify/rate-limit": "^11.2.1",
     "@fastify/swagger": "^9.0.0",
     "@fastify/swagger-ui": "^6.1.2",
     "@orvia/ads": "*",
