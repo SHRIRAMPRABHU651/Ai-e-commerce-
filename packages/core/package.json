@@ -12,7 +12,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1146.0",
+    "@aws-sdk/client-s3": "^3.1154.0",
     "@orvia/ads": "*",
     "@orvia/ai": "*",
     "@orvia/analytics": "*",
