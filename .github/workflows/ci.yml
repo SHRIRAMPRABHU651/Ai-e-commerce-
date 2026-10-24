@@ -1,8 +1,10 @@
 name: CI
 on:
-  push: { branches: [main] }
+  push: { branches: [main, claude/orvia-platform] }
   pull_request:
-concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   verify:
     runs-on: ubuntu-latest

@@ -9,10 +9,11 @@ const scanOnly = process.argv.includes('--scan-only'); // assumes lint/test/buil
 const results = [];
 const step = (name, fn) => {
   const t = Date.now();
-  let ok = false, note = '';
-  try { const r = fn(); ok = r === undefined || r === true || r?.ok; note = r?.note ?? ''; } catch (e) { note = e.message; }
-  results.push({ name, ok, note, s: ((Date.now() - t) / 1000).toFixed(1) });
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${note ? ` — ${note}` : ''}`);
+  let ok = false, skipped = false, note = '';
+  try { const r = fn(); ok = r === undefined || r === true || r?.ok; skipped = !!r?.skipped; note = r?.note ?? ''; } catch (e) { note = e.message; }
+  // A skipped check did NOT run: it is its own outcome and is never recorded as PASS.
+  results.push({ name, ok, skipped, status: skipped ? 'SKIP' : ok ? 'PASS' : 'FAIL', note, s: ((Date.now() - t) / 1000).toFixed(1) });
+  console.log(`${skipped ? 'SKIP' : ok ? 'PASS' : 'FAIL'}  ${name}${note ? ` — ${note}` : ''}`);
 };
 const sh = (cmd, args, env = {}) => spawnSync(cmd, args, { stdio: 'inherit', env: { ...process.env, ...env } }).status === 0;
 
@@ -61,7 +62,7 @@ step('terraform static structure (fast sanity check)', () => { const r = spawnSy
 // Real validation. Without the binary this is a hard FAIL in CI and an explicit, visible SKIP locally (never a silent pass).
 step('terraform validate', () => {
   const has = spawnSync('terraform', ['version'], { encoding: 'utf8' });
-  if (has.status !== 0) return process.env.CI ? { ok: false, note: 'terraform binary missing on a CI runner' } : { ok: true, note: 'SKIPPED: terraform binary not installed — NOT validated' };
+  if (has.status !== 0) return process.env.CI ? { ok: false, note: 'terraform binary missing on a CI runner' } : { ok: true, skipped: true, note: 'terraform binary not installed — NOT validated' };
   const init = spawnSync('terraform', ['-chdir=infra/terraform', 'init', '-backend=false', '-input=false'], { encoding: 'utf8' });
   if (init.status !== 0) return { ok: false, note: `init failed: ${init.stderr.split('\n').find(Boolean) ?? ''}` };
   const v = spawnSync('terraform', ['-chdir=infra/terraform', 'validate'], { encoding: 'utf8' });
@@ -70,9 +71,10 @@ step('terraform validate', () => {
 if (!skipE2e) step('end-to-end (Playwright desktop + mobile)', () => sh('npm', ['run', 'e2e']));
 
 const commit = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
-writeFileSync('.certification.json', JSON.stringify({ at: new Date().toISOString(), commit, checks: Object.fromEntries(results.map((r) => [r.name, r.ok ? 'PASS' : 'FAIL'])), partial: skipE2e || scanOnly }, null, 2));
+writeFileSync('.certification.json', JSON.stringify({ at: new Date().toISOString(), commit, checks: Object.fromEntries(results.map((r) => [r.name, r.status])), partial: skipE2e || scanOnly || results.some((r) => r.skipped) }, null, 2));
 console.log('Wrote .certification.json (store it with: npx tsx scripts/record-certification.ts)');
 const failed = results.filter((r) => !r.ok);
-console.log(`\n${failed.length === 0 ? 'ALL CHECKS PASSED' : `${failed.length} CHECK(S) FAILED: ${failed.map((f) => f.name).join('; ')}`}`);
+const skippedChecks = results.filter((r) => r.skipped);
+console.log(`\n${failed.length === 0 ? (skippedChecks.length ? `NO FAILURES, BUT ${skippedChecks.length} CHECK(S) WERE SKIPPED — NOT A FULL CERTIFICATION: ${skippedChecks.map((f) => f.name).join('; ')}` : 'ALL CHECKS PASSED') : `${failed.length} CHECK(S) FAILED: ${failed.map((f) => f.name).join('; ')}`}`);
 console.log('Note: passing checks do not prove live-provider integrations (Stripe, Razorpay, CJ, Meta, TikTok, Google) — verify those in staging with real sandbox credentials.');
 process.exit(failed.length ? 1 : 0);

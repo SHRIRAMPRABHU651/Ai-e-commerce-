@@ -118,6 +118,13 @@ describe('measured CPA store', () => {
     await expect(recordManualCpa(ctx, { scope: 'product', key: 'nope', country: 'US', spend: 10, orders: 3 }, person)).rejects.toMatchObject({ code: 'INVALID' });
   });
 
+  /** n real, paid, non-demo orders for product p in the US. */
+  async function realOrders(p: { _id: unknown }, n: number) {
+    for (let i = 0; i < n; i++) {
+      await Order.create({ orderNumber: `RO-${Math.random().toString(36).slice(2, 10)}`, idempotencyKey: `ro-${Math.random()}`, email: `ro${i}@example.com`, country: 'US', currency: 'USD', isDemo: false, items: [{ productId: p._id, sku: 'S', title: 'x', quantity: 1, unitPrice: 10_000, lineKey: 'l1' }], amounts: { subtotal: 10_000, total: 10_000 }, payment: { status: 'succeeded' } });
+    }
+  }
+
   it('is rebuilt from REAL ad metrics only (demo rows excluded) and never overwrites manual entries', async () => {
     const p = await mk(4_500);
     const day = new Date(ctx.now().getTime() - 2 * 86_400_000);
@@ -126,6 +133,7 @@ describe('measured CPA store', () => {
       { campaignId: oid(), productId: p._id, platform: 'tiktok', country: 'US', date: day, spend: 6_000, purchases: 4, isDemo: false },
       { campaignId: oid(), productId: p._id, platform: 'meta', country: 'US', date: day, spend: 999_999, purchases: 1, isDemo: true }, // ignored
     ]);
+    await realOrders(p, 12);
     const manual = await mk(4_500);
     await recordManualCpa(ctx, { scope: 'product', key: String(manual._id), country: 'US', spend: 7_000, orders: 7, note: 'phase 2' }, person);
     await refreshMeasuredCpa(ctx);
@@ -135,6 +143,24 @@ describe('measured CPA store', () => {
     expect((await resolveCpa(ctx, { productId: String(p._id), category: p.category!, country: 'US', currency: 'USD' }))).toEqual({ perOrder: 1_500, source: 'measured', sampleSize: 12 });
     const kept = await MeasuredCpa.findOne({ scope: 'product', key: String(manual._id), country: 'US', channel: 'all' }).lean();
     expect(kept).toMatchObject({ source: 'manual', spend: 7_000, orders: 7 });
+  });
+
+  it('platform-claimed purchases are capped at real orders: two platforms claiming the same customers cannot understate CPA, and no real orders means no measurement', async () => {
+    const p = await mk(4_500);
+    const day = new Date(ctx.now().getTime() - 86_400_000);
+    await AdMetric.create([
+      { campaignId: oid(), productId: p._id, platform: 'meta', country: 'US', date: day, spend: 10_000, purchases: 10, isDemo: false },
+      { campaignId: oid(), productId: p._id, platform: 'tiktok', country: 'US', date: day, spend: 10_000, purchases: 10, isDemo: false },
+    ]);
+    await refreshMeasuredCpa(ctx);
+    const none = await MeasuredCpa.findOne({ scope: 'product', key: String(p._id), country: 'US', channel: 'all' }).lean();
+    expect(none!.orders).toBe(0); // 20 claimed, 0 real
+    expect((await resolveCpa(ctx, { productId: String(p._id), category: p.category!, country: 'US', currency: 'USD' })).source).not.toBe('measured');
+    await realOrders(p, 8); // both platforms claim ~all of 8 real orders → 20 claimed, 8 real
+    await refreshMeasuredCpa(ctx);
+    const capped = await MeasuredCpa.findOne({ scope: 'product', key: String(p._id), country: 'US', channel: 'all' }).lean();
+    expect(capped).toMatchObject({ spend: 20_000, orders: 8 }); // CPA $25.00, not the $10.00 the platforms' 20 purchases imply
+    expect((await resolveCpa(ctx, { productId: String(p._id), category: p.category!, country: 'US', currency: 'USD' }))).toEqual({ perOrder: 2_500, source: 'measured', sampleSize: 8 });
   });
 });
 
@@ -157,6 +183,20 @@ describe('measured refund rate per product–supplier–destination', () => {
     await Order.create({ orderNumber: `ECO-T-${n}`, idempotencyKey: `eco-t-${n}`, email: 't@example.com', country: 'US', currency: 'USD', items: [{ productId: thin._id, sku: 's', title: 'x', quantity: 1, unitPrice: 100, lineKey: 'l1' }], amounts: { subtotal: 100, total: 100 }, payment: { status: 'succeeded' } });
     await refreshMeasuredRefunds(ctx);
     expect((await measuredRefundRates(ctx, String(thin._id), 'US')).size).toBe(0); // below minRefundSample
+  });
+});
+
+describe('measured zero refund rate is a measurement, not missing data', () => {
+  it('a market with 0% measured refunds over enough orders is evaluated at 0%, labelled measured; without a sample it falls back to the estimate', async () => {
+    const measured = await mk(4_500, { cpaSource: 'measured', cpa: 2_600, cpaSampleSize: 30, refundRate: 0, refundSource: 'measured', refundSampleSize: 25 });
+    const g = await canPublish(ctx, String(measured._id));
+    expect(g.scenarios[0]).toMatchObject({ refundSource: 'measured', refundRate: 0 });
+    // pre-CAC margin with zero refunds = (10000-4500-320)/10000 = 51.8% → expected (CAC 26%) = 25.8%, 5 points better than at the 5% base rate
+    expect(g.scenarios[0]!.scenarios.expected.margin).toBeCloseTo(0.258, 3);
+    const estimated = await mk(4_500, { cpaSource: 'measured', cpa: 2_600, cpaSampleSize: 30, refundRate: 0, refundSource: 'estimated', refundSampleSize: 0 });
+    const e = (await canPublish(ctx, String(estimated._id))).scenarios[0]!;
+    expect(e).toMatchObject({ refundSource: 'estimated', refundRate: 0.05 });
+    expect(e.scenarios.expected.margin).toBeCloseTo(0.208, 3);
   });
 });
 

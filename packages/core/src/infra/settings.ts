@@ -99,7 +99,7 @@ export interface LegalSettings {
 /** Evidence from the last verification run (`npm run verify:staging` or the Launch readiness page). */
 export interface LaunchVerification {
   results: Record<string, { status: 'PASS' | 'WARN' | 'FAIL'; at: string; detail: string }>;
-  certification?: { at: string; commit?: string; checks: Record<string, string> };
+  certification?: { at: string; commit?: string; checks: Record<string, string>; partial?: boolean };
 }
 
 export interface SettingsMap {

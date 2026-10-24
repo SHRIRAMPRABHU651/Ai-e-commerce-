@@ -56,6 +56,10 @@ const add = (m: Map<string, Bucket>, k: string, spend: number, orders: number) =
 
 /**
  * Rebuild the measured-CPA store from real (non-demo) ad metrics. Manual entries are never overwritten.
+ * CPA is spend ÷ orders, where orders are the platform-reported purchases capped at real paid orders (see below):
+ * with no real orders there is no measurement. Spend and purchase counts are platform-reported and attribution is not
+ * deduplicated per customer beyond that cap (organic buyers can still be counted), so the blended CPA can UNDERSTATE the
+ * true cost of a customer. Keep the measurement scope to one channel until a deduplicated attribution method exists.
  * Product → category → store roll-ups are computed here so resolution is a cheap indexed read.
  */
 export async function refreshMeasuredCpa(ctx: Ctx): Promise<{ written: number; removed: number }> {
@@ -67,6 +71,17 @@ export async function refreshMeasuredCpa(ctx: Ctx): Promise<{ written: number; r
     { $group: { _id: { productId: '$productId', country: '$country', platform: '$platform' }, spend: { $sum: '$spend' }, purchases: { $sum: '$purchases' } } },
   ]);
   const cats = new Map((await Product.find({ _id: { $in: [...new Set(rows.map((r) => r._id.productId))] } }).select('category').lean()).map((p) => [String(p._id), p.category ?? '']));
+  // Ad platforms self-report purchases and several can claim the same customer. A customer can only be acquired once, so
+  // attributed orders per product+country are capped at the REAL paid, non-demo orders for that product+country in the window.
+  const real = await Order.aggregate<{ _id: { productId: mongoose.Types.ObjectId; country: string }; n: number }>([
+    { $match: { isDemo: { $ne: true }, createdAt: { $gte: since }, 'payment.status': { $in: ['succeeded', 'partially_refunded', 'refunded'] } } },
+    { $unwind: '$items' },
+    { $group: { _id: { productId: '$items.productId', country: '$country', order: '$_id' } } },
+    { $group: { _id: { productId: '$_id.productId', country: '$_id.country' }, n: { $sum: 1 } } },
+  ]);
+  const realOrders = new Map(real.map((r) => [`${r._id.productId}|${r._id.country}`, r.n]));
+  const claimed = new Map<string, number>();
+  for (const r of rows) claimed.set(`${r._id.productId}|${r._id.country}`, (claimed.get(`${r._id.productId}|${r._id.country}`) ?? 0) + r.purchases);
   const buckets = new Map<string, Bucket>();
   const key = (scope: string, k: string, country: string, channel: string) => [scope, k, country, channel].join('\u0000');
   for (const r of rows) {
@@ -74,11 +89,14 @@ export async function refreshMeasuredCpa(ctx: Ctx): Promise<{ written: number; r
     const { country, platform } = r._id;
     const ch = platform || 'unknown';
     const cat = cats.get(pid);
+    const total = claimed.get(`${pid}|${country}`) ?? 0;
+    const cap = realOrders.get(`${pid}|${country}`) ?? 0;
+    const orders = total > cap ? Math.floor((r.purchases * cap) / total) : r.purchases;
     for (const channel of [ch, 'all']) {
-      add(buckets, key('product', pid, country, channel), r.spend, r.purchases);
-      if (cat) add(buckets, key('category', cat, country, channel), r.spend, r.purchases);
-      add(buckets, key('store', 'store', country, channel), r.spend, r.purchases);
-      add(buckets, key('store', 'store', '*', channel), r.spend, r.purchases);
+      add(buckets, key('product', pid, country, channel), r.spend, orders);
+      if (cat) add(buckets, key('category', cat, country, channel), r.spend, orders);
+      add(buckets, key('store', 'store', country, channel), r.spend, orders);
+      add(buckets, key('store', 'store', '*', channel), r.spend, orders);
     }
   }
   const manual = new Set((await MeasuredCpa.find({ source: 'manual' }).select('scope key country channel').lean()).map((d) => key(d.scope, d.key, d.country, d.channel)));
@@ -199,8 +217,9 @@ export interface MarketScenarioView {
 export async function evaluateMarket(ctx: Ctx, m: MarketEconomicsInput): Promise<MarketScenarioView> {
   const pricing = await ctx.settings.get('pricing');
   const cpaSource = (m.cpaSource && m.cpaSource !== 'assumed' && (m.cpa ?? 0) > 0 ? m.cpaSource : 'assumed') as CpaSource;
-  const refundMeasured = m.refundSource === 'measured' && (m.refundRate ?? 0) > 0;
-  const refundRate = (m.refundRate ?? 0) > 0 ? m.refundRate! : pricing.baseRefundRate;
+  // Provenance, not magnitude, decides "measured": a real 0% refund rate over enough orders is a measurement, not missing data.
+  const refundMeasured = m.refundSource === 'measured' && (m.refundSampleSize ?? 0) > 0;
+  const refundRate = refundMeasured ? Math.max(0, m.refundRate ?? 0) : (m.refundRate ?? 0) > 0 ? m.refundRate! : pricing.baseRefundRate;
   const input = { sellingPrice: m.price, landedCost: m.landedCost, paymentFee: paymentFeeModelFor(m.country), refundRate };
   return {
     country: m.country,
