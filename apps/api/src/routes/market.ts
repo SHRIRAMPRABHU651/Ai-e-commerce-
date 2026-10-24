@@ -20,7 +20,7 @@ const sourceBody = z.object({
   enabled: z.boolean().default(true),
   crawlIntervalMinutes: z.number().int().min(15).max(7 * 24 * 60).default(360),
   robotsRequired: z.boolean().default(true),
-  parserConfig: z.record(z.unknown()).optional(),
+  parserConfig: z.record(z.string(), z.unknown()).optional(),
   fetchProductPages: z.number().int().min(0).max(100).default(0),
 });
 

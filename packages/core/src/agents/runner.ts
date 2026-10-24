@@ -1,6 +1,6 @@
 import { AiTask } from '@orvia/database';
 import { metrics, retry, ProviderError } from '@orvia/config';
-import type { ZodType, ZodTypeDef } from 'zod';
+import type { ZodType } from 'zod';
 import { audit } from '../infra/audit';
 import { aiActor, DomainError } from '../infra/context';
 import type { Ctx } from '../infra/context';
@@ -15,8 +15,8 @@ export interface AgentOutput {
 export interface AgentSpec<I, O extends AgentOutput> {
   name: string;
   description: string;
-  inputSchema: ZodType<I, ZodTypeDef, unknown>;
-  outputSchema: ZodType<O, ZodTypeDef, unknown>;
+  inputSchema: ZodType<I, unknown>;
+  outputSchema: ZodType<O, unknown>;
   /** Tools (domain functions / providers) the agent is allowed to call — documentation + audit. */
   tools: string[];
   /** Automation switches that gate the agent's side-effects. */

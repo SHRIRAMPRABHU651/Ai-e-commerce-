@@ -20,8 +20,8 @@ type Out = z.infer<typeof Out> & AgentOutput;
 const Empty = z.object({}).passthrough();
 const ok = (summary: string, data: unknown, confidence = 0.9): Out => ({ confidence, summary, data });
 
-function spec<I>(s: { name: string; description: string; input?: z.ZodType<I, z.ZodTypeDef, unknown>; tools: string[]; permissions: AutomationKey[]; timeoutMs?: number; retries?: number; run: (ctx: Ctx, i: I) => Promise<Out> }): AgentSpec<I, Out> {
-  return { name: s.name, description: s.description, inputSchema: (s.input ?? (Empty as unknown)) as z.ZodType<I, z.ZodTypeDef, unknown>, outputSchema: Out as z.ZodType<Out, z.ZodTypeDef, unknown>, tools: s.tools, permissions: s.permissions, timeoutMs: s.timeoutMs ?? 120_000, retries: s.retries ?? 1, run: s.run };
+function spec<I>(s: { name: string; description: string; input?: z.ZodType<I, unknown>; tools: string[]; permissions: AutomationKey[]; timeoutMs?: number; retries?: number; run: (ctx: Ctx, i: I) => Promise<Out> }): AgentSpec<I, Out> {
+  return { name: s.name, description: s.description, inputSchema: (s.input ?? (Empty as unknown)) as z.ZodType<I, unknown>, outputSchema: Out as z.ZodType<Out, unknown>, tools: s.tools, permissions: s.permissions, timeoutMs: s.timeoutMs ?? 120_000, retries: s.retries ?? 1, run: s.run };
 }
 
 const ProductId = z.object({ productId: z.string().regex(/^[a-f\d]{24}$/i) });

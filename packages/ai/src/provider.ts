@@ -1,4 +1,4 @@
-import type { ZodType, ZodTypeDef } from 'zod';
+import type { ZodType } from 'zod';
 import type {
   AdCreative,
   BusinessNarrative,
@@ -18,7 +18,7 @@ export interface GenerateOptions {
 export interface AIProvider {
   readonly name: string;
   generateText(prompt: string, o?: GenerateOptions): Promise<string>;
-  generateStructuredOutput<T>(prompt: string, schema: ZodType<T, ZodTypeDef, unknown>, o?: GenerateOptions): Promise<T>;
+  generateStructuredOutput<T>(prompt: string, schema: ZodType<T, unknown>, o?: GenerateOptions): Promise<T>;
   classify(text: string, labels: string[], o?: GenerateOptions): Promise<Classification>;
   analyzeProduct(src: ProductSource): Promise<ProductAnalysis>;
   generateProductDescription(src: ProductSource): Promise<ProductContent>;

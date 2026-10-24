@@ -121,7 +121,7 @@ export function adminOpsRoutes(app: FastifyInstance, ctx: Ctx): void {
   // ------------------------------------------------------------- promotions
   const promoBody = z.object({
     name: z.string().min(2).max(80), type: z.enum(['percentage', 'fixed', 'free_shipping', 'bxgy', 'first_order', 'cart', 'flash_sale', 'seasonal']), code: z.string().regex(/^[A-Za-z0-9_-]{3,30}$/).optional(),
-    countries: z.array(countrySchema).default([]), percent: z.number().min(0).max(0.9).default(0), fixedAmount: z.record(z.number().int().min(0)).optional(), minSubtotal: z.record(z.number().int().min(0)).optional(),
+    countries: z.array(countrySchema).default([]), percent: z.number().min(0).max(0.9).default(0), fixedAmount: z.record(z.string(), z.number().int().min(0)).optional(), minSubtotal: z.record(z.string(), z.number().int().min(0)).optional(),
     bxgy: z.object({ buy: z.number().int().min(1).max(5), get: z.number().int().min(1).max(5) }).optional(), startsAt: z.string().datetime().optional(), endsAt: z.string().datetime().optional(),
     usageLimit: z.number().int().min(0).default(0), perUserLimit: z.number().int().min(0).default(1), active: z.boolean().default(true),
   });
@@ -189,7 +189,7 @@ export function adminOpsRoutes(app: FastifyInstance, ctx: Ctx): void {
   route(app, ctx, { method: 'POST', url: '/admin/automation/decisions/:id/approve', summary: 'Approve + execute a proposed decision', tags: ['Admin'], auth: A, permission: 'automation:write', handler: async ({ req }) => approveDecision(ctx, idOf(req), req.actor) });
   route(app, ctx, { method: 'POST', url: '/admin/automation/decisions/:id/reject', summary: 'Reject a proposed decision', tags: ['Admin'], auth: A, permission: 'automation:write', body: z.object({ reason: z.string().max(300).default('rejected') }), handler: async ({ req, body }) => rejectDecision(ctx, idOf(req), req.actor, body.reason) });
   route(app, ctx, {
-    method: 'POST', url: '/admin/automation/agents/:name/run', summary: 'Run an agent now', tags: ['Admin'], auth: A, permission: 'ai:write', body: z.object({ input: z.record(z.unknown()).default({}) }),
+    method: 'POST', url: '/admin/automation/agents/:name/run', summary: 'Run an agent now', tags: ['Admin'], auth: A, permission: 'ai:write', body: z.object({ input: z.record(z.string(), z.unknown()).default({}) }),
     handler: async ({ req, body }) => {
       const name = (req.params as { name: string }).name as AgentName;
       if (!(name in AGENTS)) throw notFound('Agent');
@@ -205,7 +205,7 @@ export function adminOpsRoutes(app: FastifyInstance, ctx: Ctx): void {
   });
   route(app, ctx, {
     method: 'PUT', url: '/admin/countries/:code', summary: 'Update country configuration', tags: ['Admin'], auth: A, permission: 'countries:write',
-    body: z.object({ enabled: z.boolean().optional(), defaultTaxRate: z.number().min(0).max(0.5).optional(), returnWindowDays: z.number().int().min(0).max(120).optional(), legalNotice: z.string().max(600).optional(), fxPerUsd: z.number().positive().optional(), paymentMethods: z.array(z.string().max(30)).max(10).optional(), regionTaxRates: z.record(z.number().min(0).max(0.5)).optional(),
+    body: z.object({ enabled: z.boolean().optional(), defaultTaxRate: z.number().min(0).max(0.5).optional(), returnWindowDays: z.number().int().min(0).max(120).optional(), legalNotice: z.string().max(600).optional(), fxPerUsd: z.number().positive().optional(), paymentMethods: z.array(z.string().max(30)).max(10).optional(), regionTaxRates: z.record(z.string(), z.number().min(0).max(0.5)).optional(),
       shippingMethods: z.array(z.object({ code: z.string().max(20), label: z.string().max(40), fee: z.number().int().min(0), freeOver: z.number().int().min(0).nullable(), minDays: z.number().int().min(0).max(60), maxDays: z.number().int().min(0).max(90) })).max(5).optional() }),
     handler: async ({ req, body }) => {
       const code = (req.params as { code: string }).code;

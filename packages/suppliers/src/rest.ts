@@ -21,9 +21,9 @@ const endpoint = z.object({
   /** Path with {id}, {sku}, {country}, {qty}, {query}, {page}, {limit} placeholders. */
   path: z.string().min(1),
   /** Extra query-string params (same placeholders). */
-  query: z.record(z.string()).optional(),
+  query: z.record(z.string(), z.string()).optional(),
   /** Request body template for POST/PUT: string values may use placeholders (and {idempotencyKey}, {orderRef}, {address.*}). */
-  body: z.record(z.unknown()).optional(),
+  body: z.record(z.string(), z.unknown()).optional(),
   /** Dot path to the payload inside the response (default: the whole response). */
   data: z.string().optional(),
 });
@@ -76,9 +76,9 @@ export const restSupplierConfigSchema = z.object({
     trackingUrl: z.string().optional(),
     estimatedDelivery: z.string().optional(),
     events: z.string().optional(),
-  }).default({}),
+  }).prefault({}),
   /** Map of supplier status strings (lower-case) → our statuses. */
-  statusMap: z.record(z.enum(['CREATED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'FAILED'])).default({
+  statusMap: z.record(z.string(), z.enum(['CREATED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'FAILED'])).default({
     pending: 'CREATED', processing: 'CREATED', created: 'CREATED', shipped: 'SHIPPED', in_transit: 'IN_TRANSIT', out_for_delivery: 'OUT_FOR_DELIVERY',
     delivered: 'DELIVERED', cancelled: 'CANCELLED', canceled: 'CANCELLED', failed: 'FAILED',
   }),

@@ -3,7 +3,7 @@
  * never invent specifications. Used when GEMINI_API_KEY is absent or Gemini fails/validation fails.
  * Everything it produces is labelled source:"template" by the AIService.
  */
-import type { ZodType, ZodTypeDef } from 'zod';
+import type { ZodType } from 'zod';
 import { AIUnavailableError } from './provider';
 import type { AIProvider } from './provider';
 import type { AdCreative, ProductContent, ProductSource, ReviewAnalysis } from './schemas';
@@ -23,7 +23,7 @@ export class TemplateAIProvider implements AIProvider {
   async generateText(): Promise<string> {
     throw new AIUnavailableError('Free-form generation requires a configured LLM (GEMINI_API_KEY)');
   }
-  async generateStructuredOutput<T>(_p: string, _s: ZodType<T, ZodTypeDef, unknown>): Promise<T> {
+  async generateStructuredOutput<T>(_p: string, _s: ZodType<T, unknown>): Promise<T> {
     throw new AIUnavailableError('Structured generation requires a configured LLM (GEMINI_API_KEY)');
   }
 

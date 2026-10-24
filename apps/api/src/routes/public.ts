@@ -122,7 +122,7 @@ export function publicRoutes(app: FastifyInstance, ctx: Ctx): void {
 
   route(app, ctx, {
     method: 'POST', url: '/events', summary: 'Track storefront event', tags: ['Storefront'], rateLimit: { max: 240, timeWindow: '1 minute' },
-    body: z.object({ type: z.enum(['page_view', 'product_view', 'add_to_cart', 'checkout_start', 'search']), sessionId: z.string().min(8).max(64), productId: objectId.optional(), category: z.string().max(80).optional(), meta: z.record(z.union([z.string().max(100), z.number()])).optional() }),
+    body: z.object({ type: z.enum(['page_view', 'product_view', 'add_to_cart', 'checkout_start', 'search']), sessionId: z.string().min(8).max(64), productId: objectId.optional(), category: z.string().max(80).optional(), meta: z.record(z.string(), z.union([z.string().max(100), z.number()])).optional() }),
     handler: async ({ req, body, reply }) => {
       await trackEvent(ctx, { ...body, country: req.country, userId: req.user?.id });
       return reply.status(202).send({ ok: true });
