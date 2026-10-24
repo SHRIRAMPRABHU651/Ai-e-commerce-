@@ -1,11 +1,11 @@
 # Honest limitations
 
-Verified in this repo: lint, typecheck, 245 unit/integration/failure/security tests (coverage floors on `packages/core`: lines ≥ 80%, branches ≥ 70%), Playwright E2E (desktop + mobile), production builds, a high-severity `npm audit` — all against in-repo mock providers. Not verified:
+Verified in this repo: lint, typecheck, 253 unit/integration/failure/security tests (coverage floors on `packages/core`: lines ≥ 80%, branches ≥ 70%), Playwright E2E (desktop + mobile), production builds, a high-severity `npm audit` — all against in-repo mock providers. Not verified:
 
 1. **Live provider adapters** (the generic `rest` supplier adapter is tested against fake HTTP suppliers only; real suppliers' payload shapes will need mapping tweaks) (CJ, Stripe, Razorpay, Meta, TikTok, Google Ads, Resend, Twilio, Gemini) have never run against real or sandbox accounts from this repo. Expect to fix field-mapping details during staging verification.
 2. **Ads**: Google creates campaign + budget only; TikTok creates campaign + ad group only (no creative upload). Meta creates the full chain paused. Pixel/CAPI/product-feed setup is manual.
 3. **Market intelligence**: the crawler/trend engine is tested against a local fake site only; no real public source has been crawled from this repo. Trends reflect the sources you configure. FX is a static table.
-4. **Terraform** is unapplied and unvalidated here (no binary; only `npm run terraform:check` static structure checks ran); MongoDB Atlas networking is out of module scope.
+4. **Terraform** passes `terraform init`/`validate`/`fmt -check` on a GitHub-hosted runner (CI run https://github.com/SHRIRAMPRABHU651/Ai-e-commerce-/actions/runs/40061120584) but has **never been planned or applied** against any AWS account, so IAM, networking and cost behaviour are unverified; MongoDB Atlas networking is out of module scope.
 5. **Tax & duties** are estimates (regional rate tables, simple duty model). Use a tax service for compliance.
 6. **Images**: real product photos come from the live supplier API only (see SUPPLIERS.md); the mock supplier's demo data uses generated SVG art, accepted in development only. The CJ image-field mapping is unverified against a live account. Images are re-hosted into Orvia storage (production never hotlinks); S3Storage has not run against a real bucket, and the CDN is not provisioned by Terraform (`cdn_base_url` is an input).
 7. **Search** is in-process (typo tolerance via fuzzy matching over an in-memory index) — fine for thousands of products; move to OpenSearch/Atlas Search at scale.

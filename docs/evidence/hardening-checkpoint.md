@@ -19,3 +19,16 @@ Date: 2026-10-24 · Responds to the independent review of `04efef3`.
 ## Not changed by this checkpoint
 
 Phase 1 (live supplier / payment / S3 / Terraform apply) and Phase 2 (real sales) remain **not done**; `LIMITATIONS.md` #1, #4, #6, #13 stand. `terraform validate` is now proven on a GitHub runner, but nothing has been planned or applied against an account.
+
+## Runner-backed CI evidence
+
+[CI run 40061120584](https://github.com/SHRIRAMPRABHU651/Ai-e-commerce-/actions/runs/40061120584) on commit `6944403` (pull request into the default branch) — **all four jobs green**:
+
+| Job | Steps proven on a clean GitHub runner |
+|---|---|
+| `verify` | `npm ci`, lint, typecheck, `test:coverage` (253 tests + coverage floors, against the `mongo:7` **service container**, no binary download), build, `npm audit --audit-level=high`, `terraform` setup, `production-check --scan-only` (secret scans, production-config guard, `terraform validate`) |
+| `terraform` | `init -backend=false`, `validate`, `fmt -check -recursive` |
+| `docker` | image builds for api / worker / web |
+| `e2e` | Playwright desktop + mobile (incl. `/admin/economics`) |
+
+Earlier runs on this PR failed for real, fixable reasons (terraform fmt, a build-dependent test, a new `undici` advisory) — see the section above.
