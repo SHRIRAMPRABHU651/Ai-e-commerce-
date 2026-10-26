@@ -531,6 +531,7 @@ export async function syncTracking(ctx: Ctx, opts: { orderId?: string; limit?: n
           }
           if (t.status === 'DELIVERED') {
             await ctx.queue.enqueue('review_request', { orderId: String(order._id) }, { delayMs: ctx.cfg.isProduction ? 3 * 86_400_000 : 60_000, dedupeKey: `review-req:${order._id}` });
+            if (order.couponCode?.startsWith('FRIEND-')) await ctx.queue.enqueue('referral_settle', { orderId: String(order._id) }, { delayMs: ctx.cfg.isProduction ? 14 * 86_400_000 : 60_000, dedupeKey: `referral:${order._id}` });
             const late = sh.estimatedDelivery && ctx.now() > sh.estimatedDelivery;
             if (late) await Supplier.updateOne({ _id: sup._id }, { $inc: { 'stats.ordersLate': 1 } });
           }

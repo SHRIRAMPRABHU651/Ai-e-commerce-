@@ -9,6 +9,7 @@ import { adminOpsRoutes } from './routes/adminOps';
 import { authRoutes } from './routes/auth';
 import { publicRoutes } from './routes/public';
 import { shopRoutes } from './routes/shop';
+import { growthRoutes } from './routes/growth';
 import { systemRoutes } from './routes/system';
 import { mediaRoutes } from './routes/media';
 import { marketRoutes } from './routes/market';
@@ -31,6 +32,7 @@ export async function buildServer(ctx: Ctx, opts: ServerOptions = {}): Promise<F
   publicRoutes(app, ctx);
   authRoutes(app, ctx);
   shopRoutes(app, ctx);
+  growthRoutes(app, ctx);
   adminCommerceRoutes(app, ctx);
   adminOpsRoutes(app, ctx);
   mediaRoutes(app, ctx);

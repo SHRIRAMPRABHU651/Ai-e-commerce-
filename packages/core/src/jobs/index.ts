@@ -15,6 +15,7 @@ import { runSupplierHealthChecks } from '../domain/supplierOps';
 import { runReconciliation } from '../domain/reconciliation';
 import { crawlSource, dueSources, recomputeTrends } from '../market';
 import { generateDailyBrief } from '../domain/brief';
+import { settleReferral } from '../domain/referrals';
 import { recommendPromotions } from '../domain/marketing';
 import { syncAdMetrics } from '../domain/adsService';
 import { refreshTrends } from '../domain/discovery';
@@ -121,6 +122,7 @@ export function registerJobs(ctx: Ctx): void {
   q.register('daily_brief', () => generateDailyBrief(ctx));
   q.register('recommend_promotions', () => recommendPromotions(ctx));
   q.register('abandoned_cart', () => runNamedAgent(ctx, 'AbandonedCartAgent'));
+  q.register('referral_settle', async (p: { orderId: string }) => ({ result: await settleReferral(ctx, p.orderId) }));
   q.register('review_request', async (p: { orderId: string }) => {
     const o = await Order.findById(p.orderId).lean();
     if (!o || !['DELIVERED'].includes(o.status)) return { skipped: true };

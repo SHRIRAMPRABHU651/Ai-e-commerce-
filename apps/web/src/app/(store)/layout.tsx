@@ -1,5 +1,6 @@
 import { Providers } from '@/components/providers';
 import { AnnouncementBar, CartDrawer, ChatWidget, Footer, Header, MobileTabBar } from '@/components/chrome';
+import { ReferralCapture } from '@/components/growth';
 import { resolveCountry, sget } from '@/lib/server';
 import type { Meta, User } from '@/lib/types';
 
@@ -10,6 +11,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   return (
     <Providers meta={meta} country={country} initialUser={me?.user ?? null}>
       <a href="#main" className="sr-only z-[100] rounded-md bg-ink px-4 py-2 font-semibold text-paper focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
+      <ReferralCapture />
       <AnnouncementBar />
       <Header />
       <main id="main" className="min-h-[60dvh]">{children}</main>

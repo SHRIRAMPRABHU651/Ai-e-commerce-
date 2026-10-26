@@ -575,6 +575,28 @@ promotionSchema.index({ code: 1 }, { unique: true, partialFilterExpression: { co
 promotionSchema.index({ active: 1, startsAt: 1, endsAt: 1 });
 export const Promotion = defineModel('Promotion', promotionSchema, 'promotions');
 
+/** One shareable referral code per customer; backed by a first-order Promotion so pricing/margin guards apply unchanged. */
+const referralCodeSchema = new Schema({
+  userId: { type: oid, ref: 'User', required: true, unique: true },
+  email: { type: String, required: true, lowercase: true },
+  code: { type: String, required: true, unique: true, uppercase: true },
+  promotionId: { type: oid, ref: 'Promotion', required: true },
+}, schemaOpts);
+export const ReferralCode = defineModel('ReferralCode', referralCodeSchema, 'referral_codes');
+
+/** One row per invited friend (unique by email: a person can only ever be referred once). */
+const referralSchema = new Schema({
+  referrerUserId: { type: oid, ref: 'User', required: true, index: true },
+  referrerEmail: { type: String, required: true, lowercase: true },
+  refereeEmail: { type: String, required: true, lowercase: true, unique: true },
+  orderId: { type: oid, ref: 'Order', required: true },
+  code: { type: String, required: true },
+  status: { type: String, enum: ['rewarded', 'rejected'], required: true },
+  reason: String,
+  rewardCode: String,
+}, schemaOpts);
+export const Referral = defineModel('Referral', referralSchema, 'referrals');
+
 const couponSchema = new Schema({
   code: { type: String, required: true, unique: true, uppercase: true, trim: true },
   promotionId: { type: oid, ref: 'Promotion', required: true },

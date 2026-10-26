@@ -13,7 +13,7 @@ const TILE_COPY: Record<string, string> = { pet: 'Toys, feeders and travel gear 
 
 export default async function Home() {
   const country = await resolveCountry();
-  const [home, meta] = await Promise.all([sget<HomeData>('/home', { country }), sget<Meta>('/meta', { country })]);
+  const [home, meta, needs] = await Promise.all([sget<HomeData>('/home', { country }), sget<Meta>('/meta', { country }), sget<{ needs: { slug: string; name: string; tagline: string; count: number; image?: string; imageAlt?: string }[] }>('/needs', { country })]);
   if (!home || !meta) return null;
   const hero = home.trending.filter((p) => p.available).slice(0, 3);
   const spotlight = home.bestSellers.find((p) => p.available && p.images[0]?.url) ?? home.trending.find((p) => p.available && p.images[0]?.url);
@@ -65,6 +65,23 @@ export default async function Home() {
           ))}
         </div>
       </section>
+
+      {!!needs?.needs.length && (
+        <section className="mx-auto max-w-7xl px-4 pt-14" aria-labelledby="needs">
+          <SectionHeader title="Shop by need" subtitle="Start from what you want to get done" />
+          <h2 id="needs" className="sr-only">Shop by need</h2>
+          <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+            {needs.needs.map((n) => (
+              <li key={n.slug} className="w-44 shrink-0 sm:w-auto">
+                <Link href={`/needs/${n.slug}`} className="group flex h-full flex-col justify-between rounded-xl border border-line bg-surface p-4 transition-colors hover:border-pine-500">
+                  <span className="font-display text-lg font-semibold leading-tight">{n.name}</span>
+                  <span className="mt-3 text-[13px] text-ink-3">{n.tagline}<span className="mt-2 flex items-center gap-1 font-bold text-pine-700">{n.count} items <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" /></span></span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="mx-auto max-w-7xl px-4 pt-14"><SectionHeader title="Trending now" subtitle={`What shoppers in ${meta.countries.find((c) => c.code === country)?.name} are adding to cart`} href="/c/trending" /><ProductShelf products={home.trending} /></section>
 

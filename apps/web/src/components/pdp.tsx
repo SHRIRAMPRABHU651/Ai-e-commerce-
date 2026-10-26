@@ -5,6 +5,7 @@ import * as React from 'react';
 import { Badge, Button, Card, Field, Input, Link, PriceDisplay, ProductArt, QuantityStepper, Rating, Textarea, cn, useToast } from '@orvia/ui';
 import { api } from '@/lib/api';
 import { money } from '@/lib/api';
+import { ShareButton } from './growth';
 import { useStore } from './providers';
 import type { ProductPage } from '@/lib/types';
 
@@ -80,6 +81,7 @@ export function BuyBox({ data }: { data: ProductPage }) {
         <QuantityStepper value={qty} onChange={setQty} max={Math.max(1, Math.min(10, p.stock || 1))} disabled={!p.available} />
         <Button size="lg" className="flex-1" disabled={!p.available} loading={busy === 'add'} onClick={() => void doAdd(false)}>Add to cart</Button>
         <button onClick={() => void toggleWish(p.id)} aria-pressed={wished} aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'} className="grid size-12 place-items-center rounded-md border border-line-strong hover:bg-sunken"><Heart className={cn('size-5', wished && 'fill-coral-500 text-coral-500')} /></button>
+        <ShareButton path={`/p/${p.slug}`} title={p.title} />
       </div>
       <Button size="lg" variant="accent" block className="mt-3 hidden sm:inline-flex" disabled={!p.available} loading={busy === 'buy'} onClick={() => void doAdd(true)}>Buy now</Button>
 

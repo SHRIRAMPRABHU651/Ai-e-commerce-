@@ -39,3 +39,5 @@ export * from './domain/organic';
 export * from './domain/launch';
 export * from './domain/economics';
 export * from './domain/exportGate';
+export * from './domain/needs';
+export * from './domain/referrals';

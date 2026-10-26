@@ -1,5 +1,5 @@
 'use client';
-import { Heart, MapPin, Package, RotateCcw, User as UserIcon, LogOut } from 'lucide-react';
+import { Gift, Heart, MapPin, Package, RotateCcw, User as UserIcon, LogOut } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
 import { Badge, Button, Card, EmptyState, Field, Input, Link, ProductArt, Skeleton, StatusBadge, Select, cn, useToast, ProductCard, ProductGrid } from '@orvia/ui';
@@ -8,7 +8,7 @@ import { POSTAL_LABEL, REGIONS, REGION_LABEL } from '@/lib/regions';
 import type { StoreProduct } from '@/lib/types';
 import { useStore } from './providers';
 
-const NAV = [{ href: '/account', label: 'Profile', icon: UserIcon }, { href: '/account/orders', label: 'Orders', icon: Package }, { href: '/account/wishlist', label: 'Wishlist', icon: Heart }, { href: '/account/returns', label: 'Returns', icon: RotateCcw }];
+const NAV = [{ href: '/account', label: 'Profile', icon: UserIcon }, { href: '/account/orders', label: 'Orders', icon: Package }, { href: '/account/wishlist', label: 'Wishlist', icon: Heart }, { href: '/account/returns', label: 'Returns', icon: RotateCcw }, { href: '/account/referrals', label: 'Invite a friend', icon: Gift }];
 
 export function AccountNav() {
   const path = usePathname();
