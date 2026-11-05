@@ -63,7 +63,7 @@ export function assertNoAiClaims(claimFields: { provenance: Provenance; value?: 
 
 /** Keys that must never reach a customer. Matched case-insensitively on exact key name. */
 export const INTERNAL_KEYS = new Set([
-  'productcost', 'shippingcost', 'fulfillmentfee', 'landedcost', 'expectedmargin', 'expectedprofit', 'margin', 'marginpct', 'profit', 'contribution',
+  'productcost', 'shippingcost', 'fulfillmentfee', 'landedcost', 'expectedmargin', 'expectedprofit', 'margin', 'marginpct', 'profit',
   'supplierid', 'supplierref', 'suppliercode', 'bestsupplierid', 'supplierproductid', 'offerid', 'suppliercost', 'costs', 'cost', 'cpa', 'credentials', 'credentialsenc',
   'targetmarginpct', 'pricingconfig', 'intel', 'externalid', 'supplierorderid', 'pricehistoryinternal',
 ]);

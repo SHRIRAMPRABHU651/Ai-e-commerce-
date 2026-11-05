@@ -1,4 +1,5 @@
 /** TrustGraph service: loads data, runs the pure scorers, stores reproducible snapshots, serves admin views. */
+import type { PipelineStage } from 'mongoose';
 import { Product, Supplier, SupplierOffer, TrustEvidence, TrustProductRiskSnapshot, TrustSupplierSnapshot } from '@orvia/database';
 import type { EvidenceInput, ProductRiskResult, SupplierTrustResult, SupplierTrustSnapshotView, TrustStatus } from '@orvia/types';
 import { audit } from '../../infra/audit';
@@ -165,12 +166,12 @@ export async function computeProductRisk(ctx: Ctx, productId: string, country: s
   return g.risk;
 }
 
-export interface RecomputeSummary { suppliers: number; products: number; snapshotsPruned: number; errors: number }
+export interface TrustRecomputeSummary { suppliers: number; products: number; snapshotsPruned: number; errors: number }
 
 /** Recompute everything in scope. Bounded: at most 200 suppliers and 300 products per run. */
-export async function recomputeTrust(ctx: Ctx, opts: { scope?: 'all' | 'suppliers' | 'products'; supplierId?: string; productId?: string }, trigger: Trigger, actor?: Actor): Promise<RecomputeSummary> {
+export async function recomputeTrust(ctx: Ctx, opts: { scope?: 'all' | 'suppliers' | 'products'; supplierId?: string; productId?: string }, trigger: Trigger, actor?: Actor): Promise<TrustRecomputeSummary> {
   const scope = opts.scope ?? 'all';
-  const out: RecomputeSummary = { suppliers: 0, products: 0, snapshotsPruned: 0, errors: 0 };
+  const out: TrustRecomputeSummary = { suppliers: 0, products: 0, snapshotsPruned: 0, errors: 0 };
   if (scope !== 'products') {
     const ids = opts.supplierId ? [opts.supplierId] : (await Supplier.find({ active: true }).select('_id').limit(200).lean()).map((s) => String(s._id));
     for (const id of ids) {
@@ -234,7 +235,7 @@ export async function listProductRisk(_ctx: Ctx, q: { page: number; pageSize: nu
     const ids = await Product.find({ title: new RegExp(q.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).limit(200).select('_id').lean();
     match.productId = { $in: ids.map((i) => i._id) };
   }
-  const base = [{ $match: match }, { $sort: { computedAt: -1 } }, { $group: { _id: '$productId', doc: { $first: '$$ROOT' } } }, { $replaceRoot: { newRoot: '$doc' } }, ...(q.status ? [{ $match: { status: q.status } }] : [])];
+  const base: PipelineStage[] = [{ $match: match }, { $sort: { computedAt: -1 } }, { $group: { _id: '$productId', doc: { $first: '$$ROOT' } } }, { $replaceRoot: { newRoot: '$doc' } }, ...(q.status ? [{ $match: { status: q.status } } as PipelineStage] : [])];
   const [rows, count] = await Promise.all([
     TrustProductRiskSnapshot.aggregate([...base, { $sort: { score: -1, computedAt: -1 } }, { $skip: (q.page - 1) * q.pageSize }, { $limit: q.pageSize }]) as Promise<{ productId: unknown; level: string; status: TrustStatus; score?: number; confidence: number; sampleSize: number; computedAt: Date; result: ProductRiskResult }[]>,
     TrustProductRiskSnapshot.aggregate([...base, { $count: 'n' }]) as Promise<{ n: number }[]>,
