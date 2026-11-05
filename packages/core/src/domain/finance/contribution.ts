@@ -11,7 +11,7 @@
  */
 import type { FinanceBasis, Provenance } from '@orvia/types';
 
-export interface Component {
+export interface ContributionComponent {
   /** Minor units, >= 0. */
   amount: number;
   basis: FinanceBasis;
@@ -21,9 +21,9 @@ export interface Component {
 export const COST_KEYS = ['supplierCost', 'shipping', 'paymentFee', 'taxesDuties', 'acquisitionCost', 'refundReserve', 'chargebackReserve', 'customerService', 'otherVariable'] as const;
 export type CostKey = (typeof COST_KEYS)[number];
 
-export interface ContributionInput extends Record<CostKey, Component> {
+export interface ContributionInput extends Record<CostKey, ContributionComponent> {
   /** Ex-tax price actually charged, after discount. */
-  sellingPrice: Component;
+  sellingPrice: ContributionComponent;
 }
 
 export interface ContributionLine {
@@ -61,7 +61,7 @@ const LABEL: Record<'sellingPrice' | CostKey, string> = {
   otherVariable: 'Other variable costs',
 };
 
-const line = (key: 'sellingPrice' | CostKey, c: Component): ContributionLine => ({ key, label: LABEL[key], amount: c.amount, basis: c.basis, kind: c.basis === 'estimated' ? 'estimated' : 'actual', note: c.note });
+const line = (key: 'sellingPrice' | CostKey, c: ContributionComponent): ContributionLine => ({ key, label: LABEL[key], amount: c.amount, basis: c.basis, kind: c.basis === 'estimated' ? 'estimated' : 'actual', note: c.note });
 
 export function computeContribution(i: ContributionInput): ContributionResult {
   for (const k of ['sellingPrice', ...COST_KEYS] as const) if (!Number.isFinite(i[k].amount)) throw new Error(`contribution: ${k} must be a finite number`);
@@ -84,7 +84,7 @@ export function computeContribution(i: ContributionInput): ContributionResult {
 }
 
 /** Reserve = rate × price, always labelled an estimate unless the rate itself is measured. */
-export const reserve = (price: number, rate: number, measured: boolean, note?: string): Component => ({ amount: Math.max(0, Math.round(price * rate)), basis: measured ? 'measured' : 'estimated', note });
+export const reserve = (price: number, rate: number, measured: boolean, note?: string): ContributionComponent => ({ amount: Math.max(0, Math.round(price * rate)), basis: measured ? 'measured' : 'estimated', note });
 
 /** Contribution per order needed to cover fixed operating cost at a given order volume (null if volume 0). */
 export const requiredContributionPerOrder = (monthlyOpex: number, ordersPerMonth: number): number | null => (ordersPerMonth > 0 ? monthlyOpex / ordersPerMonth : null);
