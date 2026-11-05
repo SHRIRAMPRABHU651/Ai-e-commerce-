@@ -15,6 +15,14 @@ import { mediaRoutes } from './routes/media';
 import { marketRoutes } from './routes/market';
 import { launchRoutes } from './routes/launch';
 import { economicsRoutes } from './routes/economics';
+import { trustRoutes } from './routes/trust';
+import { rescueRoutes } from './routes/rescue';
+import { customer360Routes } from './routes/customer360';
+import { findRoutes } from './routes/find';
+import { financeRoutes } from './routes/finance';
+import { creatorsRoutes } from './routes/creators';
+import { eventsRoutes } from './routes/events';
+import { suppliernetRoutes } from './routes/suppliernet';
 import multipart from '@fastify/multipart';
 
 export interface ServerOptions {
@@ -39,6 +47,14 @@ export async function buildServer(ctx: Ctx, opts: ServerOptions = {}): Promise<F
   marketRoutes(app, ctx);
   launchRoutes(app, ctx);
   economicsRoutes(app, ctx);
+  trustRoutes(app, ctx);
+  rescueRoutes(app, ctx);
+  customer360Routes(app, ctx);
+  findRoutes(app, ctx);
+  financeRoutes(app, ctx);
+  creatorsRoutes(app, ctx);
+  eventsRoutes(app, ctx);
+  suppliernetRoutes(app, ctx);
   await app.ready();
   return app;
 }

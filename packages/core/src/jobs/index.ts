@@ -21,6 +21,14 @@ import { syncAdMetrics } from '../domain/adsService';
 import { refreshTrends } from '../domain/discovery';
 import { refreshSupplierReliability } from '../domain/reporting';
 import { analyzeProductReviews } from '../domain/reviews';
+import { register_trust_Jobs, TRUST_SCHEDULES } from '../domain/trust';
+import { register_rescue_Jobs, RESCUE_SCHEDULES } from '../domain/rescue';
+import { register_customer360_Jobs, CUSTOMER360_SCHEDULES } from '../domain/customer360';
+import { register_find_Jobs, FIND_SCHEDULES } from '../domain/find';
+import { register_finance_Jobs, FINANCE_SCHEDULES } from '../domain/finance';
+import { register_creators_Jobs, CREATORS_SCHEDULES } from '../domain/creators';
+import { register_events_Jobs, EVENTS_SCHEDULES } from '../domain/events';
+import { register_suppliernet_Jobs, SUPPLIERNET_SCHEDULES } from '../domain/suppliernet';
 import { Scheduler } from '../infra/queue';
 import type { ScheduleDef } from '../infra/queue';
 import { invalidateSearchIndex } from '../domain/search';
@@ -47,6 +55,7 @@ export const DEFAULT_SCHEDULES: (ScheduleDef & { automation?: AutomationKey; ris
   { name: 'discovery', everyMs: DAY, job: 'discovery', description: 'Discover, score and import/propose products; start ad tests', automation: 'product_discovery', risk: 'medium' },
   { name: 'product_scoring', everyMs: DAY, job: 'score_products', description: 'Recompute opportunity scores', risk: 'low' },
   { name: 'daily_brief', everyMs: DAY, job: 'daily_brief', description: 'Generate the daily business brief', automation: 'ai_reports', risk: 'low' },
+  ...[...TRUST_SCHEDULES, ...RESCUE_SCHEDULES, ...CUSTOMER360_SCHEDULES, ...FIND_SCHEDULES, ...FINANCE_SCHEDULES, ...CREATORS_SCHEDULES, ...EVENTS_SCHEDULES, ...SUPPLIERNET_SCHEDULES],
   { name: 'promotion_analysis', everyMs: DAY, job: 'recommend_promotions', description: 'Recommend country promotions', automation: 'promotion_optimization', risk: 'medium' },
 ];
 
@@ -123,6 +132,14 @@ export function registerJobs(ctx: Ctx): void {
   q.register('recommend_promotions', () => recommendPromotions(ctx));
   q.register('abandoned_cart', () => runNamedAgent(ctx, 'AbandonedCartAgent'));
   q.register('referral_settle', async (p: { orderId: string }) => ({ result: await settleReferral(ctx, p.orderId) }));
+  register_trust_Jobs(ctx);
+  register_rescue_Jobs(ctx);
+  register_customer360_Jobs(ctx);
+  register_find_Jobs(ctx);
+  register_finance_Jobs(ctx);
+  register_creators_Jobs(ctx);
+  register_events_Jobs(ctx);
+  register_suppliernet_Jobs(ctx);
   q.register('review_request', async (p: { orderId: string }) => {
     const o = await Order.findById(p.orderId).lean();
     if (!o || !['DELIVERED'].includes(o.status)) return { skipped: true };

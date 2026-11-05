@@ -1,5 +1,5 @@
 'use client';
-import { TrendingUp, ShieldCheck, Activity, AlertTriangle, BarChart3, Bell, Bot, Boxes, Cpu, CreditCard, FileClock, Globe, Headset, LayoutDashboard, LogOut, Megaphone, Menu, Moon, MousePointerClick, Package, RotateCcw, Settings, ShoppingBag, Star, Sun, Tag, Truck, Users, Warehouse, Layers, Store } from 'lucide-react';
+import { TrendingUp, ShieldCheck, Activity, AlertTriangle, BarChart3, Bell, Bot, Boxes, Cpu, CreditCard, FileClock, Globe, Headset, LayoutDashboard, LogOut, Megaphone, Menu, Moon, MousePointerClick, Package, RotateCcw, Settings, ShoppingBag, Star, Sun, Tag, Truck, Users, Warehouse, Layers, Store, Handshake, Landmark, LifeBuoy, Network, Radio, ShieldCheck, UserRound } from 'lucide-react';
 import NextLink from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
@@ -22,6 +22,13 @@ const NAV: { group: string; items: { href: string; label: string; icon: typeof P
   ] },
   { group: 'Grow', items: [
     { href: '/admin/market', label: 'Market intel', icon: TrendingUp, perm: 'market:read' },
+    { href: '/admin/trust', label: 'TrustGraph', icon: ShieldCheck, perm: 'trust:read' },
+    { href: '/admin/rescue', label: 'Delivery Rescue', icon: LifeBuoy, perm: 'rescue:read' },
+    { href: '/admin/customer-360', label: 'Customer 360', icon: UserRound, perm: 'customer360:read' },
+    { href: '/admin/finance', label: 'Finance', icon: Landmark, perm: 'finance:read' },
+    { href: '/admin/creators', label: 'Creators & loyalty', icon: Handshake, perm: 'creators:read' },
+    { href: '/admin/campaigns', label: 'Tracking & campaigns', icon: Radio, perm: 'marketing:read' },
+    { href: '/admin/supplier-network', label: 'Supplier network', icon: Network, perm: 'suppliers:read' },
     { href: '/admin/economics', label: 'Economics', icon: BarChart3, perm: 'products:read' },
     { href: '/admin/launch-readiness', label: 'Launch readiness', icon: ShieldCheck, perm: 'launch:read' },
     { href: '/admin/marketing', label: 'Marketing', icon: Megaphone, perm: 'marketing:read' },

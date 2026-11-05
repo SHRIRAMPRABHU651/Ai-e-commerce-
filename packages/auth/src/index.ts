@@ -109,6 +109,18 @@ export const PERMISSIONS = [
   'market:read',
   'market:write',
   'launch:read',
+  'trust:read',
+  'trust:write',
+  'rescue:read',
+  'rescue:write',
+  'customer360:read',
+  'customer360:write',
+  'finance:read',
+  'finance:write',
+  'creators:read',
+  'creators:write',
+  'loyalty:read',
+  'loyalty:write',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -121,17 +133,17 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   MARKETING: [
     'overview:read', 'products:read', 'marketing:read', 'marketing:write', 'ads:read', 'ads:write',
     'promotions:read', 'promotions:write', 'analytics:read', 'copilot:use', 'reviews:read', 'countries:read',
-    'automation:read', 'ai:write', 'market:read', 'market:write',
+    'automation:read', 'ai:write', 'market:read', 'market:write', 'creators:read', 'creators:write', 'loyalty:read', 'loyalty:write',
   ],
   OPERATIONS: [
     'overview:read', 'orders:read', 'orders:write', 'products:read', 'suppliers:read', 'suppliers:write',
     'inventory:read', 'inventory:write', 'shipping:read', 'returns:read', 'returns:write', 'exceptions:read',
     'exceptions:write', 'payments:read', 'customers:read', 'analytics:read', 'automation:read', 'countries:read',
-    'refunds:write', 'market:read', 'launch:read',
+    'refunds:write', 'market:read', 'launch:read', 'rescue:read', 'rescue:write', 'trust:read', 'finance:read',
   ],
   SUPPORT: [
     'overview:read', 'orders:read', 'customers:read', 'support:read', 'support:write', 'returns:read',
-    'returns:write', 'reviews:read', 'reviews:write', 'exceptions:read', 'refunds:write', 'shipping:read',
+    'returns:write', 'reviews:read', 'reviews:write', 'exceptions:read', 'refunds:write', 'shipping:read', 'rescue:read', 'rescue:write', 'customer360:read', 'trust:read',
   ],
   ANALYST: [...readOnly.filter((p) => !['settings:read', 'audit:read', 'payments:read', 'launch:read'].includes(p)), 'copilot:use'],
   CUSTOMER: [],
