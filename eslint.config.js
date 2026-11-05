@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/.next/**', '**/node_modules/**', '**/coverage/**', 'apps/web/next-env.d.ts', '**/*.mjs', 'infra/**'] },
+  { ignores: ['**/dist/**', '**/.next/**', '**/node_modules/**', '**/coverage/**', 'apps/web/next-env.d.ts', '**/*.mjs', 'infra/**', '.claude/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,

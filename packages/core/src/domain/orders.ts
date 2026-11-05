@@ -8,6 +8,10 @@ import { convertMinor } from '@orvia/types';
 import type { CheckoutInput, CountryCode, Currency } from '@orvia/types';
 import { audit } from '../infra/audit';
 import { getCountry } from '../infra/countries';
+import type { PaymentWebhookEvent } from '@orvia/payments';
+import { claimWebhookEvent, finalizeWebhookEvent } from './aftersales/webhookClaim';
+import { ingestDispute } from './aftersales/chargebacks';
+import { handleRefundEvent } from './aftersales/refundEvents';
 import { aiActor, conflict, DomainError, notFound, SYSTEM } from '../infra/context';
 import { exportGate, exportGateMessage } from './exportGate';
 import type { Actor, Ctx } from '../infra/context';
@@ -121,15 +125,22 @@ export async function handlePaymentWebhook(ctx: Ctx, providerKey: string, rawBod
   const provider = ctx.payments.get(providerKey);
   const evt = provider.verifyWebhook(rawBody, headers); // throws WebhookSignatureError
   if (evt.type === 'ignored') return 'ignored';
-  try {
-    await WebhookEvent.create({ provider: providerKey, eventId: evt.id, type: evt.type, processedAt: ctx.now() });
-  } catch (e) {
-    if ((e as { code?: number }).code === 11000) {
-      metrics.inc('orvia_webhook_duplicates_total', { provider: providerKey });
-      return 'duplicate';
-    }
-    throw e;
+  // Claim the event id (unique insert). A claim left unfinished by a crashed worker is reclaimable, see aftersales/webhookClaim.
+  if ((await claimWebhookEvent(ctx, providerKey, evt)) === 'duplicate') {
+    metrics.inc('orvia_webhook_duplicates_total', { provider: providerKey });
+    return 'duplicate';
   }
+  const outcome = await processPaymentEvent(ctx, providerKey, provider, evt);
+  await finalizeWebhookEvent(providerKey, evt.id, outcome);
+  return outcome;
+}
+
+async function processPaymentEvent(ctx: Ctx, providerKey: string, provider: ReturnType<Ctx['payments']['get']>, evt: PaymentWebhookEvent): Promise<WebhookOutcome> {
+  if (evt.type.startsWith('dispute.') && evt.dispute) {
+    await ingestDispute(ctx, providerKey, evt.id, evt.dispute);
+    return 'processed';
+  }
+  if (evt.type === 'refund.failed' || evt.type === 'refund.succeeded') return handleRefundEvent(ctx, providerKey, evt);
   const pay = await Payment.findOne({ provider: providerKey, intentId: evt.intentId });
   if (!pay) {
     await WebhookEvent.updateOne({ provider: providerKey, eventId: evt.id }, { $set: { outcome: 'unknown_intent' } });
