@@ -63,6 +63,26 @@ const envSchema = z.object({
   GOOGLE_ADS_DEVELOPER_TOKEN: optStr,
   GOOGLE_ADS_CUSTOMER_ID: optStr,
 
+  // Server-side conversion events (events workstream). Adapters are implemented against public vendor docs and are UNVERIFIED against live accounts.
+  /** `log` records what would be sent and delivers nothing; forbidden in production when any provider is enabled. */
+  EVENTS_MODE: z.enum(['log', 'live']).default('log'),
+  /** Comma-separated subset of: meta,tiktok,ga4,google_ads. Empty = server-side events disabled. */
+  EVENTS_PROVIDERS: z.string().default(''),
+  META_PIXEL_ID: optStr,
+  META_CAPI_ACCESS_TOKEN: optStr,
+  META_CAPI_TEST_EVENT_CODE: optStr,
+  META_GRAPH_VERSION: z.string().default('v21.0'),
+  TIKTOK_PIXEL_CODE: optStr,
+  TIKTOK_EVENTS_ACCESS_TOKEN: optStr,
+  TIKTOK_EVENTS_TEST_CODE: optStr,
+  GA4_MEASUREMENT_ID: optStr,
+  GA4_API_SECRET: optStr,
+  GOOGLE_ADS_PURCHASE_CONVERSION_ACTION_ID: optStr,
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID: optStr,
+  GOOGLE_ADS_API_VERSION: z.string().default('v21'),
+  /** Hard cap on marketing emails per UTC day across all campaigns. */
+  EVENTS_EMAIL_DAILY_LIMIT: z.coerce.number().int().min(0).default(2000),
+
   AWS_ACCESS_KEY_ID: optStr,
   AWS_SECRET_ACCESS_KEY: optStr,
   AWS_REGION: z.string().default('us-east-1'),
@@ -137,6 +157,38 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return cfg;
 }
 
+export const EVENTS_PROVIDER_KEYS = ['meta', 'tiktok', 'ga4', 'google_ads'] as const;
+export type EventsProviderKey = (typeof EVENTS_PROVIDER_KEYS)[number];
+
+/** Providers listed in EVENTS_PROVIDERS (unknown names ignored). */
+export function enabledEventProviders(cfg: Pick<AppConfig, 'EVENTS_PROVIDERS'>): EventsProviderKey[] {
+  return cfg.EVENTS_PROVIDERS.split(',').map((s) => s.trim().toLowerCase()).filter((s): s is EventsProviderKey => (EVENTS_PROVIDER_KEYS as readonly string[]).includes(s));
+}
+
+/** Which credentials each server-side events adapter needs; returns the names that are missing. */
+export function missingEventCredentials(cfg: AppConfig, p: EventsProviderKey): string[] {
+  const need: Record<EventsProviderKey, [string, unknown][]> = {
+    meta: [['META_PIXEL_ID', cfg.META_PIXEL_ID], ['META_CAPI_ACCESS_TOKEN', cfg.META_CAPI_ACCESS_TOKEN]],
+    tiktok: [['TIKTOK_PIXEL_CODE', cfg.TIKTOK_PIXEL_CODE], ['TIKTOK_EVENTS_ACCESS_TOKEN', cfg.TIKTOK_EVENTS_ACCESS_TOKEN]],
+    ga4: [['GA4_MEASUREMENT_ID', cfg.GA4_MEASUREMENT_ID], ['GA4_API_SECRET', cfg.GA4_API_SECRET]],
+    google_ads: [['GOOGLE_ADS_CLIENT_ID', cfg.GOOGLE_ADS_CLIENT_ID], ['GOOGLE_ADS_CLIENT_SECRET', cfg.GOOGLE_ADS_CLIENT_SECRET], ['GOOGLE_ADS_REFRESH_TOKEN', cfg.GOOGLE_ADS_REFRESH_TOKEN], ['GOOGLE_ADS_DEVELOPER_TOKEN', cfg.GOOGLE_ADS_DEVELOPER_TOKEN], ['GOOGLE_ADS_CUSTOMER_ID', cfg.GOOGLE_ADS_CUSTOMER_ID], ['GOOGLE_ADS_PURCHASE_CONVERSION_ACTION_ID', cfg.GOOGLE_ADS_PURCHASE_CONVERSION_ACTION_ID]],
+  };
+  return need[p].filter(([, v]) => !v).map(([k]) => k);
+}
+
+/** Production refuses log-mode (fake delivery) and missing credentials whenever a server-side events integration is enabled. */
+export function eventsConfigProblems(cfg: AppConfig): string[] {
+  const enabled = enabledEventProviders(cfg);
+  if (!enabled.length) return [];
+  const out: string[] = [];
+  if (cfg.EVENTS_MODE === 'log') out.push('EVENTS_MODE=log is forbidden in production while EVENTS_PROVIDERS is set (events would be logged, not delivered)');
+  for (const p of enabled) {
+    const miss = missingEventCredentials(cfg, p);
+    if (miss.length) out.push(`EVENTS_PROVIDERS includes ${p} but ${miss.join(', ')} ${miss.length > 1 ? 'are' : 'is'} missing`);
+  }
+  return out;
+}
+
 /** Fail fast on configurations that would fake external success in production. */
 export function assertSafeForEnvironment(cfg: AppConfig): void {
   if (cfg.APP_ENV !== 'production') return;
@@ -150,6 +202,7 @@ export function assertSafeForEnvironment(cfg: AppConfig): void {
   if (!cfg.COOKIE_SECURE) problems.push('COOKIE_SECURE must be true in production');
   if (cfg.SEED_ON_START) problems.push('SEED_ON_START is forbidden in production');
   if (cfg.ALLOW_PRIVATE_FETCH) problems.push('ALLOW_PRIVATE_FETCH must be false in production (SSRF protection)');
+  problems.push(...eventsConfigProblems(cfg));
   if (cfg.OBJECT_STORAGE_PROVIDER !== 's3') problems.push('OBJECT_STORAGE_PROVIDER must be s3 in production (customer images need durable object storage + CDN)');
   if (cfg.OBJECT_STORAGE_PROVIDER === 's3' && !cfg.OBJECT_STORAGE_BUCKET) problems.push('OBJECT_STORAGE_BUCKET is required in production');
   if (cfg.OBJECT_STORAGE_PROVIDER === 's3' && !cfg.CDN_BASE_URL) problems.push('CDN_BASE_URL is required in production');
