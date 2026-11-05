@@ -55,7 +55,7 @@ export async function computePlan(ctx: Ctx, caseDoc: InstanceType<typeof RescueC
 
   // ---- original plan (cost basis is always labelled: real shipment cost, else a stored quote, else unknown)
   let origCost = sumCost(live?.cost ?? lastShip?.cost);
-  let costKnown = origCost > 0;
+  const costKnown = origCost > 0;
   if (!costKnown) {
     const offer = await SupplierOffer.findOne({ productId: item.productId, destination: country, ...(lastShip ? { supplierId: lastShip.supplierId } : {}) }).sort({ productCost: 1 }).lean();
     if (offer) {
@@ -91,7 +91,7 @@ export async function computePlan(ctx: Ctx, caseDoc: InstanceType<typeof RescueC
           supplierId: r.supplierId, supplierName: r.supplierName, supplierCode: sup.code, externalId: link.externalId,
           sku: pickSupplierSku(link.variants, variant) ?? link.variants?.[0]?.sku ?? undefined,
           landedCost: r.landedCost, minDays: r.minDays, maxDays: r.maxDays, stock: r.stock,
-          available: r.available && ['HEALTHY', 'DEGRADED'].includes(sup.healthState ?? '') && sup.active !== false,
+          available: !!r.available && ['HEALTHY', 'DEGRADED'].includes(sup.healthState ?? '') && sup.active !== false,
           reliability: r.reliability, rating: r.rating, trackingAvailable: r.trackingAvailable, mode,
         });
       }
