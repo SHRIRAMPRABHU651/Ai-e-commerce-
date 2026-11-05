@@ -110,12 +110,21 @@ const envSchema = z.object({
   LEGAL_REVIEW_REQUIRED: bool.default(true), // stays true until counsel has reviewed the legal pages (blocks the launch gate)
   MARKET_CRAWLER_CONTACT: z.string().default('https://orvia.example/bot'), // shown in the crawler User-Agent
 
+  // FX rates (finance). Unset: "frankfurter" in production, "static" (dev/test table) elsewhere. Production refuses "static".
+  FX_PROVIDER: z.enum(['frankfurter', 'exchangerate_api', 'static']).optional(),
+  FX_API_URL: optStr, // override the provider base URL (defaults to the public endpoint of the chosen provider)
+  FX_API_KEY: optStr, // only for keyed providers (exchangerate_api)
+  FX_WARN_HOURS: z.coerce.number().min(1).default(30), // rates older than this are flagged stale (ECB publishes once per working day)
+  FX_HARD_LIMIT_HOURS: z.coerce.number().min(2).default(96), // production refuses to price new orders from rates older than this (unless an admin override is set)
+  FX_REFRESH_MINUTES: z.coerce.number().min(15).default(360),
+
   WORKER_CONCURRENCY: z.coerce.number().default(4),
   SCHEDULER_ENABLED: bool.default(true),
   SEED_ON_START: bool.default(false),
 });
 
-export type AppConfig = Omit<z.infer<typeof envSchema>, 'APP_ENV' | 'COOKIE_SECURE'> & {
+export type AppConfig = Omit<z.infer<typeof envSchema>, 'APP_ENV' | 'COOKIE_SECURE' | 'FX_PROVIDER'> & {
+  FX_PROVIDER: 'frankfurter' | 'exchangerate_api' | 'static';
   APP_ENV: 'development' | 'test' | 'staging' | 'production';
   COOKIE_SECURE: boolean;
   isProduction: boolean;
@@ -149,6 +158,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     ...raw,
     APP_ENV: appEnv,
     COOKIE_SECURE: raw.COOKIE_SECURE ?? (appEnv === 'production' || appEnv === 'staging'),
+    FX_PROVIDER: raw.FX_PROVIDER ?? (appEnv === 'production' ? 'frankfurter' : 'static'),
     isProduction: appEnv === 'production',
     isTest: appEnv === 'test',
     corsOrigins: raw.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
@@ -201,6 +211,9 @@ export function assertSafeForEnvironment(cfg: AppConfig): void {
     problems.push('JWT_SECRET must be a strong secret (>=32 chars) in production');
   if (!cfg.COOKIE_SECURE) problems.push('COOKIE_SECURE must be true in production');
   if (cfg.SEED_ON_START) problems.push('SEED_ON_START is forbidden in production');
+  if (cfg.FX_PROVIDER === 'static') problems.push('FX_PROVIDER=static (dev/test rate table) is forbidden in production; use frankfurter or exchangerate_api');
+  if (cfg.FX_PROVIDER === 'exchangerate_api' && !cfg.FX_API_KEY) problems.push('FX_API_KEY is required for FX_PROVIDER=exchangerate_api');
+  if (cfg.FX_HARD_LIMIT_HOURS < cfg.FX_WARN_HOURS) problems.push('FX_HARD_LIMIT_HOURS must be >= FX_WARN_HOURS');
   if (cfg.ALLOW_PRIVATE_FETCH) problems.push('ALLOW_PRIVATE_FETCH must be false in production (SSRF protection)');
   problems.push(...eventsConfigProblems(cfg));
   if (cfg.OBJECT_STORAGE_PROVIDER !== 's3') problems.push('OBJECT_STORAGE_PROVIDER must be s3 in production (customer images need durable object storage + CDN)');

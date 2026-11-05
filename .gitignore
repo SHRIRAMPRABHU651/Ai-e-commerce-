@@ -20,3 +20,4 @@ apps/web/CLAUDE.md
 sbom.cdx.json
 perf-results.json
 .terraform/
+.claude/worktrees/

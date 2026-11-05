@@ -5,6 +5,7 @@ import { Button, Card, Field, Input, Link, OrderTimeline, ProductArt, StatusBadg
 import { api, ApiError, money } from '@/lib/api';
 import type { OrderView } from '@/lib/types';
 import { useStore } from './providers';
+import { AftersalesOrderStatus } from './aftersales';
 
 export function OrderPage({ orderNumber, initialEmail, placed }: { orderNumber: string; initialEmail?: string; placed?: boolean }) {
   const { user } = useStore();
@@ -86,11 +87,12 @@ export function OrderPage({ orderNumber, initialEmail, placed }: { orderNumber: 
           <Card className="p-5 text-sm"><h2 className="mb-2 text-lg font-bold">Delivery address</h2><address className="not-italic text-ink-2">{order.address.fullName}<br />{order.address.line1}{order.address.line2 ? `, ${order.address.line2}` : ''}<br />{order.address.city}, {order.address.region} {order.address.postalCode}<br />{order.address.country}</address></Card>
           <div className="space-y-2">
             {order.canCancel && <Button block variant="secondary" onClick={() => void cancel()}>Cancel order</Button>}
-            {order.canReturn && user && <Button block variant="secondary" onClick={() => setReturnOpen(true)}>Return items</Button>}
+            {order.canReturn && user && <Button block variant="secondary" href={`/account/returns/new?order=${order.orderNumber}`}>Start a return</Button>}
             {order.canReturn && !user && <p className="text-sm text-ink-3"><Link href={`/login?next=/orders/${order.orderNumber}`} className="font-semibold text-pine-700 underline">Sign in</Link> to start a return.</p>}
             {order.returns.length > 0 && <p className="text-sm text-ink-2">Return status: <StatusBadge status={order.returns[order.returns.length - 1]!.status} /></p>}
             <Button block variant="ghost" href="/help">Need help?</Button>
           </div>
+          {user && <AftersalesOrderStatus orderNumber={order.orderNumber} />}
         </aside>
       </div>
       <ReturnModal open={returnOpen} onClose={() => setReturnOpen(false)} order={order} onDone={() => { setReturnOpen(false); void load(); }} />
