@@ -11,3 +11,5 @@ export * from './finance';
 export * from './creators';
 export * from './events';
 export * from './suppliernet';
+export * from './aftersales';
+export * from './agents';

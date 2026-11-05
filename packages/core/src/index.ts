@@ -49,3 +49,5 @@ export * from './domain/finance';
 export * from './domain/creators';
 export * from './domain/events';
 export * from './domain/suppliernet';
+export * from './domain/aftersales';
+export * from './domain/agents';

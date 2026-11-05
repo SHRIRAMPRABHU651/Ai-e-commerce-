@@ -29,6 +29,7 @@ const NAV: { group: string; items: { href: string; label: string; icon: typeof P
     { href: '/admin/creators', label: 'Creators & loyalty', icon: Handshake, perm: 'creators:read' },
     { href: '/admin/campaigns', label: 'Tracking & campaigns', icon: Radio, perm: 'marketing:read' },
     { href: '/admin/supplier-network', label: 'Supplier network', icon: Network, perm: 'suppliers:read' },
+    { href: '/admin/ai-agents', label: 'AI agents', icon: Bot, perm: 'ai:write' },
     { href: '/admin/economics', label: 'Economics', icon: BarChart3, perm: 'products:read' },
     { href: '/admin/launch-readiness', label: 'Launch readiness', icon: ShieldCheck, perm: 'launch:read' },
     { href: '/admin/marketing', label: 'Marketing', icon: Megaphone, perm: 'marketing:read' },

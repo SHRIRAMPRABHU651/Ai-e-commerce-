@@ -9,3 +9,5 @@ export * from './models.finance';
 export * from './models.creators';
 export * from './models.events';
 export * from './models.suppliernet';
+export * from './models.aftersales';
+export * from './models.agents';

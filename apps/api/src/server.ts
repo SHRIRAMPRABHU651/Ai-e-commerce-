@@ -23,6 +23,8 @@ import { financeRoutes } from './routes/finance';
 import { creatorsRoutes } from './routes/creators';
 import { eventsRoutes } from './routes/events';
 import { suppliernetRoutes } from './routes/suppliernet';
+import { aftersalesRoutes } from './routes/aftersales';
+import { agentsRoutes } from './routes/agents';
 import multipart from '@fastify/multipart';
 
 export interface ServerOptions {
@@ -47,6 +49,8 @@ export async function buildServer(ctx: Ctx, opts: ServerOptions = {}): Promise<F
   marketRoutes(app, ctx);
   launchRoutes(app, ctx);
   economicsRoutes(app, ctx);
+  agentsRoutes(app, ctx);
+  aftersalesRoutes(app, ctx);
   trustRoutes(app, ctx);
   rescueRoutes(app, ctx);
   customer360Routes(app, ctx);
