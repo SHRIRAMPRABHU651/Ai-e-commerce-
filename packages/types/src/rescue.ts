@@ -4,8 +4,8 @@ import { z } from 'zod';
 /** What went wrong with an order line. Ordered by detection priority (first wins when several signals fire). */
 export const RESCUE_FAILURE_KINDS = [
   'supplier_cancellation',
-  'supplier_acceptance_failure',
   'stock_shortage',
+  'supplier_acceptance_failure',
   'failed_delivery',
   'suspected_lost',
   'carrier_exception',
