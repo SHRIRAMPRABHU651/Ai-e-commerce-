@@ -24,6 +24,7 @@ import { recomputeOrderStatus } from './orderStatus';
 import { selectSupplierLive } from './offers';
 import { redeemPromotion, releasePromotion } from './promotions';
 import { Promotion } from '@orvia/database';
+import { attributionForOrder, enqueueDeliveryJobs } from './creators/orderHooks';
 
 const orderNumber = (): string => `ORV-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
 
@@ -80,6 +81,7 @@ export async function createOrderFromCart(ctx: Ctx, cc: CheckoutContext, input: 
       orderNumber: orderNumber(), idempotencyKey: input.idempotencyKey, userId: cc.userId, email: input.email, country, currency: cfg.currency, items,
       address: input.address, shippingMethod: view.shippingMethod,
       amounts: { subtotal: view.totals.subtotal, discount: view.totals.discount, shipping: view.totals.shipping, tax: view.totals.tax, total: view.totals.total, taxInclusive: view.totals.taxInclusive },
+      creatorAttribution: attributionForOrder(cart, ctx.now()),
       couponCode: cart.couponCode ?? undefined, status: 'PENDING_PAYMENT', timeline: [{ status: 'PENDING_PAYMENT', at: ctx.now(), note: 'order created', actor: cc.actor.id }],
       fraud: { score: fraud.score, level: fraud.level, signals: fraud.signals, ip: cc.ip }, payment: { status: 'pending' }, isDemo: ctx.cfg.APP_ENV !== 'production' && ctx.cfg.PAYMENT_MODE === 'mock',
     });
@@ -542,6 +544,7 @@ export async function syncTracking(ctx: Ctx, opts: { orderId?: string; limit?: n
           }
           if (t.status === 'DELIVERED') {
             await ctx.queue.enqueue('review_request', { orderId: String(order._id) }, { delayMs: ctx.cfg.isProduction ? 3 * 86_400_000 : 60_000, dedupeKey: `review-req:${order._id}` });
+            await enqueueDeliveryJobs(ctx, order); // creator commission accrual + loyalty earning
             if (order.couponCode?.startsWith('FRIEND-')) await ctx.queue.enqueue('referral_settle', { orderId: String(order._id) }, { delayMs: ctx.cfg.isProduction ? 14 * 86_400_000 : 60_000, dedupeKey: `referral:${order._id}` });
             const late = sh.estimatedDelivery && ctx.now() > sh.estimatedDelivery;
             if (late) await Supplier.updateOne({ _id: sup._id }, { $inc: { 'stats.ordersLate': 1 } });

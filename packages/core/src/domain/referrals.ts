@@ -6,6 +6,8 @@ import type { Ctx } from '../infra/context';
 import { audit } from '../infra/audit';
 import { applyCoupon } from './cart';
 import { notify } from './notify';
+import { checkReferralAbuse, recordReferralSignal } from './creators/referralGuard';
+import { awardReferralBonus } from './creators/loyalty';
 
 const hex = (n: number) => randomBytes(n).toString('hex').toUpperCase();
 const link = (ctx: Ctx, code: string) => `${ctx.cfg.WEB_URL}/?ref=${encodeURIComponent(code)}`;
@@ -79,6 +81,8 @@ export async function settleReferral(ctx: Ctx, orderId: string): Promise<SettleR
   if (String(rc.userId) === String(order.userId ?? '') || rc.email === order.email.toLowerCase()) return reject('self_referral');
   if (order.fraud?.level === 'high') return reject('fraud_review');
   if (await Referral.exists({ refereeEmail: base.refereeEmail })) return 'skipped'; // already settled
+  const abuse = await checkReferralAbuse(ctx, order, rc); // alias/duplicate/shared address, phone, network, velocity
+  if (abuse) { await recordReferralSignal(ctx, order, rc, 'rejected', abuse); return reject(abuse); }
 
   const rewardCode = `THANKS-${hex(4)}`;
   const expires = new Date(ctx.now().getTime() + REFERRAL_TERMS.rewardValidDays * 86_400_000);
@@ -93,6 +97,8 @@ export async function settleReferral(ctx: Ctx, orderId: string): Promise<SettleR
     await Promotion.deleteOne({ _id: reward._id });
     return 'skipped';
   }
+  await recordReferralSignal(ctx, order, rc, 'rewarded');
+  await awardReferralBonus(ctx, String(rc.userId), orderId).catch(() => false); // loyalty bonus is best-effort
   await notify(ctx, { template: 'referral_reward', to: rc.email, data: { code: rewardCode, discount: `${Math.round(REFERRAL_TERMS.rewardPercent * 100)}% off`, eta: expires.toDateString(), url: `${ctx.cfg.WEB_URL}/account/referrals` }, dedupeKey: `referral:${orderId}` });
   await audit(ctx, SYSTEM, { action: 'referral.rewarded', resource: 'order', resourceId: orderId, newValue: { referrer: rc.email, rewardCode } });
   return 'rewarded';

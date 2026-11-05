@@ -389,6 +389,7 @@ orderSchema.index({ country: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ 'payment.intentId': 1 });
 orderSchema.index({ createdAt: -1 });
+orderSchema.index({ 'creatorAttribution.creatorId': 1, createdAt: -1 }, { sparse: true });
 export const Order = defineModel('Order', orderSchema, 'orders');
 
 const orderItemSchema = new Schema({

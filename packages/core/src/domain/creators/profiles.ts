@@ -32,7 +32,7 @@ export async function applyToBeCreator(ctx: Ctx, user: { id: string; email: stri
       status: 'pending', appliedAt: now, termsAcceptedAt: now,
     });
     await audit(ctx, { id: user.id, type: 'user' }, { action: 'creator.applied', resource: 'creator', resourceId: String(p._id), newValue: { handle: h.handle } });
-    return privateView(p.toObject());
+    return privateView(p.toObject() as never);
   } catch (e) {
     if (isDup(e)) throw conflict('That handle is already taken', 'HANDLE_TAKEN');
     throw e;

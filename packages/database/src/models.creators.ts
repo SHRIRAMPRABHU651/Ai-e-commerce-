@@ -110,7 +110,7 @@ const ledgerSchema = new Schema({
   payoutId: { type: oid, ref: 'CreatorPayout' },
   /** statement material: non-PII facts that justify the amount */
   detail: {
-    orderRef: String, orderedAt: Date, deliveredAt: Date, netBase: money, rate: Number, rateSource: String, tier: String,
+    orders90d: Number, orderRef: String, orderedAt: Date, deliveredAt: Date, netBase: money, rate: Number, rateSource: String, tier: String,
     capped: [String], reasons: [String], refundedAtCalc: money, lines: [{ _id: false, category: String, net: money, rate: Number, commission: money }],
   },
   note: String,
@@ -142,6 +142,8 @@ const payoutSchema = new Schema({
 }, schemaOpts);
 payoutSchema.index({ creatorId: 1, createdAt: -1 });
 payoutSchema.index({ status: 1, createdAt: -1 });
+// at most one open payout per creator and currency
+payoutSchema.index({ creatorId: 1, currency: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['requested', 'approved'] } } });
 export const CreatorPayout = defineModel('CreatorPayout', payoutSchema, 'creator_payouts');
 
 /** Fraud / review queue entry. */
@@ -212,6 +214,7 @@ const loyaltyLedgerSchema = new Schema({
   orderId: { type: oid, ref: 'Order' },
   redemptionId: { type: oid },
   idempotencyKey: { type: String, required: true, unique: true },
+  meta: Mixed,
   note: String,
   actor: String,
 }, schemaOpts);
