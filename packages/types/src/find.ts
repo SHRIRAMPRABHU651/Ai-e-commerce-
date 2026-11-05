@@ -17,7 +17,7 @@ export const findRequestSchema = z.object({
   deliverBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   inStockOnly: z.boolean().optional(),
   minRating: z.number().min(0).max(5).optional(),
-  sort: z.enum(['relevance', 'price_asc', 'price_desc', 'rating', 'value', 'fastest']).optional(),
+  sort: z.enum(['relevance', 'price_asc', 'price_desc', 'rating', 'value', 'fastest', 'popular']).optional(),
   /** Skip the optional AI refinement (deterministic parse only). */
   useAI: z.boolean().default(true),
   limit: z.number().int().min(1).max(48).default(24),
