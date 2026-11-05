@@ -46,7 +46,6 @@ export const SUPPLIER_WEIGHTS = {
 /** Half-life (hours) of supplier offer data freshness. */
 export const OFFER_FRESHNESS_HALF_LIFE_H = 72;
 
-const pct = (x: number) => `${Math.round(x * 100)}%`;
 const ev = (label: string, value: string, provenance: TrustEvidenceRef['provenance'], source: string, observedAt?: Date | null): TrustEvidenceRef => ({ label, value, provenance, source, observedAt: observedAt ? observedAt.toISOString() : null });
 const SRC_TX = 'Orvia order, shipment and return records';
 

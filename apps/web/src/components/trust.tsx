@@ -48,7 +48,6 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
 );
 
 const statusTone = (s: TrustStatus): Tone => (s === 'established' ? 'ok' : s === 'provisional' ? 'warn' : 'neutral');
-const statusText = (s: TrustStatus) => (s === 'established' ? 'Established' : s === 'provisional' ? 'Provisional' : 'Not enough history');
 
 /** Compact trust signal for cards/headers. Never shows a number when there is not enough history. */
 export function TrustBadge({ status, score, label }: { status: TrustStatus; score?: number | null; label?: string }) {
