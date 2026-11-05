@@ -51,7 +51,7 @@ export function aftersalesRoutes(app: FastifyInstance, ctx: Ctx): void {
     query: z.object({ reason: z.enum(RETURN_REASON_CODES).optional() }),
     handler: async ({ req, user, query }) => {
       const { result, order, reasonMeta } = await getEligibility(ctx, (req.params as { orderNumber: string }).orderNumber, { userId: user.id, email: user.email }, query.reason);
-      return { orderNumber: order.orderNumber, currency: order.currency, reason: query.reason ?? null, evidence: reasonMeta?.evidence ?? null, ...result };
+      return { orderId: String(order._id), orderNumber: order.orderNumber, currency: order.currency, reason: query.reason ?? null, evidence: reasonMeta?.evidence ?? null, ...result };
     },
   });
   route(app, ctx, {
