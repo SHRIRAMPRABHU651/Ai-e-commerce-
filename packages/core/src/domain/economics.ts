@@ -9,6 +9,7 @@ import { getCountry, getCountryConfigs } from '../infra/countries';
 import { DomainError } from '../infra/context';
 import type { Actor, Ctx } from '../infra/context';
 import { compareSuppliers } from './offers';
+import { liveFxTable } from './finance/fxService';
 
 const DAY = 86_400_000;
 const oid = (id: string) => new mongoose.Types.ObjectId(id);
@@ -30,7 +31,7 @@ export interface ResolvedCpa {
  */
 export async function resolveCpa(ctx: Ctx, p: { productId: string; category?: string; country: CountryCode; currency: Currency }): Promise<ResolvedCpa> {
   const pricing = await ctx.settings.get('pricing');
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx); // finance FX service (stored rates); static table only in dev/test
   const levels: { scope: 'product' | 'category' | 'store'; key: string; country: string; source: CpaSource }[] = [
     { scope: 'product', key: p.productId, country: p.country, source: 'measured' },
     ...(p.category ? [{ scope: 'category' as const, key: p.category, country: p.country, source: 'category' as CpaSource }] : []),
