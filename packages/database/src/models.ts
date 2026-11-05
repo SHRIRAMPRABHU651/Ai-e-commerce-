@@ -513,7 +513,7 @@ const returnSchema = new Schema({
   reason: String,
   details: String,
   itemSkus: [String],
-  status: { type: String, enum: ['requested', 'approved', 'rejected', 'received', 'refunded'], default: 'requested', index: true },
+  status: { type: String, enum: ['requested', 'approved', 'rejected', 'received', 'refunded', 'resolved'], default: 'requested', index: true },
   refundId: { type: oid, ref: 'Refund' },
   resolutionNote: String,
 }, schemaOpts);
