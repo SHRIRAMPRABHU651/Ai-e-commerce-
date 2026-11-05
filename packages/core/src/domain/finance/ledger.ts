@@ -202,7 +202,11 @@ export function reverseJournal(orig: { kind: JournalDraft['kind']; idempotencyKe
 export function accountBalance(account: LedgerAccount, lines: { account: LedgerAccount; side: 'debit' | 'credit'; amount: number }[]): number {
   let d = 0;
   let c = 0;
-  for (const l of lines) if (l.account === account) l.side === 'debit' ? (d += l.amount) : (c += l.amount);
+  for (const l of lines) {
+    if (l.account !== account) continue;
+    if (l.side === 'debit') d += l.amount;
+    else c += l.amount;
+  }
   const debitNormal = ['asset', 'expense', 'contra_revenue'].includes(ACCOUNT_KIND[account]);
   return debitNormal ? d - c : c - d;
 }

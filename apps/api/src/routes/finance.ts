@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { LEDGER_ACCOUNTS, JOURNAL_KINDS, currencySchema } from '@orvia/types';
 import {
-  backfillLedger, cashFlowReport, cohortReport, costAlertReport, fxStatus, getFinanceSettings, ledgerBalances, ledgerCsv, ledgerPage, ledgerReconciliation, objectiveModel, overview, parseRange,
+  cashFlowReport, cohortReport, costAlertReport, fxStatus, getFinanceSettings, ledgerBalances, ledgerCsv, ledgerPage, ledgerReconciliation, objectiveModel, overview, parseRange,
   postManual, priceBooks, profitabilityReport, refreshFx, saveScenarioSets, scenarioSetsSchema, setFxOverride, financeSettingsPatchSchema, syncLedger, totalsFromBalances, updateFinanceSettings, DomainError,
 } from '@orvia/core';
 import type { Ctx } from '@orvia/core';
