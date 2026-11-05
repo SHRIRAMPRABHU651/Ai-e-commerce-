@@ -24,7 +24,7 @@ async function orderView(ctx: Ctx, o: InstanceType<typeof Order>) {
     shipments: ships.map((s) => ({ status: s.status, carrier: s.carrier, trackingNumber: s.trackingNumber, trackingUrl: s.trackingUrl, estimatedDelivery: s.estimatedDelivery, events: s.events })),
     returns: rets,
     canCancel: notShipped && ['PENDING_PAYMENT', 'PAID', 'SUPPLIER_PROCESSING', 'EXCEPTION'].includes(o.status),
-    canReturn: !!o.deliveredAt && !!cfg && Date.now() - o.deliveredAt.getTime() < cfg.returnWindowDays * 86_400_000 && rets.every((r) => ['rejected', 'refunded'].includes(r.status)),
+    canReturn: !!o.deliveredAt && !!cfg && Date.now() - o.deliveredAt.getTime() < cfg.returnWindowDays * 86_400_000 && rets.every((r) => ['rejected', 'refunded', 'resolved'].includes(r.status)),
     returnWindowDays: cfg?.returnWindowDays,
   };
 }
