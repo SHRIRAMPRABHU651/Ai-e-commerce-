@@ -58,7 +58,7 @@ export function sanitizeQuery(q: string): string {
   return q
     .normalize('NFKC')
     // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u001f\u007f-\u009f​-‏ -‮⁠﻿]/g, ' ')
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060\ufeff]/g, ' ')
     .replace(/[<>{}[\]\\|`^~]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -143,7 +143,7 @@ export const CATEGORY_DEFS: CatDef[] = CATEGORY_TREE.flatMap((t) =>
   t.children.map((name) => {
     const sig = words(name).filter((w) => !GENERIC.has(w)).map(stem);
     const all = words(name).map(stem);
-    return { slug: slugify(name), name, top: t.slug, sig: sig.length ? sig : all, head: (sig.length ? sig : all).at(-1) ?? '' };
+    return { slug: slugify(name), name, top: t.slug, sig: sig.length ? sig : all, head: [...(sig.length ? sig : all)].reverse().find((t) => !['accessory', 'tool', 'gadget'].includes(t)) ?? '' };
   }),
 );
 for (const slug of Object.keys(NEED_PHRASES)) if (!NEEDS.some((n) => n.slug === slug)) throw new Error(`find: unknown need slug ${slug}`);
@@ -324,8 +324,8 @@ function extractDeadline(s: string, today: Ymd, notes: string[]): { deadline: Dl
   }
 
   // "15 december", "december 15th", "the 20th"
-  if ((m = s.match(new RegExp(`\\b${PFX}(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+of)?\\s+${MON_ALT}\\b`, 'i')))) return done(adj(m[1], nextMonthDay(today, monthIndex(m[3]!.toLowerCase()), Number(m[2])) ?? '9999-12-31'), m);
-  if ((m = s.match(new RegExp(`\\b${PFX}${MON_ALT}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, 'i')))) return done(adj(m[1], nextMonthDay(today, monthIndex(m[2]!.toLowerCase()), Number(m[3])) ?? '9999-12-31'), m);
+  if ((m = s.match(new RegExp(`\\b${PFX}(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+of)?\\s+${MON_ALT}\\b`, 'i')))) { const b = nextMonthDay(today, monthIndex(m[3]!.toLowerCase()), Number(m[2])); return done(b ? adj(m[1], b) : null, m); }
+  if ((m = s.match(new RegExp(`\\b${PFX}${MON_ALT}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, 'i')))) { const b = nextMonthDay(today, monthIndex(m[2]!.toLowerCase()), Number(m[3])); return done(b ? adj(m[1], b) : null, m); }
   if ((m = s.match(/\b(by|before|on|for)\s+the\s+(\d{1,2})(?:st|nd|rd|th)\b/i))) {
     const y = Number(today.slice(0, 4));
     const mo = Number(today.slice(5, 7));

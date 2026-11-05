@@ -80,7 +80,7 @@ export function parseAgeRange(s: string | null | undefined): { min: number; max:
   const f = (n: number) => (months ? n / 12 : n);
   let m = t.match(/(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})/);
   if (m) return { min: f(Number(m[1])), max: f(Number(m[2])) };
-  m = t.match(/(\d{1,2})\s*\+/) ?? t.match(/(?:ages?|from|over|above)\s*(\d{1,2})/);
+  m = t.match(/(\d{1,2})\s*(?:months?|years?|yrs?)?\s*\+/) ?? t.match(/(?:ages?|from|over|above)\s*(\d{1,2})/);
   if (m) return { min: f(Number(m[1])), max: null };
   return null;
 }
