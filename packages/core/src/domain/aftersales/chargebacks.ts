@@ -123,7 +123,7 @@ export async function submitChargebackEvidence(ctx: Ctx, id: string, actor: Acto
     cb.submission = { status: 'failed', at: ctx.now(), by: actor.id, error: (e as Error).message.slice(0, 300) } as never;
   }
   await cb.save();
-  await audit(ctx, actor, { action: 'chargeback.evidence_submitted', resource: 'chargeback', resourceId: id, newValue: { status: cb.submission?.status }, provider: cb.provider });
+  await audit(ctx, actor, { action: 'chargeback.evidence_submitted', resource: 'chargeback', resourceId: id, newValue: { status: (cb.submission as { status?: string } | undefined)?.status }, provider: cb.provider });
   return cb;
 }
 
