@@ -122,6 +122,7 @@ export type TemplateName =
   | 'abandoned_cart_3'
   | 'review_request'
   | 'referral_reward'
+  | 'price_alert'
   | 'custom';
 
 export interface TemplateData {
@@ -190,6 +191,9 @@ export function renderTemplate(name: TemplateName, d: TemplateData): { subject: 
       return mk(`Here’s ${d.discount ?? 'a little discount'} on your cart`, [hi(d), `Use code ${d.code} at checkout. It expires soon.`], { label: 'Use my discount', url: d.url ?? '' });
     case 'custom':
       return mk(d.subject ?? 'A message from Orvia', [hi(d), d.message ?? ''], d.url ? { label: 'View order', url: d.url } : undefined);
+    case 'price_alert':
+      // Price Guard / saved-search alerts the customer asked for. `subject` and `message` are built from observed data only.
+      return mk(d.subject ?? 'An update on something you are tracking', [hi(d), d.message ?? '', 'You are receiving this because you turned on this alert in your Orvia account. You can switch it off any time from your account.'].filter(Boolean), d.url ? { label: 'View on Orvia', url: d.url } : undefined);
     case 'referral_reward':
       return mk('Your friend’s order arrived — here’s your thank-you', [hi(d), `A friend you invited has received their first order. As a thank-you, use code ${d.code} for ${d.discount} on your next order. It can be used once${d.eta ? ` and expires on ${d.eta}` : ''}.`], { label: 'See my referrals', url: d.url ?? '' });
     case 'review_request':

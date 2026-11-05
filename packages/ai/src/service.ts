@@ -4,7 +4,7 @@ import { GeminiProvider } from './gemini';
 import { AIUnavailableError, AIValidationError } from './provider';
 import type { AIProvider } from './provider';
 import { TemplateAIProvider } from './template';
-import type { AdCreative, BusinessNarrative, ProductAnalysis, ProductContent, ProductSource, ReviewAnalysis } from './schemas';
+import type { AdCreative, BusinessNarrative, ImageAttributes, ProductAnalysis, ProductContent, ProductSource, ReviewAnalysis } from './schemas';
 
 export interface AIResult<T> {
   data: T;
@@ -96,5 +96,15 @@ export class AIService {
       }
     }
     return { ...(await this.fallback.classify(text, labels)), source: 'template' };
+  }
+
+  /** True when a configured provider can read images. */
+  get visionConfigured(): boolean {
+    return !!this.primary?.describeImage;
+  }
+  /** Visual attributes of a photo, or null when no vision-capable provider is configured. Throws on provider failure. */
+  async describeImage(image: { base64: string; mimeType: string }): Promise<ImageAttributes | null> {
+    if (!this.primary?.describeImage) return null;
+    return this.primary.describeImage(image);
   }
 }
