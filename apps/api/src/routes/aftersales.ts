@@ -140,7 +140,7 @@ export function aftersalesRoutes(app: FastifyInstance, ctx: Ctx): void {
   if (!ctx.cfg.isProduction && ctx.cfg.APP_ENV !== 'staging') {
     const kv = new MongoKVStore();
     route(app, ctx, {
-      method: 'POST', url: '/dev/aftersales/simulate-dispute', summary: '[dev] Simulate a card dispute webhook (PAYMENT_MODE=mock only)', tags: ['Dev'], body: mockDisputeSchema,
+      method: 'POST', url: '/dev/aftersales/simulate-dispute', summary: '[dev] Simulate a card dispute webhook (PAYMENT_MODE=mock only)', tags: ['Dev'], auth: A, permission: 'refunds:approve', body: mockDisputeSchema,
       handler: async ({ body }) => {
         if (ctx.cfg.PAYMENT_MODE !== 'mock') throw new DomainError('Only available with PAYMENT_MODE=mock', 'FORBIDDEN', 403);
         const mock = new MockPaymentProvider(ctx.cfg.MOCK_PAYMENT_WEBHOOK_SECRET, kv);
