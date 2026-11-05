@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { ReturnsPanel } from '@/components/account';
+import { ReturnsCenter } from '@/components/aftersales';
 
-export const metadata: Metadata = { title: 'Your account', robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: 'Your returns', robots: { index: false, follow: false } };
 
 export default function Page() {
-  return <ReturnsPanel />;
+  return <ReturnsCenter />;
 }
