@@ -7,7 +7,7 @@
  *  Contribution   net sales − supplier cost − shipping − duties − payment fees − acquisition − chargeback reserve − CS − other variable
  *  Net profit     contribution − operating expenses; an ESTIMATE because opex is an admin assumption
  */
-import type { Provenance } from '@orvia/types';
+import type { FinanceProvenance } from '@orvia/types';
 import { computeContribution } from './contribution';
 import type { ContributionResult } from './contribution';
 
@@ -40,8 +40,8 @@ export interface OrderFact {
   lines: OrderLine[];
 }
 
-export interface Kpi { value: number | null; provenance: Provenance; note?: string }
-const kpi = (value: number | null, provenance: Provenance, note?: string): Kpi => ({ value, provenance: value === null ? 'unavailable' : provenance, note });
+export interface Kpi { value: number | null; provenance: FinanceProvenance; note?: string }
+const kpi = (value: number | null, provenance: FinanceProvenance, note?: string): Kpi => ({ value, provenance: value === null ? 'unavailable' : provenance, note });
 const div = (a: number, b: number): number | null => (b > 0 ? a / b : null);
 
 export const exTax = (o: Pick<OrderFact, 'total' | 'tax'>) => o.total - o.tax;
@@ -157,7 +157,7 @@ export function computeKpis(i: KpiInputs): KpiReport {
   const contribution = breakdown?.contribution ?? null;
   const months = i.rangeDays / MONTH_DAYS;
   const opex = Math.round(i.settings.monthlyOpex * months);
-  const profitProv: Provenance = breakdown ? 'estimated' : 'unavailable';
+  const profitProv: FinanceProvenance = breakdown ? 'estimated' : 'unavailable';
 
   // customers
   const byEmail = new Map<string, number>();
@@ -217,7 +217,7 @@ export function computeKpis(i: KpiInputs): KpiReport {
 }
 
 /** Net profit figure for a P&L view: line items with provenance. */
-export interface PnlLine { key: string; label: string; amount: number | null; provenance: Provenance; note?: string }
+export interface PnlLine { key: string; label: string; amount: number | null; provenance: FinanceProvenance; note?: string }
 export function buildPnl(k: KpiReport, opts: { opex: number; opexNote: string }): PnlLine[] {
   const b = k.contributionBreakdown;
   const get = (key: string) => b?.lines.find((l) => l.key === key);

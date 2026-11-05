@@ -9,7 +9,7 @@
  * Every component carries the economics engine's basis label (measured / quoted / set / estimated);
  * anything `estimated` is an assumption and the result says how much of the figure rests on one.
  */
-import type { FinanceBasis, Provenance } from '@orvia/types';
+import type { FinanceBasis, FinanceProvenance } from '@orvia/types';
 
 export interface ContributionComponent {
   /** Minor units, >= 0. */
@@ -41,7 +41,7 @@ export interface ContributionResult {
   /** contribution ÷ selling price; null when the price is 0. */
   marginPct: number | null;
   lines: ContributionLine[];
-  provenance: Provenance;
+  provenance: FinanceProvenance;
   /** Sum of the cost components that are estimates. */
   estimatedCost: number;
   /** Share (0..1) of total cost that rests on estimates. null when there are no costs. */
@@ -72,7 +72,7 @@ export function computeContribution(i: ContributionInput): ContributionResult {
   const contribution = i.sellingPrice.amount - totalCost;
   const nonZero = lines.filter((l) => l.amount !== 0);
   const kinds = new Set(nonZero.map((l) => l.kind));
-  const provenance: Provenance = !nonZero.length ? 'unavailable' : kinds.size === 2 ? 'mixed' : kinds.has('estimated') ? 'estimated' : 'actual';
+  const provenance: FinanceProvenance = !nonZero.length ? 'unavailable' : kinds.size === 2 ? 'mixed' : kinds.has('estimated') ? 'estimated' : 'actual';
   return {
     contribution,
     marginPct: i.sellingPrice.amount > 0 ? contribution / i.sellingPrice.amount : null,

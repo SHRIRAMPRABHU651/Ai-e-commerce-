@@ -138,12 +138,12 @@ export interface JournalDraft {
 }
 
 /* ------------------------------------------------------------------ */
-/* Provenance of a figure                                              */
+/* FinanceProvenance of a figure                                              */
 /* ------------------------------------------------------------------ */
 
 /** Same four labels as the economics engine (`Basis` in domain/economics). */
 export type FinanceBasis = 'measured' | 'quoted' | 'set' | 'estimated';
-export type Provenance = 'actual' | 'mixed' | 'estimated' | 'unavailable';
+export type FinanceProvenance = 'actual' | 'mixed' | 'estimated' | 'unavailable';
 
 /* ------------------------------------------------------------------ */
 /* Finance settings (stored in system_settings key "finance")          */
