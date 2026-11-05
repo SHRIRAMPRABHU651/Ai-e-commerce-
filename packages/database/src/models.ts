@@ -241,6 +241,18 @@ const supplierSchema = new Schema({
     avgDeliveryDays: { type: Number, default: 0 },
   },
   isDemo: { type: Boolean, default: false },
+  /** suppliernet: portal users (role SUPPLIER) allowed to see/act on THIS supplier only. */
+  userIds: { type: [oid], default: [], index: true },
+  /** suppliernet: denormalised onboarding/verification state used by the production routing guard (source of truth: suppliernet_* collections). */
+  network: {
+    state: { type: String, enum: ['invited', 'profile_submitted', 'documents', 'technical_integration', 'verification', 'probation', 'approved', 'suspended'] },
+    supplierType: String,
+    productionReady: Boolean,
+    productionReadyUntil: Date,
+    reverificationDueAt: Date,
+    demotedAt: Date,
+    demotionReason: String,
+  },
 }, schemaOpts);
 export const Supplier = defineModel('Supplier', supplierSchema, 'suppliers');
 

@@ -77,7 +77,7 @@ export async function login(ctx: Ctx, input: { email: string; password: string; 
     throw generic;
   }
   if (user.disabled) throw forbidden('This account is disabled');
-  if (input.staffOnly && user.role === 'CUSTOMER') {
+  if (input.staffOnly && (user.role === 'CUSTOMER' || user.role === 'SUPPLIER')) {
     metrics.inc('orvia_login_total', { outcome: 'not_staff' });
     throw generic;
   }

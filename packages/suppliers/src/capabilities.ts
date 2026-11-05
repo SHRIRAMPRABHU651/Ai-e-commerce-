@@ -58,6 +58,12 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     notes: 'For suppliers without a reliable API: an operator enters offers (cost, shipping, stock, delivery) and places each order by hand; the platform raises a task per order and records the supplier order id and tracking you enter. Stock/price data goes stale and expires — it never pretends to be live.',
   },
   {
+    key: 'feed', name: 'CSV/JSON feed (read-only)', supplierType: 'feed', supportedCountries: 'any', supportedCurrencies: ['USD', 'CAD', 'INR'], auth: 'custom', sandbox: false,
+    rateLimit: 'one fetch per cacheSeconds per supplier (shared by all calls)', credentialFields: ['apiKey (optional)'], catalogMode: 'API', orderingMode: 'MANUAL', integrationStatus: 'configurable',
+    capabilities: caps(['catalog', 'productDetails', 'inventory', 'pricing', 'shippingQuotes', 'images', 'variants', 'singleUnit', 'dropshipping']),
+    notes: 'Read-only: catalogue, price and stock come from a supplier-hosted CSV/JSON file fetched through the SSRF guard. Orders are placed by hand through the manual order queue; tracking is whatever the operator or supplier portal records. Never verified against a live supplier feed from this repo.',
+  },
+  {
     key: 'mock', name: 'Mock supplier (development/testing only)', supplierType: 'mock', supportedCountries: ['US', 'CA', 'IN'], supportedCurrencies: ['USD', 'CAD', 'INR'], auth: 'none', sandbox: true,
     rateLimit: 'n/a', credentialFields: [], catalogMode: 'API', orderingMode: 'API', integrationStatus: 'mock',
     capabilities: caps(['catalog', 'productDetails', 'inventory', 'pricing', 'shippingQuotes', 'createOrder', 'cancelOrder', 'tracking', 'images', 'variants', 'warehouses', 'singleUnit', 'dropshipping']),

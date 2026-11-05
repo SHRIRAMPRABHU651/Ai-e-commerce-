@@ -80,7 +80,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const [dark, setDark] = React.useState(false);
   React.useEffect(() => {
-    api<{ user: Staff | null; permissions: string[] }>('/auth/me').then((r) => (r.user && r.user.role !== 'CUSTOMER' ? setMe({ user: r.user, permissions: r.permissions }) : (setMe(null), router.replace('/admin/login')))).catch(() => { setMe(null); router.replace('/admin/login'); });
+    api<{ user: Staff | null; permissions: string[] }>('/auth/me').then((r) => (r.user && r.user.role !== 'CUSTOMER' && r.user.role !== 'SUPPLIER' ? setMe({ user: r.user, permissions: r.permissions }) : (setMe(null), router.replace('/admin/login')))).catch(() => { setMe(null); router.replace('/admin/login'); });
     try { const t = localStorage.getItem('orvia_theme'); if (t) { document.documentElement.dataset.theme = t; setDark(t === 'dark'); } } catch { /* ignore */ }
   }, [router]);
   const live = useFetch<{ live: { openExceptions: number } } | null>(me ? '/admin/exceptions?pageSize=1' : null, 60_000);

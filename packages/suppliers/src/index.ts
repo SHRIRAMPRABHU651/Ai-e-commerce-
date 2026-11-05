@@ -5,3 +5,5 @@ export * from './mock/provider';
 export { MOCK_CATALOG, MOCK_MARKET_SIGNALS } from './mock/catalog';
 export * from './rest';
 export * from './capabilities';
+export * from './csv';
+export * from './feed';

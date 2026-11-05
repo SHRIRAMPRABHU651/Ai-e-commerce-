@@ -121,11 +121,16 @@ export const PERMISSIONS = [
   'creators:write',
   'loyalty:read',
   'loyalty:write',
+  /** Supplier portal: grants access ONLY to the signed-in supplier user's own supplier record(s). Never given to staff roles. */
+  'supplierportal:read',
+  'supplierportal:write',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
-const allPerms = [...PERMISSIONS];
-const readOnly = PERMISSIONS.filter((p) => p.endsWith(':read'));
+const SUPPLIER_PORTAL_PERMS: readonly Permission[] = ['supplierportal:read', 'supplierportal:write'];
+// staff roles never hold supplier-portal permissions: the portal is a separate tenant-scoped experience
+const allPerms = PERMISSIONS.filter((p) => !SUPPLIER_PORTAL_PERMS.includes(p));
+const readOnly = allPerms.filter((p) => p.endsWith(':read'));
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   SUPER_ADMIN: allPerms,
@@ -147,6 +152,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   ],
   ANALYST: [...readOnly.filter((p) => !['settings:read', 'audit:read', 'payments:read', 'launch:read'].includes(p)), 'copilot:use'],
   CUSTOMER: [],
+  SUPPLIER: SUPPLIER_PORTAL_PERMS,
 };
 
 export function can(role: Role | undefined, perm: Permission): boolean {

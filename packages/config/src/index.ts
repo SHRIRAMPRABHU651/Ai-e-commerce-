@@ -47,6 +47,9 @@ const envSchema = z.object({
   RAZORPAY_WEBHOOK_SECRET: optStr,
   MOCK_PAYMENT_WEBHOOK_SECRET: z.string().default('dev-mock-webhook-secret'),
 
+  /** Route production orders only to suppliers that are approved + production_ready. Default: on in production, off elsewhere. */
+  SUPPLIER_ENFORCE_VERIFICATION: bool.optional(),
+
   CJ_API_KEY: optStr,
   CJ_API_SECRET: optStr,
 

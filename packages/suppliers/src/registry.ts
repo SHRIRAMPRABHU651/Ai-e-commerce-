@@ -25,14 +25,14 @@ export interface AdapterInfo {
 /** Resolves a supplier DB record to a concrete provider. Mock adapters are refused outside dev/test. */
 export class SupplierRegistry {
   private cache = new Map<string, SupplierProvider>();
-  private factories = new Map<string, (s: { code: string; config?: unknown }) => SupplierProvider>();
+  private factories = new Map<string, (s: { code: string; config?: unknown; credentials?: Record<string, string> }) => SupplierProvider>();
   constructor(
     private readonly cfg: SupplierRegistryConfig,
     private readonly store: MockStateStore,
   ) {}
 
   /** Lets higher layers (which can read the database) provide adapters such as the manual supplier. */
-  registerFactory(provider: string, f: (s: { code: string; config?: unknown }) => SupplierProvider): void {
+  registerFactory(provider: string, f: (s: { code: string; config?: unknown; credentials?: Record<string, string> }) => SupplierProvider): void {
     this.factories.set(provider, f);
   }
 
@@ -95,6 +95,14 @@ export class SupplierRegistry {
         configured: true,
         usable: true,
         note: 'Describe the supplier API endpoints/fields in the supplier mapping; no code needed. See docs/SUPPLIERS.md.',
+      },
+      {
+        provider: 'feed',
+        label: 'CSV/JSON feed (read-only catalogue, price, stock)',
+        requiresCredentials: ['apiKey (optional, only if the feed URL needs one)'],
+        configured: true,
+        usable: true,
+        note: 'Describe the feed URL and column mapping in the supplier config. Orders go through the manual order queue. See docs/ORVIA_SUPPLIER_NETWORK.md.',
       },
       {
         provider: 'mock',
