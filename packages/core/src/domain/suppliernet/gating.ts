@@ -3,7 +3,7 @@
  * passed in, so this file is unit-tested without MongoDB.
  */
 import { PRE_PROBATION_STEPS, SUPPLIER_ONBOARDING_STATES, VERIFICATION_STEP_KINDS } from '@orvia/types';
-import type { ManualEvidenceInput, SupplierOnboardingState, VerificationStepKind } from '@orvia/types';
+import type { DisputeState, ManualEvidenceInput, SupplierOnboardingState, VerificationStepKind } from '@orvia/types';
 
 const DAY = 86_400_000;
 
@@ -96,7 +96,7 @@ export function effectiveStepStatus(s: StepLike | undefined, now: Date): Effecti
   return s.status;
 }
 
-export interface Readiness {
+export interface SupplierReadiness {
   ready: boolean;
   /** required steps not passed (any reason) */
   missing: VerificationStepKind[];
@@ -106,7 +106,7 @@ export interface Readiness {
   validUntil: Date | null;
 }
 
-export function evaluateReadiness(steps: StepLike[], now: Date, only?: readonly VerificationStepKind[]): Readiness {
+export function evaluateReadiness(steps: StepLike[], now: Date, only?: readonly VerificationStepKind[]): SupplierReadiness {
   const kinds = only ?? VERIFICATION_STEP_KINDS;
   const byKind = new Map(steps.map((s) => [s.kind, s]));
   const missing: VerificationStepKind[] = [];
@@ -130,7 +130,7 @@ export function evaluateReadiness(steps: StepLike[], now: Date, only?: readonly 
   return { ready: missing.length === 0, missing, expired, failed, validUntil: missing.length === 0 ? validUntil : null };
 }
 
-export const preProbationReadiness = (steps: StepLike[], now: Date): Readiness => evaluateReadiness(steps, now, PRE_PROBATION_STEPS);
+export const preProbationReadiness = (steps: StepLike[], now: Date): SupplierReadiness => evaluateReadiness(steps, now, PRE_PROBATION_STEPS);
 
 export const validUntilFor = (kind: VerificationStepKind, passedAt: Date): Date => new Date(passedAt.getTime() + STEP_VALIDITY_DAYS[kind] * DAY);
 
@@ -218,3 +218,13 @@ export function decideDemotion(current: SupplierOnboardingState, worst: SlaWorst
   if (current === 'approved' && worst === 'critical') return { demote: true, to: 'probation', reason: 'Automatic demotion: critical SLA breach' };
   return { demote: false };
 }
+
+/* --------------------------------- disputes ------------------------------------------ */
+export const DISPUTE_TRANSITIONS: Record<DisputeState, readonly DisputeState[]> = {
+  open: ['awaiting_supplier', 'resolved_no_action', 'rejected', 'escalated'],
+  awaiting_supplier: ['awaiting_orvia', 'escalated', 'resolved_credit', 'resolved_no_action', 'rejected'],
+  awaiting_orvia: ['awaiting_supplier', 'resolved_credit', 'resolved_no_action', 'rejected', 'escalated'],
+  escalated: ['awaiting_supplier', 'resolved_credit', 'resolved_no_action', 'rejected'],
+  resolved_credit: ['closed'], resolved_no_action: ['closed'], rejected: ['closed'], closed: [],
+};
+export const canDisputeTransition = (from: DisputeState, to: DisputeState): boolean => DISPUTE_TRANSITIONS[from].includes(to);

@@ -1,4 +1,4 @@
-import { providerFor, servesCountry } from './supplierAccess';
+import { providerFor, servesCountry, supplierRoutable } from './supplierAccess';
 import { Product, Supplier, SupplierOffer, SupplierProduct } from '@orvia/database';
 import { fetchLiveOffer } from '@orvia/suppliers';
 import type { LiveOffer } from '@orvia/suppliers';
@@ -219,6 +219,8 @@ export async function selectSupplierLive(
     const s = await Supplier.findById(link.supplierId).lean();
     if (!s || !s.active || !servesCountry(s, p.country)) continue;
     if (s.healthState === 'FAILING') { failures.push({ supplierCode: s.code, error: 'supplier health is FAILING — excluded from new orders' }); continue; }
+    const gate = supplierRoutable(ctx, s);
+    if (!gate.ok) { failures.push({ supplierCode: s.code, error: `not production-eligible: ${gate.reason}` }); continue; }
     try {
       const provider = await providerFor(ctx, s);
       const sku = link.variants?.[0]?.sku ?? undefined;

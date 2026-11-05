@@ -2,6 +2,8 @@ import { decryptSecret, encryptSecret } from '@orvia/auth';
 import { Supplier } from '@orvia/database';
 import type { SupplierProvider } from '@orvia/suppliers';
 import type { Ctx } from '../infra/context';
+import { ensureFeedAdapter } from './suppliernet/adapters';
+import { routingEligibility } from './suppliernet/gating';
 
 /** Key used to encrypt supplier credentials at rest (ENCRYPTION_KEY, falling back to JWT_SECRET so dev works out of the box). */
 const keyOf = (ctx: Ctx): string => ctx.cfg.ENCRYPTION_KEY ?? ctx.cfg.JWT_SECRET;
@@ -10,6 +12,7 @@ export const sealCredentials = (ctx: Ctx, creds: Record<string, string>): string
 
 /** Concrete provider for a supplier record, using that supplier's own credentials and API mapping. */
 export async function providerFor(ctx: Ctx, s: { provider: string; code: string }): Promise<SupplierProvider> {
+  ensureFeedAdapter(ctx);
   const d = await Supplier.findOne({ code: s.code }).select('+credentialsEnc config updatedAt').lean();
   let credentials: Record<string, string> | undefined;
   if (d?.credentialsEnc) {
@@ -41,3 +44,7 @@ export function pickSupplierSku(
 
 /** A supplier with no declared coverage serves everywhere (legacy/demo); otherwise only the listed countries. */
 export const servesCountry = (s: { servesCountries?: string[] | null }, country: string): boolean => !s.servesCountries?.length || s.servesCountries.includes(country);
+
+/** Production routing guard (suppliernet): only approved + production_ready suppliers get new orders when enforcement is on (default: APP_ENV=production). */
+export const verificationEnforced = (ctx: Ctx): boolean => ctx.cfg.SUPPLIER_ENFORCE_VERIFICATION ?? ctx.cfg.isProduction;
+export const supplierRoutable = (ctx: Ctx, s: Parameters<typeof routingEligibility>[0]): { ok: boolean; reason?: string } => routingEligibility(s, verificationEnforced(ctx), ctx.now());
