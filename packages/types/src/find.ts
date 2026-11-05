@@ -40,7 +40,7 @@ export const savedSearchInput = z.object({
   alertNewMatches: z.boolean().default(false),
 });
 export type SavedSearchInput = z.infer<typeof savedSearchInput>;
-export const savedSearchPatch = savedSearchInput.partial().extend({ name: freeText(80).optional() });
+export const savedSearchPatch = z.object({ name: freeText(80).optional(), alertNewMatches: z.boolean().optional() });
 
 export const PRICE_ALERT_MAX_PER_USER = 50;
 export const SAVED_SEARCH_MAX_PER_USER = 25;

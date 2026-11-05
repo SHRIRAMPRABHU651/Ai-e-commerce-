@@ -128,7 +128,7 @@ describe('semantic index', () => {
     const q = idx.query('chewing toys for puppies and dogs');
     expect([...q.keys()][0]).toBe('chew');
     expect(idx.query('zzzz').size).toBe(0);
-    for (const v of q.values()) expect(v).toBeGreaterThan(0), expect(v).toBeLessThanOrEqual(1);
+    for (const v of q.values()) { expect(v).toBeGreaterThan(0); expect(v).toBeLessThanOrEqual(1); }
   });
 });
 
