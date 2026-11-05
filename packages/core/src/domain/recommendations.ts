@@ -13,7 +13,14 @@ export interface RecContext {
   viewedIds?: string[];
 }
 
-const baseFilter = (country: CountryCode, extra: Record<string, unknown> = {}) => ({ state: { $in: SELLABLE_STATES }, ...listableImageFilter(), markets: { $elemMatch: { country, enabled: true, price: { $gt: 0 }, stock: { $gt: 0 } } }, ...extra });
+/**
+ * `extra` may carry its own `$or` (category/tag matches). Compose it with the image-visibility clause via `$and` so one can
+ * never overwrite the other (a spread would silently drop the "has a listable photo" rule).
+ */
+const baseFilter = (country: CountryCode, extra: Record<string, unknown> = {}) => {
+  const { $or, ...rest } = extra as { $or?: unknown[] } & Record<string, unknown>;
+  return { state: { $in: SELLABLE_STATES }, $and: [listableImageFilter(), ...($or ? [{ $or }] : [])], markets: { $elemMatch: { country, enabled: true, price: { $gt: 0 }, stock: { $gt: 0 } } }, ...rest };
+};
 const project = (rows: Awaited<ReturnType<typeof Product.find>>, country: CountryCode): StoreProduct[] => (rows as never as Parameters<typeof toStoreProduct>[0][]).map((p) => toStoreProduct(p, country));
 
 export async function trending(country: CountryCode, limit = 12, category?: string) {
