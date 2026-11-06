@@ -1,0 +1,54 @@
+name: Load test (manual)
+# Never runs on push/PR/schedule. A person starts it against an environment they own (staging), and the result is uploaded as an artifact.
+# Nothing here is a claim about performance: the numbers exist only after a run, and describe that run's environment.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Base URL of the API under test, e.g. https://staging-api.example.com (leave empty to run the local ephemeral stack on the runner)'
+        required: false
+        default: ''
+      scenarios:
+        description: 'Comma separated: search,browse,find,cart,checkout,support or all'
+        required: true
+        default: 'search,browse,find'
+      connections:
+        description: 'Concurrent connections'
+        required: true
+        default: '25'
+      duration:
+        description: 'Seconds per scenario'
+        required: true
+        default: '30'
+      allow_writes:
+        description: 'Allow scenarios that write (guest carts, unpaid orders, support tickets). NEVER against production.'
+        type: boolean
+        required: true
+        default: false
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Build API (local mode only)
+        if: ${{ inputs.target == '' }}
+        run: npm run build -w @orvia/api
+      - name: Run scenarios
+        env:
+          TARGET: ${{ inputs.target }}
+          SCENARIOS: ${{ inputs.scenarios }}
+          CONNECTIONS: ${{ inputs.connections }}
+          DURATION: ${{ inputs.duration }}
+          ALLOW_WRITES: ${{ inputs.allow_writes }}
+        run: |
+          args=(--scenario "$SCENARIOS" --connections "$CONNECTIONS" --duration "$DURATION")
+          if [ -n "$TARGET" ]; then args+=(--target "$TARGET"); fi
+          if [ "$ALLOW_WRITES" = "true" ]; then args+=(--allow-writes); fi
+          node scripts/load-scenarios.mjs "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: perf-results, path: perf-results.json, if-no-files-found: warn }
