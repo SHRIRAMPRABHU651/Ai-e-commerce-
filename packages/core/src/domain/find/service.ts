@@ -11,6 +11,7 @@ import { getCountry, getCountryConfigs } from '../../infra/countries';
 import { toStoreProduct } from '../catalog';
 import { listableImageFilter } from '../images';
 import { notify } from '../notify';
+import { saveMemoryItem } from '../customer360';
 import { COUNTRY_TZ, addDays, isYmd, todayIn } from './dates';
 import { intentFromImageAttributes, intentRefinementSchema, refineIntent } from './aiRefine';
 import { buildComparison } from './compare';
@@ -301,7 +302,14 @@ export async function createSavedSearch(ctx: Ctx, userId: string, country: Count
   let seenIds: string[] = [];
   if (input.alertNewMatches) seenIds = (await execute(ctx, c, { query: input.query, budgetMax: input.budgetMax, deliverBy: input.deliverBy }, { useAI: false, limit: 48 })).items.map((i) => i.id);
   const doc = await FindSavedSearch.create({ userId, name: input.name, query: input.query, country: c, budgetMax: input.budgetMax, deliverBy: input.deliverBy, alert: { newMatches: input.alertNewMatches, seenIds } });
-  return ssView(doc.toObject());
+  const memory = input.remember ? await saveMemoryItem(ctx, userId, { kind: 'requirement', title: input.name, payload: { query: input.query, country: c, budgetMax: input.budgetMax ?? null, deliverBy: input.deliverBy ?? null } }, 'find') : null;
+  return { ...ssView(doc.toObject()), memory };
+}
+
+/** Explicit customer action only ("Save this comparison"): stores the product ids in the customer's memory if they have it switched on. */
+export async function rememberComparison(ctx: Ctx, userId: string, country: CountryCode, ids: string[]) {
+  const cmp = await runCompare(ctx, country, ids);
+  return saveMemoryItem(ctx, userId, { kind: 'comparison', title: `Compared: ${cmp.products.map((p) => p.title).join(' vs ')}`.slice(0, 120), payload: { productIds: cmp.products.map((p) => p.id), country } }, 'find');
 }
 export async function updateSavedSearch(userId: string, id: string, patch: Partial<SavedSearchInput>) {
   const set: Record<string, unknown> = {};

@@ -4,12 +4,15 @@ import * as React from 'react';
 import { Badge, Button, Card, EmptyState, Link, ProductArt, Skeleton } from '@orvia/ui';
 import type { CompareResponse } from '@orvia/types';
 import { api } from '@/lib/api';
+import { useStore } from './providers';
 import { useCompareIds } from './findShared';
 import { TrackPriceButton } from './findPriceGuard';
 
 /** /compare?ids=a,b,c (falls back to the browser's compare tray when no ids are in the URL). */
 export function ComparePage({ idsParam }: { idsParam?: string }) {
   const tray = useCompareIds();
+  const { user } = useStore();
+  const [remembered, setRemembered] = React.useState<string | null>(null);
   const fromUrl = React.useMemo(() => (idsParam ?? '').split(',').map((s) => s.trim()).filter((s) => /^[a-f\d]{24}$/i.test(s)).slice(0, 4), [idsParam]);
   const ids = fromUrl.length ? fromUrl : tray.ids;
   const [data, setData] = React.useState<CompareResponse | null>(null);
@@ -65,6 +68,7 @@ export function ComparePage({ idsParam }: { idsParam?: string }) {
               </table>
             </div>
             <p className="mt-3 text-xs text-ink-3">{data.note} All prices are in {data.currency}.</p>
+            {user && <div className="mt-3"><Button variant="secondary" size="sm" onClick={() => void api<{ saved: boolean }>('/account/compare/remember', { body: { ids } }).then((r) => setRemembered(r.saved ? 'Saved to your memory.' : 'Not saved: your memory is switched off or full.')).catch((e: Error) => setRemembered(e.message))}>Save this comparison to my memory</Button>{remembered && <span role="status" className="ml-3 text-sm text-ink-3">{remembered}</span>}</div>}
           </>
         )}
       </div>

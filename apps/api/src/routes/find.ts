@@ -2,10 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   DomainError, alertStatus, alternativesFor, betterOfferFor, createPriceAlert, createSavedSearch, deletePriceAlert, deleteSavedSearch, getPriceHistory, listPresets, listPriceAlerts,
-  listSavedSearches, runCompare, runFind, runImageFind, updatePriceAlert, updateSavedSearch,
+  listSavedSearches, rememberComparison, runCompare, runFind, runImageFind, updatePriceAlert, updateSavedSearch,
 } from '@orvia/core';
 import type { Ctx } from '@orvia/core';
-import { compareRequestSchema, countrySchema, findRequestSchema, objectId, priceAlertInput, priceAlertPatch, savedSearchInput, savedSearchPatch } from '@orvia/types';
+import { compareRequestSchema, countrySchema, findRequestSchema, objectId, priceAlertInput, priceAlertPatch, rememberComparisonInput, savedSearchInput, savedSearchPatch } from '@orvia/types';
 import { route } from '../http';
 
 const idParam = (req: { params: unknown }, k = 'id') => {
@@ -86,6 +86,11 @@ export function findRoutes(app: FastifyInstance, ctx: Ctx): void {
     handler: async ({ req, user, body }) => updateSavedSearch(user.id, idParam(req), body),
   });
   route(app, ctx, { method: 'DELETE', url: '/account/saved-searches/:id', summary: 'Delete a saved search', tags: ['Find'], auth: 'user', handler: async ({ req, user }) => deleteSavedSearch(user.id, idParam(req)) });
+
+  route(app, ctx, {
+    method: 'POST', url: '/account/compare/remember', summary: 'Save this comparison to my memory (explicit action; honours the memory switch)', tags: ['Find'], auth: 'user', body: rememberComparisonInput, rateLimit: { max: 20, timeWindow: '1 minute' },
+    handler: async ({ req, user, body }) => rememberComparison(ctx, user.id, body.country ?? req.country, body.ids),
+  });
 
   /* ---------------- Price Guard (owner only) ---------------- */
   route(app, ctx, { method: 'GET', url: '/account/price-guard/alerts', summary: 'My price alerts', tags: ['Price Guard'], auth: 'user', handler: async ({ user }) => listPriceAlerts(user.id) });
