@@ -1,4 +1,5 @@
 import { pickSupplierSku, providerFor } from './supplierAccess';
+import { liveFxTable } from './finance/fxService';
 import { fulfillmentModeOf } from './supplierOps';
 import { randomBytes } from 'node:crypto';
 import { calcPaymentFee, paymentFeeModelFor } from '@orvia/analytics';
@@ -68,7 +69,7 @@ export async function createOrderFromCart(ctx: Ctx, cc: CheckoutContext, input: 
   if (view.couponError) throw new DomainError(view.couponError, 'BAD_COUPON', 422);
 
   const ops = await ctx.settings.get('ops');
-  const totalUsd = convertMinor(view.totals.total, cfg.currency, 'USD', ops.fx);
+  const totalUsd = convertMinor(view.totals.total, cfg.currency, 'USD', await liveFxTable(ctx));
   const prior = await Order.countDocuments({ email: input.email, status: { $nin: ['CANCELLED', 'PENDING_PAYMENT'] } });
   const failedAttempts = await Order.countDocuments({ email: input.email, 'payment.status': 'failed', createdAt: { $gte: new Date(ctx.now().getTime() - 86_400_000) } });
   const fraud = await assessFraud({ email: input.email, userId: cc.userId, ip: cc.ip, ipCountry: cc.ipCountry, shippingCountry: country, totalUsd, shippingMethod: view.shippingMethod, address: input.address, isFirstOrder: prior === 0, failedAttempts }, ops, ctx.now());
@@ -377,7 +378,7 @@ export async function fulfillOrder(ctx: Ctx, orderId: string, opts: { force?: bo
         const SPm = (await import('@orvia/database')).SupplierProduct;
         const spLink = await SPm.findOne({ productId: it.productId, supplierId: supplierDoc._id }).select('variants').lean();
         const so = await provider.createOrder({ idempotencyKey: pending.idempotencyKey, orderRef: order.orderNumber, externalId, sku: pickSupplierSku(spLink?.variants, variant) ?? sku ?? externalId, quantity: it.quantity, destination: { fullName: order.address?.fullName ?? '', line1: order.address?.line1 ?? '', line2: order.address?.line2 ?? '', city: order.address?.city ?? '', region: order.address?.region ?? '', postalCode: order.address?.postalCode ?? '', country: order.country as CountryCode, phone: order.address?.phone ?? '' } });
-        const fx = (await ctx.settings.get('ops')).fx;
+        const fx = await liveFxTable(ctx);
         const conv = (n: number) => convertMinor(n, so.cost.currency, order.currency as Currency, fx);
         pending.supplierOrderId = so.supplierOrderId;
         pending.status = 'CREATED';
@@ -616,9 +617,8 @@ export async function refundOrder(ctx: Ctx, orderId: string, o: { actor: Actor; 
   const key = `refund:${orderId}:${o.keyHint ?? amount}:${already}`;
   const existing = await Refund.findOne({ idempotencyKey: key });
   if (existing) return existing;
-  const ops = await ctx.settings.get('ops');
   const auto = await ctx.settings.get('automation');
-  const usd = convertMinor(amount, order.currency as Currency, 'USD', ops.fx);
+  const usd = convertMinor(amount, order.currency as Currency, 'USD', await liveFxTable(ctx));
   const needsApproval = !o.bypassApproval && usd > auto.autoRefundLimitUsd && !(o.actor.role === 'SUPER_ADMIN' || o.actor.role === 'ADMIN');
   const refund = await Refund.create({ orderId, amount, currency: order.currency, reason: o.reason, status: needsApproval ? 'pending_approval' : 'processing', idempotencyKey: key, requestedBy: o.actor.id });
   if (needsApproval) {

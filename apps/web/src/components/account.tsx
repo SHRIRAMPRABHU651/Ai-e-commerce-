@@ -1,5 +1,5 @@
 'use client';
-import { Gift, Heart, MapPin, Package, RotateCcw, User as UserIcon, LogOut } from 'lucide-react';
+import { BookmarkCheck, Brain, Gift, Heart, LifeBuoy, MapPin, Package, PackageCheck, RotateCcw, ShieldCheck, SlidersHorizontal, TrendingDown, User as UserIcon, LogOut } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
 import { Badge, Button, Card, EmptyState, Field, Input, Link, ProductArt, Skeleton, StatusBadge, Select, cn, useToast, ProductCard, ProductGrid } from '@orvia/ui';
@@ -8,7 +8,15 @@ import { POSTAL_LABEL, REGIONS, REGION_LABEL } from '@/lib/regions';
 import type { StoreProduct } from '@/lib/types';
 import { useStore } from './providers';
 
-const NAV = [{ href: '/account', label: 'Profile', icon: UserIcon }, { href: '/account/orders', label: 'Orders', icon: Package }, { href: '/account/wishlist', label: 'Wishlist', icon: Heart }, { href: '/account/returns', label: 'Returns', icon: RotateCcw }, { href: '/account/referrals', label: 'Invite a friend', icon: Gift }];
+const NAV = [
+  { href: '/account', label: 'Profile', icon: UserIcon }, { href: '/account/orders', label: 'Orders', icon: Package }, { href: '/account/products', label: 'My products', icon: PackageCheck },
+  { href: '/account/aftercare', label: 'Aftercare', icon: LifeBuoy }, { href: '/account/wishlist', label: 'Wishlist', icon: Heart }, { href: '/account/returns', label: 'Returns', icon: RotateCcw },
+  // Pages below are created by the `find` workstream; the links are placeholders until those routes ship.
+  { href: '/account/price-guard', label: 'Price guard', icon: TrendingDown }, { href: '/account/saved-searches', label: 'Saved searches', icon: BookmarkCheck },
+  { href: '/account/preferences', label: 'Preferences', icon: SlidersHorizontal }, { href: '/account/memory', label: 'Memory', icon: Brain }, { href: '/account/privacy', label: 'Privacy', icon: ShieldCheck },
+  { href: '/account/referrals', label: 'Invite a friend', icon: Gift },
+];
+const isActive = (path: string, href: string) => (href === '/account' ? path === href : path === href || path.startsWith(`${href}/`));
 
 export function AccountNav() {
   const path = usePathname();
@@ -17,7 +25,7 @@ export function AccountNav() {
   return (
     <nav aria-label="Account" className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-col md:px-0">
       {NAV.map((n) => (
-        <Link key={n.href} href={n.href} aria-current={path === n.href ? 'page' : undefined} className={cn('flex h-11 shrink-0 items-center gap-2.5 rounded-full px-4 text-sm font-semibold md:rounded-md', path === n.href ? 'bg-pine-50 text-pine-700' : 'text-ink-2 hover:bg-sunken')}><n.icon className="size-4.5" />{n.label}</Link>
+        <Link key={n.href} href={n.href} aria-current={isActive(path, n.href) ? 'page' : undefined} className={cn('flex h-11 shrink-0 items-center gap-2.5 rounded-full px-4 text-sm font-semibold md:rounded-md', isActive(path, n.href) ? 'bg-pine-50 text-pine-700' : 'text-ink-2 hover:bg-sunken')}><n.icon className="size-4.5" />{n.label}</Link>
       ))}
       <button onClick={async () => { await api('/auth/logout', { body: {} }); setUser(null); router.push('/'); router.refresh(); }} className="flex h-11 shrink-0 items-center gap-2.5 rounded-full px-4 text-sm font-semibold text-ink-3 hover:bg-sunken md:rounded-md"><LogOut className="size-4.5" />Sign out</button>
     </nav>
