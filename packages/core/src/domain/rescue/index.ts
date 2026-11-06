@@ -1,11 +1,14 @@
 import type { Ctx } from '../../infra/context';
 import type { ScheduleDef } from '../../infra/queue';
+import { fairDealRanker } from './fairRanker';
+import { setOfferRanker } from './ranker';
 import { runAction, runRescueScan } from './service';
 
 export * from './classifier';
 export * from './options';
 export * from './policy';
 export * from './ranker';
+export { fairDealRanker } from './fairRanker';
 export * from './consent';
 export * from './guard';
 export * from './retry';
@@ -15,6 +18,7 @@ export { RescueError, runRescueScan, recoveryView, decideConsent, staffDecide, r
 
 /** Register this workstream's job handlers (called from registerJobs). */
 export function register_rescue_Jobs(ctx: Ctx): void {
+  setOfferRanker(fairDealRanker);
   ctx.queue.register('rescue_scan', () => runRescueScan(ctx));
   ctx.queue.register('rescue_run_action', async (p: { actionId: string }) => ({ outcome: await runAction(ctx, p.actionId) }));
 }
