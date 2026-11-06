@@ -28,6 +28,7 @@ export const compareRequestSchema = z.object({
   ids: z.array(objectId).min(2).max(4),
   country: countrySchema.optional(),
 });
+export const rememberComparisonInput = z.object({ ids: z.array(objectId).min(2).max(4), country: countrySchema.optional() });
 export type CompareRequest = z.infer<typeof compareRequestSchema>;
 
 export const savedSearchInput = z.object({
@@ -38,6 +39,8 @@ export const savedSearchInput = z.object({
   deliverBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   /** Email me when new products match this search (at most once a day). */
   alertNewMatches: z.boolean().default(false),
+  /** Explicit opt-in: also keep this as a requirement in the customer's Orvia memory (honours their memory switch). */
+  remember: z.boolean().default(false),
 });
 export type SavedSearchInput = z.infer<typeof savedSearchInput>;
 export const savedSearchPatch = z.object({ name: freeText(80).optional(), alertNewMatches: z.boolean().optional() });

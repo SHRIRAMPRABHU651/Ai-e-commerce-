@@ -72,7 +72,8 @@ export function FindPage({ initialQuery = '', initialBudget, initialBy }: { init
     const name = window.prompt('Name this search', q.trim().slice(0, 60));
     if (!name) return;
     setSaving(true);
-    try { await api('/account/saved-searches', { body: { name, query: q.trim(), country, ...extra.current } }); toast.success('Search saved'); } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
+    const remember = window.confirm('Also remember this search in your Orvia memory? You can switch memory off or delete items any time in your account.');
+    try { const r = await api<{ memory: { saved: boolean; reason?: string } | null }>('/account/saved-searches', { body: { name, query: q.trim(), country, remember, ...extra.current } }); toast.success(r.memory && !r.memory.saved ? 'Search saved (memory is off or full, so it was not added to memory)' : 'Search saved'); } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
   };
 
   const u = res?.understood;

@@ -20,7 +20,7 @@ export const FIND_SCHEDULES: (ScheduleDef & { risk: 'low' | 'medium' | 'high' })
 ];
 
 export { runFind, runImageFind, runCompare, alternativesFor, betterOfferFor, listPresets, getPriceHistory, recordSnapshot, snapshotPrices, runPriceAlerts, runSavedSearchAlerts, invalidateFindCache } from './service';
-export { listSavedSearches, createSavedSearch, updateSavedSearch, deleteSavedSearch, listPriceAlerts, alertStatus, createPriceAlert, updatePriceAlert, deletePriceAlert } from './service';
+export { listSavedSearches, createSavedSearch, rememberComparison, updateSavedSearch, deleteSavedSearch, listPriceAlerts, alertStatus, createPriceAlert, updatePriceAlert, deletePriceAlert } from './service';
 export { parseIntent as parseFindIntent, sanitizeQuery as sanitizeFindQuery } from './intent';
 export type { ParsedIntent as FindParsedIntent } from './intent';
 export { rankCandidates as rankFindCandidates } from './ranking';
