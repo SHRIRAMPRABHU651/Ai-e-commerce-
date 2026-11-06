@@ -12,7 +12,7 @@ Counts are computed from the files: unit and Playwright counts come from the too
 |---|---|---|
 | Type check (all workspaces) | `npm run typecheck` | exit 0 |
 | Lint (zero warnings, whole repo incl. new scripts and specs) | `npm run lint` | exit 0 |
-| Unit tests, DB-less | `npx vitest run --config <outside-repo>/vitest.nodb.config.mjs` (include `tests/unit/**/*.test.ts`, `NODE_ENV=test`) | **20 files, 463 tests, 463 passed, 0 failed** (5.2 s) |
+| Unit tests, DB-less | `npx vitest run --config <outside-repo>/vitest.nodb.config.mjs` (include `tests/unit/**/*.test.ts`, `NODE_ENV=test`) | **24 files, 574 tests, 574 passed, 0 failed** (re-run after the final merge) |
 | Production build of API, worker and web | `npm run build` | exit 0 |
 | Boot check (API builds with every route and job handler registered; no database) | `npm run boot-check` | `boot-check ok` (~388 route lines) |
 | Playwright spec discovery | `npx playwright test --list` | works with the repo config and no browser: **106 test entries in 6 files** (53 per project x 2 projects) |
@@ -42,11 +42,15 @@ No pass/fail, latency or throughput number is reported for anything in this tabl
 
 ## Inventory
 
-### Unit tests (`tests/unit`, DB-less, executed: 463 passed)
+### Unit tests (`tests/unit`, DB-less, executed: 574 passed)
 
 | File | Tests | Covers |
 |---|---:|---|
 | `aftersales.test.ts` | 28 | return eligibility rules, refund maths, return/refund state machines |
+| `agents-framework.test.ts` | 27 | agent tool authorization/binding, allowlist, output-schema rejection, budgets, injection handling |
+| `agents-logic.test.ts` | 33 | grounding check, escalation triggers, confirmation tokens, advocate/assistant logic |
+| `design-contrast.test.ts` | 46 | WCAG contrast ratios of design tokens in light and dark themes |
+| `security-ownership.test.ts` | 5 | email ownership counts only once verified |
 | `analytics.test.ts` | 16 | unit economics, supplier ranking, pricing engine |
 | `certification.test.ts` | 4 | an unrun check is never recorded as PASS; skipped Terraform recorded as SKIP |
 | `creators.test.ts` | 30 | handle validation, commission maths, hold and clawback |
@@ -66,7 +70,7 @@ No pass/fail, latency or throughput number is reported for anything in this tabl
 | `safety.test.ts` | 36 | compliance filter, address validation, search helpers |
 | `suppliernet.test.ts` | 39 | verification gating, production routing guard, onboarding transitions |
 | `trust.test.ts` | 32 | small-sample statistics, supplier trust scoring, aggregation |
-| **Total** | **463** | |
+| **Total** | **574** | |
 
 ### Integration tests (`tests/integration`, Mongo-backed, NOT executed here)
 
