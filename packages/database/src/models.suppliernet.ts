@@ -219,7 +219,7 @@ const statementSchema = new Schema({
   source: { type: String, enum: ['csv', 'manual', 'portal'], required: true },
   status: { type: String, enum: STATEMENT_STATUSES, default: 'submitted' },
   lines: [{
-    _id: true, supplierOrderId: String, orderRef: String, description: String, amountMinor: Number,
+    supplierOrderId: String, orderRef: String, description: String, amountMinor: Number,
     /** Filled by reconciliation. */
     match: { type: String, enum: ['matched', 'amount_difference', 'unknown_order', 'duplicate', 'currency_mismatch', 'unmatched'] },
     recordedMinor: Number, diffMinor: Number, shipmentId: String, orderId: String,
