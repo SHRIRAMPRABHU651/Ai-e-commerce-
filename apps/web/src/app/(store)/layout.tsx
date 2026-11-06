@@ -12,7 +12,6 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   if (!meta) throw new Error('Store configuration unavailable');
   return (
     <Providers meta={meta} country={country} initialUser={me?.user ?? null}>
-      <a href="#main" className="sr-only z-[100] rounded-md bg-ink px-4 py-2 font-semibold text-paper focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
       <ReferralCapture />
       <CreatorCapture />
       <Tracking />
