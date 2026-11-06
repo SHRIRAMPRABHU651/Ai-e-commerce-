@@ -16,6 +16,7 @@ import {
   mockDisputeSchema, noteSchema, recordLabelSchema, rejectReturnSchema, replacementShipmentSchema, resolveRefundSchema, startReturnSchema, supplierPolicySchema,
 } from '@orvia/types';
 import { route } from '../http';
+import { ownerEmail } from '../util';
 
 const idOf = (req: { params: unknown }) => (req.params as { id: string }).id;
 const A = 'staff' as const;
@@ -50,31 +51,31 @@ export function aftersalesRoutes(app: FastifyInstance, ctx: Ctx): void {
     method: 'GET', url: '/aftersales/orders/:orderNumber/eligibility', summary: 'What can be returned from this order, and why not', tags: ['Returns'], auth: 'user',
     query: z.object({ reason: z.enum(RETURN_REASON_CODES).optional() }),
     handler: async ({ req, user, query }) => {
-      const { result, order, reasonMeta } = await getEligibility(ctx, (req.params as { orderNumber: string }).orderNumber, { userId: user.id, email: user.email }, query.reason);
+      const { result, order, reasonMeta } = await getEligibility(ctx, (req.params as { orderNumber: string }).orderNumber, { userId: user.id, email: ownerEmail(user) }, query.reason);
       return { orderId: String(order._id), orderNumber: order.orderNumber, currency: order.currency, reason: query.reason ?? null, evidence: reasonMeta?.evidence ?? null, ...result };
     },
   });
   route(app, ctx, {
     method: 'GET', url: '/aftersales/orders/:orderNumber/status', summary: 'Return and refund status for an order (customer view)', tags: ['Returns'], auth: 'user',
-    handler: ({ req, user }) => orderAftersales(ctx, (req.params as { orderNumber: string }).orderNumber, { userId: user.id, email: user.email }),
+    handler: ({ req, user }) => orderAftersales(ctx, (req.params as { orderNumber: string }).orderNumber, { userId: user.id, email: ownerEmail(user) }),
   });
   route(app, ctx, {
     method: 'POST', url: '/aftersales/returns', summary: 'Start a return (refund, replacement or exchange)', tags: ['Returns'], auth: 'user', body: startReturnSchema, rateLimit: { max: 20, timeWindow: '1 hour' },
     handler: async ({ req, user, body, reply }) => {
-      const r = await startReturn(ctx, body, { userId: user.id, email: user.email, actor: req.actor });
+      const r = await startReturn(ctx, body, { userId: user.id, email: ownerEmail(user), actor: req.actor });
       return reply.status(201).send({ id: String(r._id), rmaNumber: r.rmaNumber, state: r.state, evidenceRequired: r.evidenceRequired, needsStaffReview: !!r.needsStaffReview });
     },
   });
-  route(app, ctx, { method: 'GET', url: '/aftersales/returns', summary: 'My returns', tags: ['Returns'], auth: 'user', handler: async ({ user }) => ({ items: await listMyReturns({ userId: user.id, email: user.email }) }) });
-  route(app, ctx, { method: 'GET', url: '/aftersales/returns/:id', summary: 'One of my returns with refund timeline', tags: ['Returns'], auth: 'user', handler: ({ req, user }) => getMyReturn(ctx, idOf(req), { userId: user.id, email: user.email }) });
+  route(app, ctx, { method: 'GET', url: '/aftersales/returns', summary: 'My returns', tags: ['Returns'], auth: 'user', handler: async ({ user }) => ({ items: await listMyReturns({ userId: user.id, email: ownerEmail(user) }) }) });
+  route(app, ctx, { method: 'GET', url: '/aftersales/returns/:id', summary: 'One of my returns with refund timeline', tags: ['Returns'], auth: 'user', handler: ({ req, user }) => getMyReturn(ctx, idOf(req), { userId: user.id, email: ownerEmail(user) }) });
   route(app, ctx, {
     method: 'POST', url: '/aftersales/returns/:id/evidence', summary: 'Upload a photo for a return (multipart, field "file")', tags: ['Returns'], auth: 'user', rateLimit: { max: 30, timeWindow: '1 hour' },
-    handler: async ({ req, reply, user }) => reply.status(201).send(await addEvidence(ctx, idOf(req), await readImage(req, ctx.cfg.MEDIA_MAX_BYTES), { userId: user.id, email: user.email, actor: req.actor })),
+    handler: async ({ req, reply, user }) => reply.status(201).send(await addEvidence(ctx, idOf(req), await readImage(req, ctx.cfg.MEDIA_MAX_BYTES), { userId: user.id, email: ownerEmail(user), actor: req.actor })),
   });
   app.get('/api/v1/aftersales/returns/:id/evidence/:evidenceId', { schema: { hide: true } }, async (req, reply) => {
     if (!req.user) throw new DomainError('Authentication required', 'UNAUTHENTICATED', 401);
     const p = req.params as { id: string; evidenceId: string };
-    const f = await getEvidenceFile(ctx, p.id, p.evidenceId, { userId: req.user.id, email: req.user.email }, false);
+    const f = await getEvidenceFile(ctx, p.id, p.evidenceId, { userId: req.user.id, email: ownerEmail(req.user) }, false);
     return reply.header('content-type', f.contentType).header('x-content-type-options', 'nosniff').header('cache-control', 'private, no-store').send(f.body);
   });
 

@@ -20,7 +20,7 @@ import type { ConsentState, ContactProfile, TopicPrefs } from './consent';
 import { buildCompanion, decodeOrderItemId, encodeOrderItemId, replenishment } from './companion';
 import { LIFEGRAPH_KINDS, deriveFromPurchases, personalizationSignals, rankWithSignals, toGraph, validateNode } from './lifegraph';
 import type { GraphNode, LifeGraphInput } from './lifegraph';
-import { EXPORT_SECTIONS, buildAnonymizationPlan, buildExport, coolingOffElapsed, coolingOffEnds, isAnonymizedEmail, maskEmail, maskName, memoryExpiry, minimizeProfileForStaff, stripSecrets } from './privacy';
+import { EXPORT_SECTIONS, buildAnonymizationPlan, buildExport, coolingOffElapsed, coolingOffEnds, isAnonymizedEmail, maskEmail, maskName, memoryExpiry, minimizeProfileForStaff, notificationOwnerMatch, ownerMatch, stripSecrets } from './privacy';
 
 type Obj = Record<string, unknown>;
 const sid = (x: unknown) => String(x);
@@ -171,10 +171,10 @@ export async function deleteLifeGraph(ctx: Ctx, userId: string, actor: Actor) {
 }
 
 /** Create `derived_from_purchases` nodes (visible, deletable) from delivered/paid orders. Needs LifeGraph on + personalization consent. */
-export async function deriveLifeGraph(ctx: Ctx, user: { id: string; email: string }, actor: Actor) {
+export async function deriveLifeGraph(ctx: Ctx, user: { id: string; email: string; emailVerified?: boolean }, actor: Actor) {
   const [profile, consents] = await Promise.all([getProfileRow(user.id), getConsentState(user.id)]);
   if (!profile.lifegraphEnabled || !consents.personalization.granted) throw new DomainError('Turn on LifeGraph and personalization to use purchase-based suggestions', 'LIFEGRAPH_OFF', 409);
-  const orders = await Order.find({ $or: [{ userId: user.id }, { email: user.email }], 'payment.status': 'succeeded' }).sort({ createdAt: -1 }).limit(50).select('items.productId').lean();
+  const orders = await Order.find({ ...ownerMatch(user.id, user.email, !!user.emailVerified), 'payment.status': 'succeeded' }).sort({ createdAt: -1 }).limit(50).select('items.productId').lean();
   const ids = orders.flatMap((o) => o.items.map((i) => i.productId));
   const prods = await Product.find({ _id: { $in: ids } }).select('category').lean();
   const cat = new Map(prods.map((p) => [sid(p._id), p.category ?? '']));
@@ -280,7 +280,7 @@ export const rescueReader: RescueReader = {
     try {
       const col = rawCollection(RESCUE_COLLECTION);
       if (!col) return [];
-      const rows = await col.find({ $or: [{ userId: { $in: idVariants(user.id) } }, { customerEmail: user.email }, { email: user.email }] } as never).sort({ createdAt: -1 }).limit(limit).toArray();
+      const rows = await col.find({ $or: [{ userId: { $in: idVariants(user.id) } }, ...(user.email ? [{ customerEmail: user.email }, { email: user.email }] : [])] } as never).sort({ createdAt: -1 }).limit(limit).toArray();
       return rows.map((d) => ({ id: String(d._id), status: typeof d.status === 'string' ? d.status : 'open', kind: typeof d.kind === 'string' ? d.kind : undefined, orderId: d.orderId ? String(d.orderId) : undefined, createdAt: d.createdAt instanceof Date ? d.createdAt : undefined }));
     } catch {
       return [];
@@ -309,11 +309,11 @@ export async function accountRecommendations(ctx: Ctx, user: { id: string }, cou
 /* ====================================================================== */
 /*  Export                                                                 */
 /* ====================================================================== */
-export async function exportCustomerData(ctx: Ctx, user: { id: string; email: string }, actor: Actor) {
-  const owner = { $or: [{ userId: user.id }, { email: user.email }] };
+export async function exportCustomerData(ctx: Ctx, user: { id: string; email: string; emailVerified: boolean }, actor: Actor) {
+  const owner = ownerMatch(user.id, user.email, user.emailVerified); // email only counts once verified (see ownerMatch)
   const [account, customerRecord, addresses, orders, returns, tickets, wishlist, reviews, referralCode, referralsMade, consents, profile, nodes, memory, events, loyalty, notes, deletions, notifications] = await Promise.all([
     User.findById(user.id).lean(),
-    Customer.findOne({ $or: [{ userId: user.id }, { email: user.email }] }).select('-riskFlags').lean(),
+    Customer.findOne(owner).select('-riskFlags').lean(),
     AddressModel.find({ userId: user.id }).limit(50).lean(),
     Order.find(owner).sort({ createdAt: -1 }).limit(500).select('-fraud -costs -profit -attribution -idempotencyKey').lean(),
     ReturnRequest.find(owner).limit(200).lean(),
@@ -330,7 +330,7 @@ export async function exportCustomerData(ctx: Ctx, user: { id: string; email: st
     loyaltyReader.read(user.id),
     C360StaffNote.find({ userId: user.id }).sort({ createdAt: -1 }).limit(200).select('body createdAt').lean(),
     C360DeletionRequest.find({ userId: user.id }).limit(20).select('-staffNote').lean(),
-    Notification.find({ $or: [{ userId: user.id }, { to: user.email }] }).sort({ createdAt: -1 }).limit(200).select('channel template subject status createdAt').lean(),
+    Notification.find(notificationOwnerMatch(user.id, user.email, user.emailVerified)).sort({ createdAt: -1 }).limit(200).select('channel template subject status createdAt').lean(),
   ]);
   const orderIds = orders.map((o) => o._id);
   const refunds = orderIds.length ? await Refund.find({ orderId: { $in: orderIds } }).limit(200).select('orderId amount currency reason status createdAt').lean() : [];
@@ -377,17 +377,18 @@ export async function anonymizeAccount(ctx: Ctx, userId: string, actor: Actor) {
   if (user.role !== 'CUSTOMER') throw forbidden('Only customer accounts can be anonymized here');
   const email = user.email;
   const plan = buildAnonymizationPlan(userId, email, ctx.cfg.JWT_SECRET, ctx.now());
-  const owner = { $or: [{ userId }, { email }] };
+  const verified = !!user.emailVerified;
+  const owner = ownerMatch(userId, email, verified);
   const orderIds = (await Order.find(owner).select('_id').lean()).map((o) => o._id);
   // Order has immutable PII fields; the native driver bypasses mongoose immutability on purpose. Money / items / payment stay untouched.
   await Order.collection.updateMany({ _id: { $in: orderIds } }, { $set: plan.order });
-  await Customer.updateMany({ $or: [{ userId }, { email }] }, { $set: plan.customer });
+  await Customer.updateMany(owner, { $set: plan.customer });
   await ReturnRequest.updateMany(owner, { $set: plan.returns });
   await SupportTicket.updateMany(owner, { $set: plan.ticket });
   await SupportTicket.updateMany(owner, { $set: { 'messages.$[m].text': '[removed]' } }, { arrayFilters: [{ 'm.from': 'customer' }] });
   await Review.updateMany({ userId }, { $set: plan.review });
-  await Notification.updateMany({ $or: [{ userId }, { to: email }] }, { $set: plan.notification });
-  const refs = await Referral.find({ $or: [{ referrerUserId: userId }, { referrerEmail: email }, { refereeEmail: email }] }).select('_id').lean();
+  await Notification.updateMany(notificationOwnerMatch(userId, email, verified), { $set: plan.notification });
+  const refs = await Referral.find({ $or: [{ referrerUserId: userId }, ...(verified ? [{ referrerEmail: email }, { refereeEmail: email }] : [])] }).select('_id').lean();
   for (const [i, r] of refs.entries()) await Referral.collection.updateOne({ _id: r._id }, { $set: plan.referral(String(i)) });
   await ReferralCode.deleteMany({ userId });
   await AddressModel.deleteMany({ userId });
@@ -535,10 +536,10 @@ export async function staffWithdrawConsent(ctx: Ctx, actor: Actor, userId: strin
 /* ====================================================================== */
 /*  Product companion + aftercare (customer side)                          */
 /* ====================================================================== */
-const ownsOrder = (o: { userId?: unknown; email: string }, user: { id: string; email: string }) => (o.userId && sid(o.userId) === user.id) || o.email === user.email;
+const ownsOrder = (o: { userId?: unknown; email: string }, user: { id: string; email: string; emailVerified?: boolean }) => (o.userId && sid(o.userId) === user.id) || (!!user.emailVerified && o.email === user.email);
 
-export async function listOwnedProducts(ctx: Ctx, user: { id: string; email: string }, limit = 60) {
-  const orders = await Order.find({ $or: [{ userId: user.id }, { email: user.email }], status: 'DELIVERED' }).sort({ deliveredAt: -1, createdAt: -1 }).limit(40).select('orderNumber items deliveredAt createdAt country').lean();
+export async function listOwnedProducts(ctx: Ctx, user: { id: string; email: string; emailVerified?: boolean }, limit = 60) {
+  const orders = await Order.find({ ...ownerMatch(user.id, user.email, !!user.emailVerified), status: 'DELIVERED' }).sort({ deliveredAt: -1, createdAt: -1 }).limit(40).select('orderNumber items deliveredAt createdAt country').lean();
   const rows = orders.flatMap((o) => o.items.map((it, i) => ({ orderItemId: encodeOrderItemId(sid(o._id), i), orderNumber: o.orderNumber, productId: sid(it.productId), title: it.title, image: it.image ?? null, quantity: it.quantity, deliveredAt: o.deliveredAt ?? (o as unknown as { createdAt: Date }).createdAt, country: o.country }))).slice(0, limit);
   const prods = await Product.find({ _id: { $in: rows.map((r) => r.productId) } }).select('slug tags').lean();
   const pm = new Map(prods.map((p) => [sid(p._id), p]));
@@ -553,7 +554,7 @@ export async function listOwnedProducts(ctx: Ctx, user: { id: string; email: str
   };
 }
 
-export async function productCompanion(ctx: Ctx, user: { id: string; email: string }, orderItemId: string) {
+export async function productCompanion(ctx: Ctx, user: { id: string; email: string; emailVerified?: boolean }, orderItemId: string) {
   const ref = decodeOrderItemId(orderItemId);
   if (!ref) throw notFound('Product');
   const order = await Order.findById(ref.orderId).lean();
@@ -579,8 +580,8 @@ export async function productCompanion(ctx: Ctx, user: { id: string; email: stri
   };
 }
 
-export async function aftercareHub(ctx: Ctx, user: { id: string; email: string }) {
-  const owner = { $or: [{ userId: user.id }, { email: user.email }] };
+export async function aftercareHub(ctx: Ctx, user: { id: string; email: string; emailVerified?: boolean }) {
+  const owner = ownerMatch(user.id, user.email, !!user.emailVerified);
   const now = ctx.now();
   const orders = await Order.find(owner).sort({ createdAt: -1 }).limit(50).select('orderNumber status').lean();
   const ids = orders.map((o) => o._id);
@@ -590,7 +591,7 @@ export async function aftercareHub(ctx: Ctx, user: { id: string; email: string }
     ids.length ? Refund.find({ orderId: { $in: ids }, status: { $in: ['pending_approval', 'processing'] } }).limit(20).select('orderId amount currency status').lean() : [],
     SupportTicket.find({ ...owner, status: { $ne: 'resolved' } }).sort({ updatedAt: -1 }).limit(20).select('subject status updatedAt').lean(),
     ids.length ? Shipment.find({ orderId: { $in: ids }, status: { $nin: ['DELIVERED', 'CANCELLED', 'PENDING_CREATE'] } }).limit(50).select('orderId status carrier estimatedDelivery').lean() : [],
-    rescueReader.list(user, 20),
+    rescueReader.list({ id: user.id, email: user.emailVerified ? user.email : '' }, 20),
   ]);
   const issues = shipments.filter((s) => s.status === 'FAILED' || s.status === 'RETURNED' || (s.estimatedDelivery && s.estimatedDelivery.getTime() < now.getTime())).map((s) => ({ orderNumber: num.get(sid(s.orderId)) ?? '', status: s.status, carrier: s.carrier ?? null, estimatedDelivery: s.estimatedDelivery ?? null, late: !!s.estimatedDelivery && s.estimatedDelivery.getTime() < now.getTime() }));
   return {

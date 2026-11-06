@@ -8,6 +8,7 @@ import {
 import { addressSchema, cartItemInput, checkoutSchema, objectId, paginationSchema, reviewSchema, returnRequestSchema, countrySchema } from '@orvia/types';
 import type { Ctx } from '@orvia/core';
 import { route } from '../http';
+import { ownerEmail, ownerOr } from '../util';
 import { CART_COOKIE } from '../plugins';
 
 async function orderView(ctx: Ctx, o: InstanceType<typeof Order>) {
@@ -70,7 +71,7 @@ export function shopRoutes(app: FastifyInstance, ctx: Ctx): void {
     },
   });
   route(app, ctx, {
-    method: 'POST', url: '/cart/coupon', summary: 'Apply or remove a coupon', tags: ['Cart'], body: z.object({ code: z.string().trim().max(40).nullable() }),
+    method: 'POST', url: '/cart/coupon', summary: 'Apply or remove a coupon', tags: ['Cart'], body: z.object({ code: z.string().trim().max(40).nullable() }), rateLimit: { max: 30, timeWindow: '1 minute' },
     handler: async ({ req, reply, body }) => {
       await applyCoupon(ctx, await ensureCart(req, reply), body.code);
       return view(req, reply);
@@ -114,7 +115,7 @@ export function shopRoutes(app: FastifyInstance, ctx: Ctx): void {
     },
   });
   route(app, ctx, {
-    method: 'POST', url: '/orders/:orderNumber/cancel', summary: 'Cancel an unshipped order', tags: ['Orders'], body: z.object({ email: z.string().email().optional(), reason: z.string().max(300).default('Customer request') }),
+    method: 'POST', url: '/orders/:orderNumber/cancel', summary: 'Cancel an unshipped order', tags: ['Orders'], rateLimit: { max: 10, timeWindow: '1 minute' }, body: z.object({ email: z.string().email().optional(), reason: z.string().max(300).default('Customer request') }),
     handler: async ({ req, body }) => {
       const o = await Order.findOne({ orderNumber: (req.params as { orderNumber: string }).orderNumber.toUpperCase() });
       if (!o || !owns(req, o, body.email)) throw new DomainError('We could not find that order', 'NOT_FOUND', 404);
@@ -176,11 +177,11 @@ export function shopRoutes(app: FastifyInstance, ctx: Ctx): void {
 
   route(app, ctx, {
     method: 'GET', url: '/account/returns', summary: 'My return requests', tags: ['Returns'], auth: 'user',
-    handler: async ({ user }) => ({ items: await ReturnRequest.find({ $or: [{ userId: user.id }, { email: user.email }] }).sort({ createdAt: -1 }).limit(50).lean() }),
+    handler: async ({ user }) => ({ items: await ReturnRequest.find({ $or: ownerOr(user) }).sort({ createdAt: -1 }).limit(50).lean() }),
   });
   route(app, ctx, {
     method: 'POST', url: '/returns', summary: 'Request a return', tags: ['Returns'], auth: 'user', body: returnRequestSchema,
-    handler: async ({ req, user, body, reply }) => reply.status(201).send(await requestReturn(ctx, body, { userId: user.id, email: user.email, actor: req.actor })),
+    handler: async ({ req, user, body, reply }) => reply.status(201).send(await requestReturn(ctx, body, { userId: user.id, email: ownerEmail(user), actor: req.actor })),
   });
 
   route(app, ctx, {
@@ -199,6 +200,6 @@ export function shopRoutes(app: FastifyInstance, ctx: Ctx): void {
   });
   route(app, ctx, {
     method: 'GET', url: '/support/tickets', summary: 'My support tickets', tags: ['Support'], auth: 'user',
-    handler: async ({ user }) => ({ items: await SupportTicket.find({ $or: [{ userId: user.id }, { email: user.email }] }).sort({ updatedAt: -1 }).limit(30).select('subject status updatedAt messages').lean() }),
+    handler: async ({ user }) => ({ items: await SupportTicket.find({ $or: ownerOr(user) }).sort({ updatedAt: -1 }).limit(30).select('subject status updatedAt messages').lean() }),
   });
 }

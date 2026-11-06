@@ -37,12 +37,39 @@ const jsonSchema = (z: ZodType<unknown, unknown>) => {
   return s;
 };
 
+/** Declarative metadata of a registered route (no handler). Read by `scripts/gen-api-reference.ts`; has no runtime effect. */
+export interface RouteMeta {
+  method: RouteDef<unknown, unknown>['method'];
+  url: string;
+  summary: string;
+  tags: string[];
+  auth: 'none' | 'user' | 'optional' | 'staff';
+  permission?: Permission;
+  rateLimit?: { max: number; timeWindow: string };
+  bodySchema?: Record<string, unknown>;
+  querySchema?: Record<string, unknown>;
+}
+const routeRegistry: RouteMeta[] = [];
+/** Snapshot of every route registered through `route()` in this process (used by docs generators only). */
+export const registeredRoutes = (): readonly RouteMeta[] => routeRegistry;
+
 /**
  * Registers a route with zod validation (400 on bad input), auth/RBAC enforcement and OpenAPI docs.
  * Fastify's own ajv validation is bypassed (see server.ts) so zod is the single source of truth.
  */
 export function route<B = undefined, Q = undefined>(app: FastifyInstance, ctx: Ctx, d: RouteDef<B, Q>): void {
   const auth = d.auth ?? 'none';
+  routeRegistry.push({
+    method: d.method,
+    url: `/api/v1${d.url}`,
+    summary: d.summary,
+    tags: d.tags,
+    auth,
+    permission: d.permission,
+    rateLimit: d.rateLimit,
+    bodySchema: d.body ? jsonSchema(d.body) : undefined,
+    querySchema: d.query ? jsonSchema(d.query) : undefined,
+  });
   app.route({
     method: d.method,
     url: `/api/v1${d.url}`,
@@ -60,7 +87,7 @@ export function route<B = undefined, Q = undefined>(app: FastifyInstance, ctx: C
         if (auth === 'staff') {
           if (req.user.role === 'CUSTOMER' || req.user.role === 'SUPPLIER') throw new DomainError('Forbidden', 'FORBIDDEN', 403);
           if (d.permission && !can(req.user.role, d.permission)) {
-            ctx.log.warn({ channel: 'security', user: req.user.id, permission: d.permission, url: req.url }, 'permission denied');
+            ctx.log.warn({ channel: 'security', user: req.user.id, permission: d.permission, url: req.url.split('?')[0] }, 'permission denied');
             throw new DomainError('You do not have permission to do this', 'FORBIDDEN', 403);
           }
         }
