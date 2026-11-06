@@ -8,7 +8,7 @@ import { getCountry } from '../../infra/countries';
 import { decideAttribution } from './attribution';
 import { computeCommission, holdUntil, isReleasable, reconcileDelta, shouldEscalateHold } from './commission';
 import type { CommissionOrder, CreatorTerms } from './commission';
-import { getRules, hashIp } from './config';
+import { getRules, hashCreatorIp } from './config';
 import { evaluateCreatorOrder, normalizeEmail } from './fraudRules';
 
 const DAY = 86_400_000;
@@ -53,8 +53,8 @@ async function fraudFacts(ctx: Ctx, order: OrderLean, creator: { _id: unknown; u
   ]);
   const buyers = new Set([...same.map((o) => normalizeEmail(o.email)), normalizeEmail(order.email)]);
   const flags = evaluateCreatorOrder({
-    ordersLastHour: hour, ordersLastDay: day, buyerIpHash: hashIp(ctx, order.fraud?.ip ?? undefined),
-    creatorIpHashes: sessions.map((s) => hashIp(ctx, s.ip ?? undefined)).filter((x): x is string => !!x),
+    ordersLastHour: hour, ordersLastDay: day, buyerIpHash: hashCreatorIp(ctx, order.fraud?.ip ?? undefined),
+    creatorIpHashes: sessions.map((s) => hashCreatorIp(ctx, s.ip ?? undefined)).filter((x): x is string => !!x),
     buyersSameIp: order.fraud?.ip ? buyers.size : 0, creatorRefundRate: total90 ? refunded90 / total90 : 0, creatorOrderSample: total90, buyerFraudLevel: order.fraud?.level ?? undefined,
   }, rules);
   return { flags, total90, refunded90 };

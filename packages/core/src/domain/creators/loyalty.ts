@@ -55,11 +55,22 @@ export async function getLoyaltyStatus(ctx: Ctx, userId: string): Promise<Loyalt
 /** Customer 360 contract. */
 export const makeLoyaltyReader = (ctx: Ctx): LoyaltyReader => ({ getLoyaltyStatus: (userId) => getLoyaltyStatus(ctx, userId) });
 
+/** Keep the `loyalty_accounts` cache document (read by Customer 360: userId, balance, tier, updatedAt) in step with the ledger. Best-effort; the ledger is authoritative. */
+async function touchAccount(ctx: Ctx, userId: string): Promise<void> {
+  try {
+    const rules = await getLoyaltyRules();
+    const [balance, spend] = await Promise.all([pointsBalance(userId), trailingSpendUsd(ctx, userId)]);
+    const life = await LoyaltyLedger.aggregate<{ s: number }>([{ $match: { userId: new (await import('mongoose')).Types.ObjectId(userId), kind: { $in: ['earn', 'bonus'] } } }, { $group: { _id: null, s: { $sum: '$points' } } }]);
+    await LoyaltyAccount.updateOne({ userId }, { $set: { balance, lifetimePoints: life[0]?.s ?? 0, tier: computeTier(spend, rules).tier.name } }, { upsert: true });
+  } catch (e) { ctx.log.warn({ err: (e as Error).message }, 'loyalty account cache not updated'); }
+}
+
 async function addPoints(ctx: Ctx, userId: string, kind: 'earn' | 'bonus' | 'restore', points: number, key: string, extra: { orderId?: string; note?: string; meta?: unknown; expireDays?: number } = {}): Promise<boolean> {
   const rules = await getLoyaltyRules();
   try {
     await LoyaltyLedger.create({ userId, kind, points, remaining: points, expiresAt: new Date(ctx.now().getTime() + (extra.expireDays ?? rules.pointsExpireDays) * DAY), orderId: extra.orderId, idempotencyKey: key, note: extra.note, meta: extra.meta });
   } catch (e) { if (isDup(e)) return false; throw e; }
+  await touchAccount(ctx, userId);
   return true;
 }
 
@@ -93,6 +104,7 @@ export async function reconcileLoyaltyForOrder(ctx: Ctx, orderId: string): Promi
     await LoyaltyLedger.create({ userId: earn.userId, kind: 'reversal', points: delta, orderId: o._id, idempotencyKey: `reversal:${orderId}:${o.costs?.refunded ?? 0}:${o.status}`, note: 'Order refunded' });
   } catch (e) { if (isDup(e)) return 0; throw e; }
   await LoyaltyLedger.updateOne({ _id: earn._id }, { $set: { remaining: Math.max(0, earn.remaining + delta) } });
+  await touchAccount(ctx, String(earn.userId));
   return delta;
 }
 
@@ -129,6 +141,7 @@ export async function redeemPoints(ctx: Ctx, userId: string, points: number) {
     await addPoints(ctx, userId, 'restore', plan.points, `restore:failed:${redemptionId}`, { note: 'Redemption failed' });
     throw e;
   }
+  await touchAccount(ctx, userId);
   await audit(ctx, { id: userId, type: 'user' }, { action: 'loyalty.redeemed', resource: 'loyalty', resourceId: userId, newValue: { points: plan.points, code } });
   return { code, points: plan.points, valueUsd: plan.valueUsd, expiresAt, minSubtotalUsd: plan.minSubtotalUsd };
 }
@@ -153,7 +166,7 @@ export async function expireLoyalty(ctx: Ctx, limit = 500): Promise<{ expired: n
   for (const e of expirable(due.map((d) => ({ id: String(d._id), remaining: d.remaining, expiresAt: d.expiresAt ?? null })), now)) {
     const row = due.find((d) => String(d._id) === e.id)!;
     const take = Math.min(e.points, Math.max(0, await pointsBalance(String(row.userId))));
-    if (take > 0) { try { await LoyaltyLedger.create({ userId: row.userId, kind: 'expire', points: -take, idempotencyKey: `expire:${e.id}`, note: 'Points expired' }); expired += take; } catch (err) { if (!isDup(err)) throw err; } }
+    if (take > 0) { try { await LoyaltyLedger.create({ userId: row.userId, kind: 'expire', points: -take, idempotencyKey: `expire:${e.id}`, note: 'Points expired' }); expired += take; await touchAccount(ctx, String(row.userId)); } catch (err) { if (!isDup(err)) throw err; } }
     await LoyaltyLedger.updateOne({ _id: e.id }, { $set: { remaining: 0 } });
   }
   let restored = 0;
@@ -178,6 +191,7 @@ export async function adjustLoyalty(ctx: Ctx, actor: Actor, userId: string, poin
   const key = `adjust:${randomUUID()}`;
   const rules = await getLoyaltyRules();
   await LoyaltyLedger.create({ userId, kind: 'adjust', points, remaining: points > 0 ? points : 0, expiresAt: points > 0 ? new Date(ctx.now().getTime() + rules.pointsExpireDays * DAY) : undefined, idempotencyKey: key, note: `Adjustment: ${reason.slice(0, 120)}`, actor: actor.id });
+  await touchAccount(ctx, userId);
   await audit(ctx, actor, { action: 'loyalty.adjusted', resource: 'loyalty', resourceId: userId, previousValue: { points: before }, newValue: { points: before + points }, reason });
   return { points: before + points };
 }

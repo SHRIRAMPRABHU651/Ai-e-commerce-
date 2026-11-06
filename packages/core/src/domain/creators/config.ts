@@ -32,5 +32,5 @@ export async function setRules(ctx: Ctx, actor: Actor, input: unknown, which: 'r
 }
 
 /** Salted hash of a network/device signal. Raw values are never stored in creator tables. */
-export const hashIp = (ctx: Ctx, ip: string | undefined): string | undefined => (ip ? hashSignal(ctx.cfg.JWT_SECRET, 'ip', ip) : undefined);
-export const hashDevice = (ctx: Ctx, ua: string | undefined, lang: string | undefined): string | undefined => (ua ? hashSignal(ctx.cfg.JWT_SECRET, 'dev', `${ua}|${lang ?? ''}`) : undefined);
+export const hashCreatorIp = (ctx: Ctx, ip: string | undefined): string | undefined => (ip ? hashSignal(ctx.cfg.JWT_SECRET, 'ip', ip) : undefined);
+export const hashCreatorDevice = (ctx: Ctx, ua: string | undefined, lang: string | undefined): string | undefined => (ua ? hashSignal(ctx.cfg.JWT_SECRET, 'dev', `${ua}|${lang ?? ''}`) : undefined);

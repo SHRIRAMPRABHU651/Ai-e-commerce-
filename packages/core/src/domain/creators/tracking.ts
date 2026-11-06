@@ -3,7 +3,7 @@ import type { z } from 'zod';
 import type { attributionCaptureSchema } from '@orvia/types';
 import type { Ctx } from '../../infra/context';
 import { attributionExpiry, newerTouch } from './attribution';
-import { getRules, hashDevice, hashIp } from './config';
+import { getRules, hashCreatorDevice, hashCreatorIp } from './config';
 
 export interface CaptureInput extends z.infer<typeof attributionCaptureSchema> {
   cartToken: string;
@@ -32,8 +32,8 @@ export async function captureAttribution(ctx: Ctx, i: CaptureInput): Promise<Cap
   if (!creator || creator.status !== 'approved') return { recorded: false, attributed: false, reason: 'unknown_creator' };
   if (i.userId && String(creator.userId) === i.userId) return { recorded: false, attributed: false, reason: 'self' }; // creators never earn from their own sessions
 
-  const ipHash = hashIp(ctx, i.ip);
-  const deviceHash = hashDevice(ctx, i.userAgent, i.acceptLanguage);
+  const ipHash = hashCreatorIp(ctx, i.ip);
+  const deviceHash = hashCreatorDevice(ctx, i.userAgent, i.acceptLanguage);
   const now = ctx.now();
   if (ipHash && (await CreatorClick.countDocuments({ ipHash, at: { $gte: new Date(now.getTime() - 3_600_000) } })) >= CLICKS_PER_IP_PER_HOUR) return { recorded: false, attributed: false, reason: 'rate_limited' };
 
