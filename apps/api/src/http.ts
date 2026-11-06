@@ -58,7 +58,7 @@ export function route<B = undefined, Q = undefined>(app: FastifyInstance, ctx: C
       if (auth === 'user' || auth === 'staff') {
         if (!req.user) throw new DomainError('Authentication required', 'UNAUTHENTICATED', 401);
         if (auth === 'staff') {
-          if (req.user.role === 'CUSTOMER') throw new DomainError('Forbidden', 'FORBIDDEN', 403);
+          if (req.user.role === 'CUSTOMER' || req.user.role === 'SUPPLIER') throw new DomainError('Forbidden', 'FORBIDDEN', 403);
           if (d.permission && !can(req.user.role, d.permission)) {
             ctx.log.warn({ channel: 'security', user: req.user.id, permission: d.permission, url: req.url }, 'permission denied');
             throw new DomainError('You do not have permission to do this', 'FORBIDDEN', 403);

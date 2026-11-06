@@ -6,9 +6,11 @@ export const ROLES = [
   'SUPPORT',
   'ANALYST',
   'CUSTOMER',
+  /** External supplier user: only ever reaches /supplier portal routes, scoped to their own supplier(s). */
+  'SUPPLIER',
 ] as const;
 export type Role = (typeof ROLES)[number];
-export const STAFF_ROLES: readonly Role[] = ROLES.filter((r) => r !== 'CUSTOMER');
+export const STAFF_ROLES: readonly Role[] = ROLES.filter((r) => r !== 'CUSTOMER' && r !== 'SUPPLIER');
 
 export const COUNTRY_CODES = ['US', 'CA', 'IN'] as const;
 export type CountryCode = (typeof COUNTRY_CODES)[number];

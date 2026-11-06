@@ -14,7 +14,7 @@ import { syncProductOffers } from './offers';
 type SupplierLike = { provider: string; fulfillmentMode?: string | null };
 
 export const fulfillmentModeOf = (s: SupplierLike): FulfillmentMode =>
-  s.provider === 'manual' ? 'MANUAL' : ((s.fulfillmentMode as FulfillmentMode | undefined) ?? (s.provider === 'mock' ? 'AUTOMATED' : 'ASSISTED'));
+  (s.provider === 'manual' || s.provider === 'feed') ? 'MANUAL' : ((s.fulfillmentMode as FulfillmentMode | undefined) ?? (s.provider === 'mock' ? 'AUTOMATED' : 'ASSISTED'));
 
 export interface TestResult {
   kind: SupplierTestKind;
@@ -43,7 +43,7 @@ export function automationReadiness(s: { provider: string; validation?: unknown 
 export async function setFulfillmentMode(ctx: Ctx, supplierId: string, mode: FulfillmentMode, actor: Actor): Promise<void> {
   const s = await Supplier.findById(supplierId);
   if (!s) throw notFound('Supplier');
-  if (s.provider === 'manual' && mode !== 'MANUAL') throw new DomainError('A manual supplier can only use MANUAL fulfilment (it has no ordering API)', 'VALIDATION', 422);
+  if ((s.provider === 'manual' || s.provider === 'feed') && mode !== 'MANUAL') throw new DomainError('A manual or feed supplier can only use MANUAL fulfilment (it has no ordering API)', 'VALIDATION', 422);
   if (mode === 'AUTOMATED' && s.provider !== 'mock') {
     const caps = capabilitiesForSupplier(s);
     if (caps && (caps.capabilities.createOrder !== 'supported' || caps.capabilities.tracking !== 'supported')) throw new DomainError('This supplier’s API mapping does not support order creation and tracking, so it cannot be AUTOMATED', 'VALIDATION', 409);
