@@ -5,6 +5,7 @@ import * as React from 'react';
 import { Button, CountrySelector, Drawer, IconButton, Input, Link, SearchBar, ThemeToggle, cn, PriceDisplay, QuantityStepper, ProductArt } from '@orvia/ui';
 import { api } from '@/lib/api';
 import { money } from '@/lib/api';
+import { AssistantWidget } from './assistant';
 import { Logo } from './logo';
 import { useStore } from './providers';
 
@@ -167,7 +168,9 @@ export function CartDrawer() {
 
 /* ----------------------------- AI support assistant ----------------------------- */
 interface Msg { from: 'you' | 'bot'; text: string; actions?: { label: string; href?: string; action?: string }[] }
-export function ChatWidget() {
+/** The governed assistant (components/assistant.tsx) replaced this widget in the storefront; kept for the legacy /support/chat endpoint. */
+export function ChatWidget() { return <AssistantWidget />; }
+export function LegacyChatWidget() {
   const { user, country } = useStore();
   const [open, setOpen] = React.useState(false);
   const [msgs, setMsgs] = React.useState<Msg[]>([{ from: 'bot', text: 'Hi! I can track an order, start a return, check a refund, or answer questions about shipping and products. How can I help?' }]);
