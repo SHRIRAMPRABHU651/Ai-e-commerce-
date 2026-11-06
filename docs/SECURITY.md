@@ -1,5 +1,7 @@
 # Security
 
+> A code-level security and privacy review with findings, evidence and per-market obligations prompts is in [ORVIA_SECURITY_AND_PRIVACY.md](ORVIA_SECURITY_AND_PRIVACY.md). Data model and PII inventory: [ORVIA_DATABASE_DESIGN.md](ORVIA_DATABASE_DESIGN.md).
+
 ## Controls implemented (and tested in `tests/integration/security.test.ts`)
 | Area | Control |
 |---|---|

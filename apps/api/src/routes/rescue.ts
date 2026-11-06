@@ -4,6 +4,7 @@ import { caseDetail, decideConsent, getRescuePolicy, listCases, recoveryView, re
 import type { Ctx } from '@orvia/core';
 import { rescueConsentBody, rescueDecisionBody, rescueListQuery, rescueObjectId, rescuePolicyPatchSchema, rescueRecoveryQuery } from '@orvia/types';
 import { route } from '../http';
+import { ownerEmail } from '../util';
 
 const idParams = (req: { params: unknown }) => z.object({ id: rescueObjectId }).parse(req.params).id;
 const orderParam = (req: { params: unknown }) => z.object({ orderNumber: z.string().min(3).max(40) }).parse(req.params).orderNumber;
@@ -50,11 +51,11 @@ export function rescueRoutes(app: FastifyInstance, ctx: Ctx): void {
   route(app, ctx, {
     method: 'GET', url: '/orders/:orderNumber/recovery', summary: 'Recovery options for an order (owner or consent-link holder)', tags: ['Orders'], auth: 'optional', query: rescueRecoveryQuery,
     rateLimit: { max: 30, timeWindow: '1 minute' },
-    handler: async ({ req, query }) => recoveryView(ctx, orderParam(req), { userId: req.user?.id, email: req.user?.email ?? query.email, token: query.token }),
+    handler: async ({ req, query }) => recoveryView(ctx, orderParam(req), { userId: req.user?.id, email: req.user ? ownerEmail(req.user) : query.email, token: query.token }),
   });
   route(app, ctx, {
     method: 'POST', url: '/orders/:orderNumber/recovery/decision', summary: 'Accept or decline one recovery option (single use)', tags: ['Orders'], auth: 'optional', body: rescueConsentBody,
     rateLimit: { max: 20, timeWindow: '1 minute' },
-    handler: async ({ req, body }) => decideConsent(ctx, orderParam(req), body.optionId, body.decision, { userId: req.user?.id, email: req.user?.email ?? body.email, token: body.token }, req.ip),
+    handler: async ({ req, body }) => decideConsent(ctx, orderParam(req), body.optionId, body.decision, { userId: req.user?.id, email: req.user ? ownerEmail(req.user) : body.email, token: body.token }, req.ip),
   });
 }

@@ -3,7 +3,7 @@
 Base path `/api/v1`. JSON in/out. Interactive OpenAPI UI at `/docs` and the raw spec at `/docs/json` (development/staging only — disabled in production; export the spec in CI if you need to publish it). Every route is declared with a zod schema, so request validation, error shape and OpenAPI come from the same source.
 
 ## Conventions
-- **Auth**: cookie session `orvia_session` (httpOnly, SameSite=Lax, Secure in staging/prod) or `Authorization: Bearer <jwt>`. Staff routes check a role→permission matrix (`SUPER_ADMIN, ADMIN, MARKETING, OPERATIONS, SUPPORT, ANALYST`; customers have none).
+- **Auth**: cookie session `orvia_session` (httpOnly, SameSite=Lax, Secure in staging/prod) (the API reads only the cookie; an `Authorization: Bearer` header is **not** accepted for user sessions, it is used only for `METRICS_TOKEN` on `/metrics` and `/api/v1/launch-gate`). Staff routes check a role→permission matrix (`SUPER_ADMIN, ADMIN, MARKETING, OPERATIONS, SUPPORT, ANALYST`; customers have none).
 - **CSRF**: cookie-authenticated mutations must send `x-requested-with: orvia` and a same-site `Origin`. Webhooks are exempt (they are authenticated by signature).
 - **Errors**: `{ "error": { "code", "message", "details?", "requestId" } }`. Codes include `VALIDATION`, `UNAUTHENTICATED`, `FORBIDDEN`, `CSRF`, `NOT_FOUND`, `RATE_LIMITED`, `CONFLICT`, `CART_CHANGED`, `EMPTY_CART`, `NO_STOCK`, `NOT_PAID`, `LIMIT`, `ILLEGAL_TRANSITION`.
 - **Idempotency**: `POST /checkout` requires `idempotencyKey`; replays return the original order.
@@ -14,6 +14,8 @@ Base path `/api/v1`. JSON in/out. Interactive OpenAPI UI at `/docs` and the raw 
 
 ## Webhooks
 `POST /api/v1/webhooks/payments/:provider` — raw body is signature-verified (Stripe `Stripe-Signature`, Razorpay `X-Razorpay-Signature`, mock HMAC). Events are de-duplicated by provider event id, and the payment is **re-fetched from the provider** before an order is marked paid.
+
+> The complete, generated route list (auth mode, permission, rate limits, body/query fields) is in [ORVIA_API_REFERENCE.md](ORVIA_API_REFERENCE.md); regenerate with `npm run docs:api`.
 
 ## Endpoints
 <!-- endpoints:start -->

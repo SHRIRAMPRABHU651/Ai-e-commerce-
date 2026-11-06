@@ -495,6 +495,7 @@ const reviewSchema = new Schema({
 }, schemaOpts);
 reviewSchema.index({ productId: 1, status: 1, createdAt: -1 });
 reviewSchema.index({ productId: 1, userId: 1 }, { unique: true });
+reviewSchema.index({ userId: 1 }); // privacy export + anonymization
 export const Review = defineModel('Review', reviewSchema, 'reviews');
 
 const wishlistSchema = new Schema({
@@ -545,6 +546,9 @@ const returnSchema = new Schema({
   refundId: { type: oid, ref: 'Refund' },
   resolutionNote: String,
 }, schemaOpts);
+// ownership lookups ($or userId/email) from account, support, privacy export/anonymization (added by docs-B index review)
+returnSchema.index({ userId: 1, createdAt: -1 });
+returnSchema.index({ email: 1 });
 export const ReturnRequest = defineModel('Return', returnSchema, 'returns');
 
 const refundSchema = new Schema({
@@ -570,6 +574,8 @@ const ticketSchema = new Schema({
   status: { type: String, enum: ['open', 'pending', 'escalated', 'resolved'], default: 'open', index: true },
   priority: { type: String, enum: ['low', 'normal', 'high'], default: 'normal' },
 }, schemaOpts);
+ticketSchema.index({ userId: 1, updatedAt: -1 });
+ticketSchema.index({ email: 1 });
 export const SupportTicket = defineModel('SupportTicket', ticketSchema, 'support_tickets');
 
 /* ------------------------------ marketing ------------------------------ */
@@ -766,6 +772,7 @@ analyticsSchema.index({ ts: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 180 });
 analyticsSchema.index({ type: 1, ts: -1 });
 analyticsSchema.index({ productId: 1, type: 1, ts: -1 });
 analyticsSchema.index({ sessionId: 1, ts: -1 });
+analyticsSchema.index({ userId: 1, ts: -1 }, { partialFilterExpression: { userId: { $exists: true } } }); // privacy export + anonymization
 export const AnalyticsEvent = defineModel('AnalyticsEvent', analyticsSchema, 'analytics');
 
 const reportSchema = new Schema({
@@ -870,6 +877,8 @@ const notificationSchema = new Schema({
 }, schemaOpts);
 notificationSchema.index({ dedupeKey: 1 }, { unique: true, partialFilterExpression: { dedupeKey: { $type: 'string' } } });
 notificationSchema.index({ createdAt: -1 });
+notificationSchema.index({ userId: 1, createdAt: -1 }, { partialFilterExpression: { userId: { $exists: true } } });
+notificationSchema.index({ to: 1 });
 export const Notification = defineModel('Notification', notificationSchema, 'notifications');
 
 const auditSchema = new Schema(
@@ -889,6 +898,7 @@ const auditSchema = new Schema(
   },
   { timestamps: false, versionKey: false },
 );
+auditSchema.index({ actor: 1, timestamp: -1 }); // /admin/audit filter by actor
 export const AuditLog = defineModel('AuditLog', auditSchema, 'audit_logs');
 
 const settingSchema = new Schema({

@@ -15,6 +15,15 @@ export const isExpired = (expiresAt: Date | null | undefined, now: Date): boolea
 export const coolingOffEnds = (requestedAt: Date, days = DELETION_COOLING_OFF_DAYS): Date => new Date(requestedAt.getTime() + days * DAY);
 export const coolingOffElapsed = (requestedAt: Date, now: Date, days = DELETION_COOLING_OFF_DAYS): boolean => now.getTime() >= coolingOffEnds(requestedAt, days).getTime();
 
+/* ------------------------------ ownership ------------------------------ */
+/**
+ * Which guest-created records (orders, returns, tickets, customer row, notifications) belong to an account.
+ * The account id always counts; the email address counts ONLY when it is verified: registration signs the user in before
+ * verification, so otherwise anyone could register with a victim's address and export or anonymize the victim's guest orders.
+ */
+export const ownerMatch = (userId: string, email: string, emailVerified: boolean): { $or: Record<string, string>[] } => ({ $or: emailVerified ? [{ userId }, { email }] : [{ userId }] });
+export const notificationOwnerMatch = (userId: string, email: string, emailVerified: boolean): { $or: Record<string, string>[] } => ({ $or: emailVerified ? [{ userId }, { to: email }] : [{ userId }] });
+
 /* ------------------------------ masking ------------------------------ */
 export function maskEmail(email: string | null | undefined): string {
   if (!email) return '—';
@@ -65,7 +74,7 @@ export function buildExport(subject: { userId: string }, parts: Partial<Record<E
     generatedAt: now.toISOString(),
     subject: { userId: subject.userId },
     notes: [
-      'Contains all personal data Orvia holds about this account that is linked to your user id or email.',
+      'Contains all personal data Orvia holds about this account that is linked to your user id or to your verified email address.',
       'Card numbers are never stored by Orvia; payments are handled by the payment provider.',
       'Internal fraud/risk scores are excluded from this export; notes staff recorded about you are included under staffNotes.',
     ],

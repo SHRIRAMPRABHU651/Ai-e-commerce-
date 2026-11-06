@@ -33,6 +33,8 @@
     "worker": "npm run dev -w @orvia/worker",
     "production-check": "node scripts/production-check.mjs",
     "boot-check": "tsx scripts/boot-check.ts",
+    "docs:api": "tsx scripts/gen-api-reference.ts",
+    "docs:db": "tsx scripts/gen-db-design.ts",
     "perf": "node scripts/perf.mjs",
     "load": "node scripts/load-scenarios.mjs",
     "load:jobs": "tsx scripts/load-jobs.ts",

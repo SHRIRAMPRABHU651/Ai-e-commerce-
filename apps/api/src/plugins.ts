@@ -100,7 +100,7 @@ export async function registerPlugins(app: FastifyInstance, ctx: Ctx, opts: { re
   // Mongo operator injection: reject `$`/dotted keys anywhere in body, query or params.
   app.addHook('preValidation', async (req) => {
     if (hasForbiddenKey(req.body) || hasForbiddenKey(req.query) || hasForbiddenKey(req.params)) {
-      ctx.log.warn({ channel: 'security', url: req.url, ip: req.ip }, 'blocked request with operator-like keys');
+      ctx.log.warn({ channel: 'security', url: req.url.split('?')[0], ip: req.ip }, 'blocked request with operator-like keys');
       throw new DomainError('Invalid request', 'BAD_REQUEST', 400);
     }
   });
@@ -137,7 +137,7 @@ export async function registerPlugins(app: FastifyInstance, ctx: Ctx, opts: { re
     }
     const e = err as { statusCode?: number; code?: string; name?: string; message: string; retryable?: boolean };
     if (e.name === 'WebhookSignatureError') {
-      ctx.log.warn({ channel: 'security', url: req.url, ip: req.ip }, 'invalid webhook signature');
+      ctx.log.warn({ channel: 'security', url: req.url.split('?')[0], ip: req.ip }, 'invalid webhook signature');
       return reply.status(400).send({ error: { code: 'BAD_SIGNATURE', message: 'Invalid signature', requestId } });
     }
     if (e.statusCode && e.statusCode < 500) {
