@@ -67,7 +67,7 @@ export function titleSimilarity(a: string, b: string): number {
   const jac = ta.size + tb.size - inter > 0 ? inter / (ta.size + tb.size - inter) : 0;
   const ba = bigrams(na), bb = bigrams(nb);
   let shared = 0, tot = 0;
-  for (const [g, n] of ba) shared += Math.min(n, bb.get(g) ?? 0), tot += n;
+  for (const [g, n] of ba) { shared += Math.min(n, bb.get(g) ?? 0); tot += n; }
   for (const n of bb.values()) tot += n;
   const dice = tot > 0 ? (2 * shared) / tot : 0;
   return 0.5 * jac + 0.5 * dice;
@@ -164,9 +164,9 @@ export function scoreMatch(a: MatchItem, b: MatchItem): MatchResult {
   return { score, confidence, reasons, conflicts };
 }
 
-export interface Ranked<T> extends MatchResult { target: T }
+export interface RankedMatch<T> extends MatchResult { target: T }
 /** Best candidates for `source` among `targets`, at or above `minScore`. Bounded by `limit`. */
-export function rankMatches<T extends { item: MatchItem }>(source: MatchItem, targets: T[], o: { minScore?: number; limit?: number } = {}): Ranked<T>[] {
+export function rankMatches<T extends { item: MatchItem }>(source: MatchItem, targets: T[], o: { minScore?: number; limit?: number } = {}): RankedMatch<T>[] {
   const min = o.minScore ?? 0.55;
   return targets
     .map((t) => ({ target: t, ...scoreMatch(source, t.item) }))

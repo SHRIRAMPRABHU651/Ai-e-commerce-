@@ -42,7 +42,7 @@ export async function ingestSupplierCatalog(ctx: Ctx, supplierId: string, o: { t
           { $set: { title: it.title, description: it.description, images: usableImages(it.images), category: it.category, variants: it.variants, cost: it.baseCostUsd, currency: 'USD', lastSyncAt: ctx.now() }, $setOnInsert: { importStatus: 'new' } },
           { upsert: true, new: true },
         );
-        existing ? updated++ : created++;
+        if (existing) updated++; else created++;
         const a = it.attributes ?? {};
         await SuppliernetCatalogItem.updateOne({ supplierId, externalId: it.externalId }, { $set: { supplierProductId: sp!._id, title: it.title, normalizedTitle: normalizeTitle(it.title), brand: a['brand'] ?? a['Brand'], gtin: normalizeGtin(a['gtin'] ?? a['ean'] ?? a['upc']) ?? undefined, mpn: a['mpn'], category: it.category, attributes: a, priceMinor: it.baseCostUsd, currency: 'USD', lastSeenAt: ctx.now() } }, { upsert: true });
       }
