@@ -8,6 +8,7 @@ import type {
   ProductSource,
   RecommendationOut,
   ReviewAnalysis,
+  ImageAttributes,
 } from './schemas';
 
 export interface GenerateOptions {
@@ -25,6 +26,8 @@ export interface AIProvider {
   generateAdCopy(src: ProductSource, concepts?: string[]): Promise<AdCreative[]>;
   analyzeReviews(reviews: { rating: number; text: string }[]): Promise<ReviewAnalysis>;
   analyzeBusiness(data: Record<string, unknown>): Promise<BusinessNarrative>;
+  /** Optional vision capability (only providers that support images implement it). */
+  describeImage?(image: { base64: string; mimeType: string }): Promise<ImageAttributes>;
   recommendProducts(ctx: { candidates: { id: string; title: string; category: string }[]; viewed: string[]; limit: number }): Promise<RecommendationOut>;
 }
 

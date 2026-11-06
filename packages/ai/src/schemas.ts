@@ -85,3 +85,14 @@ export const RecommendationSchema = z.object({ productIds: z.array(z.string()).m
 export type RecommendationOut = z.infer<typeof RecommendationSchema>;
 
 export const PriceSuggestionSchema = z.object({ price: z.number().int().positive(), reason: z.string().max(300) });
+
+/** Visual attributes extracted from a shopper's photo (ORVIA Find image search). Keywords only; never products or facts about stock/price. */
+export const ImageAttributesSchema = z.object({
+  /** what the object is, e.g. "dog chew toy", "wooden desk organizer" */
+  subject: z.string().max(80),
+  keywords: z.array(z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9 '-]{1,28}$/)).max(10),
+  materials: z.array(z.string().regex(/^[a-zA-Z][a-zA-Z ]{1,24}$/)).max(4).default([]),
+  colors: z.array(z.string().regex(/^[a-zA-Z][a-zA-Z ]{1,20}$/)).max(4).default([]),
+  confidence: z.number().min(0).max(1),
+});
+export type ImageAttributes = z.infer<typeof ImageAttributesSchema>;
