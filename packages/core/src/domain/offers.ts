@@ -1,4 +1,5 @@
 import { providerFor, servesCountry, supplierRoutable } from './supplierAccess';
+import { liveFxTable } from './finance/fxService';
 import { Product, Supplier, SupplierOffer, SupplierProduct } from '@orvia/database';
 import { fetchLiveOffer } from '@orvia/suppliers';
 import type { LiveOffer } from '@orvia/suppliers';
@@ -209,7 +210,7 @@ export async function selectSupplierLive(
 ): Promise<LiveSelection> {
   const cfg = await getCountry(p.country);
   const pricing = await ctx.settings.get('pricing');
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const sourcing = await ctx.settings.get('sourcing');
   const links = await SupplierProduct.find({ productId: p.productId }).limit(20).lean();
   const failures: LiveSelection['failures'] = [];

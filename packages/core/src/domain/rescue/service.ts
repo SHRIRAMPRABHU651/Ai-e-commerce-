@@ -3,6 +3,7 @@
  * Never edits orders.ts; hooks in through its own job and by calling existing domain functions.
  * Money movement only ever goes through refundOrder (its own limits). No AI input to any decision.
  */
+import { liveFxTable } from '../finance/fxService';
 import { ExceptionModel, Order, RescueAction, RescueCase, RescueConsent, RescueTimeline, Refund, Shipment, Supplier, SupplierProduct, SystemSetting, ProductVariant } from '@orvia/database';
 import { fetchLiveOffer } from '@orvia/suppliers';
 import { RESCUE_ACTIVE_STATES, convertMinor } from '@orvia/types';
@@ -79,7 +80,7 @@ export async function runRescueScan(ctx: Ctx): Promise<ScanResult> {
   const policy = await getRescuePolicy();
   if (!policy.enabled) return res;
   const now = ctx.now();
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const toU = toUsd(fx);
   // rotating cursor over active orders: every order is revisited across runs, each run is bounded
   const cur = (await SystemSetting.findOne({ key: 'rescue_scan_cursor' }).lean())?.value as { id?: string } | undefined;
@@ -358,7 +359,7 @@ async function closeCase(ctx: Ctx, c: CaseDoc, who: RescueActor, resolution: { o
 /* ---------------------------------------------------------------- execution */
 export async function startOption(ctx: Ctx, c: CaseDoc, opt: StoredOption, by: { mode: string; actorType: string; actorId: string; consentId?: string }): Promise<void> {
   const policy = await getRescuePolicy();
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const key = actionKey(String(c._id), opt.kind, opt.id);
   try {
     const a = await RescueAction.create({ caseId: c._id, orderId: c.orderId, kind: opt.kind, optionId: opt.id, idempotencyKey: key, maxAttempts: policy.maxAttempts, authorizedBy: by, cost: { extraCost: opt.impact.extraCost, refund: opt.impact.refund }, costUsd: toUsd(fx)(opt.impact.exposure, c.currency), nextAttemptAt: ctx.now() });
@@ -462,7 +463,7 @@ async function placeReplacement(ctx: Ctx, a: ActionDoc, c: CaseDoc, opt: StoredO
   const ships = await Shipment.find({ orderId: order._id, lineKey: c.lineKey });
   const existing = ships.find((s) => s.idempotencyKey === idemKey);
   // 1. live re-quote BEFORE anything irreversible
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   if (!existing || existing.status === 'PENDING_CREATE') {
     const live = await fetchLiveOffer(provider, target.externalId, order.country as CountryCode, item.quantity, target.sku);
     if (!live.available || live.stock < item.quantity) throw new RescueError('Alternative supplier no longer has stock', 'QUOTE_UNAVAILABLE', false);
@@ -568,7 +569,7 @@ async function finishRefund(ctx: Ctx, a: ActionDoc, c: CaseDoc, opt: StoredOptio
 /* ------------------------------------------------------------------ queries */
 export async function rescueKpis(ctx: Ctx, days: number) {
   const since = new Date(ctx.now().getTime() - days * DAY);
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const cases = await RescueCase.find({ detectedAt: { $gte: since } }).select('kind state resolution resolvedAt detectedAt actualCost currency severity').lean();
   const byKind: Record<string, number> = {};
   let resolved = 0, auto = 0, ttrMs = 0, costUsd = 0;
