@@ -28,15 +28,21 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:coverage
       - run: npm run build
+      - name: Boot check (API builds with every route and job registered; no database needed)
+        run: npm run boot-check
       - name: Dependency audit (high severity)
         run: npm audit --audit-level=high
+      - name: Dependency audit (production dependencies only, high severity)
+        run: npm audit --omit=dev --audit-level=high
       - uses: hashicorp/setup-terraform@v3
       - name: Secret scan of the browser bundle + terraform validate
         run: node scripts/production-check.mjs --scan-only
   e2e:
     runs-on: ubuntu-latest
     needs: verify
-    timeout-minutes: 30
+    # npm run e2e = ephemeral MongoDB + seed + scripts/e2e-seed.ts fixtures + built API/worker/web, then every tests/e2e/*.spec.ts
+    # (journey, responsive, discovery-compare, customer-lifecycle, admin-orders, supplier-portal) on the desktop and mobile projects.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

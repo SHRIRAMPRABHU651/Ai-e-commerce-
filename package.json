@@ -34,6 +34,8 @@
     "production-check": "node scripts/production-check.mjs",
     "boot-check": "tsx scripts/boot-check.ts",
     "perf": "node scripts/perf.mjs",
+    "load": "node scripts/load-scenarios.mjs",
+    "load:jobs": "tsx scripts/load-jobs.ts",
     "sbom": "cyclonedx-npm --output-format JSON --output-file sbom.cdx.json --omit dev"
   },
   "devDependencies": {

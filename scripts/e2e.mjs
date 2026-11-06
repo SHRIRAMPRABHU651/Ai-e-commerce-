@@ -27,6 +27,7 @@ const wait = async (url) => { for (let i = 0; i < 120; i++) { try { if ((await f
 let code = 1;
 try {
   if ((await runAsync('npx', ['tsx', 'scripts/seed.ts'], env)) !== 0) throw new Error('seed failed');
+  if ((await runAsync('npx', ['tsx', 'scripts/e2e-seed.ts'], env)) !== 0) throw new Error('e2e fixtures failed');
   start('node', ['apps/api/dist/main.js']);
   start('node', ['apps/worker/dist/main.js']);
   await wait(`http://localhost:${API_PORT}/ready`);
