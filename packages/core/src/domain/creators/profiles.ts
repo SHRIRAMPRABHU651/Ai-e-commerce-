@@ -131,7 +131,9 @@ const collectionView = (c: { _id: unknown; slug: string; title: string; descript
 
 export async function listMyCollections(creatorId: string) {
   const rows = await CreatorCollection.find({ creatorId }).sort({ updatedAt: -1 }).limit(100).lean();
-  return rows.map(collectionView);
+  const prods = await Product.find({ _id: { $in: rows.flatMap((r) => r.items.map((i) => i.productId)) } }).select('title').lean();
+  const title = new Map(prods.map((p) => [String(p._id), p.title]));
+  return rows.map((r) => { const v = collectionView(r); return { ...v, items: v.items.map((i) => ({ ...i, title: title.get(i.productId) ?? 'Unavailable product' })) }; });
 }
 
 export async function createCollection(ctx: Ctx, creator: { _id: unknown }, input: CollectionInput) {
