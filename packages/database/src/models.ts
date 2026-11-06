@@ -373,6 +373,13 @@ const orderSchema = new Schema({
   },
   profit: { contribution: signedMoney, margin: { type: Number, default: 0 } },
   attribution: { campaignId: { type: oid, ref: 'Campaign' }, utmSource: String },
+  /** creator affiliate attribution copied from the cart at checkout (see domain/creators) */
+  creatorAttribution: {
+    type: new Schema(
+      { creatorId: { type: oid, ref: 'CreatorProfile' }, handle: String, linkCode: String, capturedAt: Date, expiresAt: Date, ipHash: String, deviceHash: String },
+      { _id: false },
+    ),
+  },
   exceptionOpen: { type: Boolean, default: false, index: true },
   cancelledAt: Date,
   deliveredAt: Date,
@@ -383,6 +390,7 @@ orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ 'payment.intentId': 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ 'items.productId': 1 }); // frequently-bought-together / product page lookups
+orderSchema.index({ 'creatorAttribution.creatorId': 1, createdAt: -1 }, { sparse: true });
 export const Order = defineModel('Order', orderSchema, 'orders');
 
 const orderItemSchema = new Schema({
@@ -498,6 +506,12 @@ const cartSchema = new Schema({
   ],
   couponCode: String,
   marketingConsent: { type: Boolean, default: false },
+  creatorAttribution: {
+    type: new Schema(
+      { creatorId: { type: oid, ref: 'CreatorProfile' }, handle: String, linkCode: String, capturedAt: Date, expiresAt: Date, ipHash: String, deviceHash: String },
+      { _id: false },
+    ),
+  },
   convertedOrderId: { type: oid, ref: 'Order' },
   abandonment: {
     stage: { type: Number, default: 0 },
