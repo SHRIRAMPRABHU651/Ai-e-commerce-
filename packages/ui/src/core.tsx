@@ -18,14 +18,14 @@ export function Link(props: LinkProps) {
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent' | 'soft';
 type Size = 'sm' | 'md' | 'lg';
 const variants: Record<Variant, string> = {
-  primary: 'bg-pine-600 text-white hover:bg-pine-700 active:bg-pine-900 disabled:bg-pine-600/50',
+  primary: 'bg-pine-600 text-on-fill hover:bg-pine-700 active:bg-pine-900 disabled:bg-pine-600/50',
   accent: 'bg-ink text-paper hover:bg-ink-2 disabled:opacity-50',
   secondary: 'bg-surface text-ink border border-line-strong hover:bg-sunken disabled:opacity-50',
   soft: 'bg-pine-50 text-pine-700 hover:bg-pine-100 disabled:opacity-50',
   ghost: 'text-ink-2 hover:bg-sunken disabled:opacity-50',
-  danger: 'bg-coral-500 text-white hover:bg-coral-700 disabled:opacity-50',
+  danger: 'bg-coral-500 text-on-fill hover:bg-coral-700 disabled:opacity-50',
 };
-const sizes: Record<Size, string> = { sm: 'h-9 px-3 text-sm gap-1.5', md: 'h-11 px-5 text-[15px] gap-2', lg: 'h-12 px-6 text-base gap-2' };
+const sizes: Record<Size, string> = { sm: 'h-9 px-3 text-sm gap-1.5 pointer-coarse:h-11', md: 'h-11 px-5 text-[15px] gap-2', lg: 'h-12 px-6 text-base gap-2' };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -49,7 +49,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAt
   return (
     <button ref={ref} aria-label={label} title={label} className={cn('relative inline-flex size-11 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-sunken hover:text-ink', className)} {...rest}>
       {children}
-      {badge !== undefined && badge !== 0 && <span className="absolute right-1 top-1 grid min-w-4.5 place-items-center rounded-full bg-pine-600 px-1 text-[10px] font-bold leading-4.5 text-white">{badge}</span>}
+      {badge !== undefined && badge !== 0 && <span className="absolute right-1 top-1 grid min-w-4.5 place-items-center rounded-full bg-pine-600 px-1 text-[10px] font-bold leading-4.5 text-on-fill">{badge}</span>}
     </button>
   );
 });
@@ -191,7 +191,7 @@ export function Pagination({ page, pageSize, total, onChange }: { page: number; 
           {list.map((p, i) => (
             <React.Fragment key={p}>
               {i > 0 && list[i - 1]! < p - 1 && <span className="px-1 text-ink-3">…</span>}
-              <button aria-current={p === page ? 'page' : undefined} onClick={() => onChange(p)} className={cn('size-9 rounded-md text-sm font-semibold', p === page ? 'bg-pine-600 text-white' : 'text-ink-2 hover:bg-sunken')}>{p}</button>
+              <button aria-current={p === page ? 'page' : undefined} onClick={() => onChange(p)} className={cn('size-9 rounded-md text-sm font-semibold pointer-coarse:size-11', p === page ? 'bg-pine-600 text-on-fill' : 'text-ink-2 hover:bg-sunken')}>{p}</button>
             </React.Fragment>
           ))}
         </div>
@@ -229,9 +229,10 @@ function useFocusTrap(ref: React.RefObject<HTMLElement | null>, on: boolean) {
     const h = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
       const f = focusables();
-      if (!f.length) return;
+      if (!f.length) { e.preventDefault(); return; }
       const first = f[0]!, last = f[f.length - 1]!;
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      if (!el.contains(document.activeElement) || document.activeElement === el) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     el.addEventListener('keydown', h);
@@ -249,7 +250,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }: {
       <div ref={ref} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className={cn('relative flex max-h-[92dvh] w-full animate-[orvia-slide-up_.2s] flex-col rounded-t-xl bg-surface shadow-pop outline-none sm:rounded-xl', size === 'sm' ? 'sm:max-w-md' : size === 'lg' ? 'sm:max-w-3xl' : 'sm:max-w-xl')}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="grid size-9 place-items-center rounded-full text-ink-3 hover:bg-sunken">✕</button>
+          <button onClick={onClose} aria-label="Close" className="grid size-11 place-items-center rounded-full text-ink-3 hover:bg-sunken hover:text-ink">✕</button>
         </div>
         <div className="overflow-y-auto px-5 py-5">{children}</div>
         {footer && <div className="flex flex-col-reverse gap-2 border-t border-line px-5 py-4 sm:flex-row sm:justify-end">{footer}</div>}
@@ -269,7 +270,7 @@ export function Drawer({ open, onClose, title, children, side = 'right', footer,
       <div ref={ref} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className={cn('absolute flex flex-col bg-surface shadow-pop outline-none', pos)}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="grid size-9 place-items-center rounded-full text-ink-3 hover:bg-sunken">✕</button>
+          <button onClick={onClose} aria-label="Close" className="grid size-11 place-items-center rounded-full text-ink-3 hover:bg-sunken hover:text-ink">✕</button>
         </div>
         <div className="flex-1 overflow-y-auto">{children}</div>
         {footer && <div className="border-t border-line p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>}
@@ -327,7 +328,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div aria-live="polite" role="status" className="pointer-events-none fixed inset-x-0 bottom-20 z-[90] flex flex-col items-center gap-2 px-4 sm:bottom-6 sm:items-end sm:px-6 lg:bottom-6">
         {items.map((t) => (
-          <div key={t.id} className={cn('pointer-events-auto flex max-w-sm animate-[orvia-slide-up_.2s] items-start gap-2.5 rounded-lg px-4 py-3 text-sm font-medium shadow-pop', t.tone === 'error' ? 'bg-coral-500 text-white' : t.tone === 'ok' ? 'bg-pine-700 text-white' : 'bg-ink text-paper')}>
+          <div key={t.id} role={t.tone === 'error' ? 'alert' : undefined} className={cn('pointer-events-auto flex max-w-sm animate-[orvia-slide-up_.2s] items-start gap-2.5 rounded-lg px-4 py-3 text-sm font-medium shadow-pop', t.tone === 'error' ? 'bg-coral-500 text-on-fill' : t.tone === 'ok' ? 'bg-pine-700 text-on-fill' : 'bg-ink text-paper')}>
             <span aria-hidden>{t.tone === 'error' ? '⚠' : t.tone === 'ok' ? '✓' : 'ℹ'}</span>
             <span>{t.text}</span>
           </div>

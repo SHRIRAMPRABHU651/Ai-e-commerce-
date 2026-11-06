@@ -2,7 +2,7 @@
 import { Heart, Home, LayoutGrid, MessageCircle, Search, Sparkles, ShoppingBag, User as UserIcon, X, Send, ShieldCheck, Truck, RotateCcw, Headphones } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
-import { Button, CountrySelector, Drawer, IconButton, Input, Link, SearchBar, cn, PriceDisplay, QuantityStepper, ProductArt } from '@orvia/ui';
+import { Button, CountrySelector, Drawer, IconButton, Input, Link, SearchBar, ThemeToggle, cn, PriceDisplay, QuantityStepper, ProductArt } from '@orvia/ui';
 import { api } from '@/lib/api';
 import { money } from '@/lib/api';
 import { Logo } from './logo';
@@ -16,7 +16,7 @@ export function AnnouncementBar() {
   return (
     <div className="bg-pine-900 text-[13px] text-pine-100">
       <div className="mx-auto flex max-w-7xl items-center justify-center gap-x-6 gap-y-1 px-4 py-2 text-center">
-        {std?.freeOver ? <span>Free standard shipping over <b className="text-white">{money(std.freeOver, c!.currency)}</b></span> : <span>Tracked delivery on every order</span>}
+        {std?.freeOver ? <span>Free standard shipping over <b className="text-pine-50">{money(std.freeOver, c!.currency)}</b></span> : <span>Tracked delivery on every order</span>}
         <span className="hidden sm:inline">· {c?.returnWindowDays ?? 30}-day returns</span>
         <span className="hidden md:inline">· Shipping to {c?.name}</span>
       </div>
@@ -41,6 +41,7 @@ function useSuggest(q: string) {
 export function Header() {
   const { meta, country, setCountry, cart, setCartOpen, user } = useStore();
   const router = useRouter();
+  const path = usePathname();
   const [q, setQ] = React.useState('');
   const [mobileSearch, setMobileSearch] = React.useState(false);
   const suggestions = useSuggest(q);
@@ -52,9 +53,10 @@ export function Header() {
         <Link href="/" aria-label="Orvia home" className="shrink-0"><Logo /></Link>
         <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBar value={q} onChange={setQ} onSubmit={go} suggestions={suggestions} onPick={pick} /></div>
         <div className="ml-auto flex items-center gap-0.5 md:ml-0">
-          <Link href="/find" aria-label="ORVIA Find: describe what you want in your own words" className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-pine-700 px-3.5 text-sm font-semibold text-white hover:bg-pine-800 sm:px-4"><Sparkles className="size-4" aria-hidden /><span>Find</span></Link>
+          <Link href="/find" aria-label="ORVIA Find: describe what you want in your own words" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-pine-700 px-3.5 text-sm font-semibold text-on-fill hover:bg-pine-800 sm:px-4"><Sparkles className="size-4" aria-hidden /><span>Find</span></Link>
           <IconButton label="Search" className="md:hidden" onClick={() => setMobileSearch(true)}><Search className="size-5" /></IconButton>
           <CountrySelector value={country} countries={meta.countries} onChange={(c) => void setCountry(c)} />
+          <ThemeToggle />
           <Link href={user ? '/account/wishlist' : '/login'} aria-label="Wishlist" className="hidden size-11 items-center justify-center rounded-full text-ink-2 hover:bg-sunken sm:inline-flex"><Heart className="size-5" /></Link>
           <Link href={user ? '/account' : '/login'} aria-label={user ? 'Account' : 'Sign in'} className="hidden h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-ink-2 hover:bg-sunken sm:inline-flex"><UserIcon className="size-5" /><span className="hidden lg:inline">{user ? user.name.split(' ')[0] : 'Sign in'}</span></Link>
           <IconButton label={`Cart, ${cart?.itemCount ?? 0} items`} badge={cart?.itemCount} onClick={() => setCartOpen(true)}><ShoppingBag className="size-5" /></IconButton>
@@ -65,7 +67,7 @@ export function Header() {
           <li><Link href="/find" className="inline-flex h-11 items-center gap-1.5 px-3.5 text-sm font-semibold text-pine-700 hover:text-pine-800"><Sparkles className="size-4" aria-hidden />Find with AI</Link></li>
           {meta.categories.map((c) => (
             <li key={c.slug} className="group relative">
-              <Link href={`/c/${c.slug}`} className={cn('inline-flex h-11 items-center px-3.5 text-sm font-semibold text-ink-2 hover:text-pine-700', c.dynamic && 'text-saffron-700')}>{c.name}{c.dynamic && <span className="ml-1.5 size-1.5 rounded-full bg-saffron-500" aria-hidden />}</Link>
+              <Link href={`/c/${c.slug}`} aria-current={path === `/c/${c.slug}` || path.startsWith(`/c/${c.slug}/`) ? 'page' : undefined} className={cn('inline-flex h-11 items-center px-3.5 text-sm font-semibold text-ink-2 hover:text-pine-700 aria-[current=page]:text-pine-700 aria-[current=page]:underline aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8', c.dynamic && 'text-saffron-700')}>{c.name}{c.dynamic && <span className="ml-1.5 size-1.5 rounded-full bg-saffron-500" aria-hidden />}</Link>
               {c.children.length > 0 && (
                 <div className="invisible absolute left-0 top-full z-50 w-72 translate-y-1 rounded-lg border border-line bg-surface p-2 opacity-0 shadow-pop transition group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
                   {c.children.map((ch) => <Link key={ch.slug} href={`/c/${ch.slug}`} className="block rounded-md px-3 py-2 text-sm text-ink-2 hover:bg-sunken hover:text-ink">{ch.name}</Link>)}
@@ -77,12 +79,12 @@ export function Header() {
         </ul>
       </nav>
       {mobileSearch && (
-        <div className="fixed inset-0 z-[70] bg-paper md:hidden" role="dialog" aria-label="Search">
+        <div className="fixed inset-0 z-[70] bg-paper md:hidden" role="dialog" aria-modal="true" aria-label="Search" onKeyDown={(e) => e.key === 'Escape' && setMobileSearch(false)}>
           <div className="flex items-center gap-2 border-b border-line p-3">
             <div className="flex-1"><SearchBar value={q} onChange={setQ} onSubmit={go} suggestions={suggestions} onPick={pick} autoFocus /></div>
             <button onClick={() => setMobileSearch(false)} aria-label="Close search" className="grid size-11 place-items-center rounded-full hover:bg-sunken"><X className="size-5" /></button>
           </div>
-          <div className="p-4"><Link href="/find" onClick={() => setMobileSearch(false)} className="mb-4 flex items-center gap-2 rounded-lg bg-pine-50 p-3 text-sm font-semibold text-pine-800"><Sparkles className="size-4" aria-hidden />Describe what you want with Find</Link><p className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-3">Popular</p><div className="flex flex-wrap gap-2">{['dog toys', 'stem kit', 'cable organizer', 'tote bag', 'night light'].map((t) => <button key={t} onClick={() => go(t)} className="rounded-full border border-line-strong px-4 py-2 text-sm">{t}</button>)}</div></div>
+          <div className="p-4"><Link href="/find" onClick={() => setMobileSearch(false)} className="mb-4 flex items-center gap-2 rounded-lg bg-pine-50 p-3 text-sm font-semibold text-pine-800"><Sparkles className="size-4" aria-hidden />Describe what you want with Find</Link><p className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-3">Popular</p><div className="flex flex-wrap gap-2">{['dog toys', 'stem kit', 'cable organizer', 'tote bag', 'night light'].map((t) => <button key={t} onClick={() => go(t)} className="min-h-11 rounded-full border border-line-strong px-4 py-2 text-sm">{t}</button>)}</div></div>
         </div>
       )}
     </header>
@@ -107,7 +109,7 @@ export function MobileTabBar() {
         <ul className="grid grid-cols-5">
           {items.map((it) => {
             const active = it.href ? (it.href === '/' ? path === '/' : path.startsWith(it.href)) : false;
-            const inner = (<><span className="relative"><it.icon className="size-[22px]" strokeWidth={active ? 2.4 : 1.9} />{it.badge ? <span className="absolute -right-2 -top-1.5 grid min-w-4 place-items-center rounded-full bg-pine-600 px-1 text-[10px] font-bold leading-4 text-white">{it.badge}</span> : null}</span><span className="text-[11px] font-semibold">{it.label}</span></>);
+            const inner = (<><span className="relative"><it.icon className="size-[22px]" strokeWidth={active ? 2.4 : 1.9} />{it.badge ? <span className="absolute -right-2 -top-1.5 grid min-w-4 place-items-center rounded-full bg-pine-600 px-1 text-[10px] font-bold leading-4 text-on-fill">{it.badge}</span> : null}</span><span className="text-[11px] font-semibold">{it.label}</span></>);
             const cls = cn('flex h-14 w-full flex-col items-center justify-center gap-0.5', active ? 'text-pine-700' : 'text-ink-3');
             return <li key={it.label}>{it.href ? <Link href={it.href} className={cls} aria-current={active ? 'page' : undefined}>{inner}</Link> : <button onClick={it.onClick} className={cls}>{inner}</button>}</li>;
           })}
@@ -153,7 +155,7 @@ export function CartDrawer() {
                 {l.variantLabel && <p className="text-xs text-ink-3">{l.variantLabel}</p>}
                 {l.issue && <p className="mt-0.5 text-xs font-semibold text-coral-500">{l.issue}</p>}
                 <div className="mt-2 flex items-center justify-between"><QuantityStepper value={l.quantity} max={Math.max(1, l.maxQty)} onChange={(n) => void setQty(l.productId, l.sku, n)} /><span className="text-sm font-bold tabular-nums">{money(l.lineTotal, cart!.currency)}</span></div>
-                <button onClick={() => void setQty(l.productId, l.sku, 0)} className="mt-1.5 text-xs font-semibold text-ink-3 hover:text-coral-500">Remove</button>
+                <button onClick={() => void setQty(l.productId, l.sku, 0)} className="-mb-2 mt-0.5 inline-flex min-h-11 items-center text-xs font-semibold text-ink-3 hover:text-coral-500">Remove</button>
               </div>
             </li>
           ))}
@@ -193,13 +195,13 @@ export function ChatWidget() {
   };
   return (
     <>
-      <button onClick={() => setOpen(true)} aria-label="Open support chat" className="fixed bottom-[4.75rem] right-4 z-40 grid size-12 place-items-center rounded-full bg-pine-700 text-white shadow-pop transition hover:scale-105 md:bottom-6 md:right-6"><MessageCircle className="size-5" /></button>
+      <button onClick={() => setOpen(true)} aria-label="Open support chat" className="fixed bottom-[4.75rem] right-4 z-40 grid size-12 place-items-center rounded-full bg-pine-700 text-on-fill shadow-pop transition hover:scale-105 md:bottom-6 md:right-6"><MessageCircle className="size-5" /></button>
       <Drawer open={open} onClose={() => setOpen(false)} title="Orvia support" width="sm:max-w-md"
         footer={<form onSubmit={(e) => { e.preventDefault(); void send(text); }} className="flex gap-2"><Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type your question…" aria-label="Message" /><Button type="submit" aria-label="Send" loading={busy}><Send className="size-4" /></Button></form>}>
         <div className="flex min-h-full flex-col gap-3 p-4">
           {!user && <div className="rounded-lg bg-sunken p-3 text-xs text-ink-2">To look up an order, enter the email used at checkout:<Input className="mt-2 h-9 text-sm" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" aria-label="Email for order lookup" /></div>}
           {msgs.map((m, i) => (
-            <div key={i} className={cn('max-w-[88%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm leading-relaxed', m.from === 'you' ? 'ml-auto rounded-br-sm bg-pine-600 text-white' : 'rounded-bl-sm bg-sunken text-ink')}>
+            <div key={i} className={cn('max-w-[88%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm leading-relaxed', m.from === 'you' ? 'ml-auto rounded-br-sm bg-pine-600 text-on-fill' : 'rounded-bl-sm bg-sunken text-ink')}>
               {m.text}
               {m.actions?.length ? <div className="mt-2 flex flex-wrap gap-2">{m.actions.map((a) => a.href ? <Link key={a.label} href={a.href} onClick={() => setOpen(false)} className="rounded-full bg-surface px-3 py-1.5 text-xs font-bold text-pine-700">{a.label}</Link> : <button key={a.label} onClick={() => void send('Yes, cancel my order', true)} className="rounded-full bg-surface px-3 py-1.5 text-xs font-bold text-coral-500">{a.label}</button>)}</div> : null}
             </div>
@@ -220,7 +222,7 @@ export function TrustStrip() {
     { icon: Truck, t: 'Tracked delivery', d: 'Live tracking from the moment it ships' },
     { icon: RotateCcw, t: `${c?.returnWindowDays ?? 30}-day returns`, d: 'Simple, no-fuss returns' },
     { icon: ShieldCheck, t: 'Secure checkout', d: 'Payments verified server-side' },
-    { icon: Headphones, t: 'Real help', d: 'AI assistant plus a human team' },
+    { icon: Headphones, t: 'Help online', d: 'Track an order or start a return from your account' },
   ];
   return (
     <section aria-label="Why shop with Orvia" className="border-y border-line bg-surface">
@@ -239,7 +241,7 @@ export function Footer() {
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div><Logo /><p className="mt-4 max-w-xs text-sm text-ink-3">Considered goods for pets, kids, style and everyday life — shipped from the warehouse closest to you, with tracking on every order.</p><div className="mt-5"><CountrySelector value={country} countries={meta.countries} onChange={(x) => void setCountry(x)} /></div></div>
         <div><p className="mb-3 text-sm font-bold">Shop</p><ul className="space-y-2 text-sm text-ink-3">{meta.categories.map((x) => <li key={x.slug}><Link href={`/c/${x.slug}`} className="hover:text-ink">{x.name}</Link></li>)}</ul></div>
-        <div><p className="mb-3 text-sm font-bold">Help</p><ul className="space-y-2 text-sm text-ink-3"><li><Link href="/help" className="hover:text-ink">Help center</Link></li><li><Link href="/find" className="hover:text-ink">Find with AI</Link></li><li><Link href="/account/price-guard" className="hover:text-ink">Price Guard</Link></li><li><Link href="/track" className="hover:text-ink">Track an order</Link></li><li><Link href="/legal/returns" className="hover:text-ink">Returns &amp; refunds</Link></li><li><Link href="/legal/shipping" className="hover:text-ink">Shipping &amp; delivery</Link></li></ul></div>
+        <div><p className="mb-3 text-sm font-bold">Help</p><ul className="space-y-2 text-sm text-ink-3"><li><Link href="/help" className="hover:text-ink">Help center</Link></li><li><Link href="/find" className="hover:text-ink">Find with AI</Link></li><li><Link href="/account/price-guard" className="hover:text-ink">Price Guard</Link></li><li><Link href="/compare" className="hover:text-ink">Compare products</Link></li><li><Link href="/track" className="hover:text-ink">Track an order</Link></li><li><Link href="/legal/returns" className="hover:text-ink">Returns &amp; refunds</Link></li><li><Link href="/legal/shipping" className="hover:text-ink">Shipping &amp; delivery</Link></li></ul></div>
         <div><p className="mb-3 text-sm font-bold">Company</p><ul className="space-y-2 text-sm text-ink-3"><li><Link href="/legal/privacy" className="hover:text-ink">Privacy</Link></li><li><Link href="/legal/terms" className="hover:text-ink">Terms</Link></li><li><Link href="/account" className="hover:text-ink">Your account</Link></li></ul></div>
       </div>
       <div className="border-t border-line"><div className="mx-auto max-w-7xl space-y-2 px-4 py-6 text-xs text-ink-3"><p>{c?.legalNotice}</p><p>© {new Date().getFullYear()} Orvia. Prices shown in {c?.currency}. Delivery estimates depend on the fulfilling warehouse and are confirmed at checkout.</p></div></div>

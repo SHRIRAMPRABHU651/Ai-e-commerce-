@@ -14,6 +14,7 @@
   --pine-500: #2f6d5d;
   --pine-600: #24574a;
   --pine-700: #1c4439;
+  --pine-800: #173a31;
   --pine-900: #10261f;
   --saffron-50: #fdf3e1;
   --saffron-500: #c97a12;
@@ -24,7 +25,7 @@
   --ok-50: #e7f4ec;
   --ok-500: #1f7a4d;
   --warn-50: #fff4d6;
-  --warn-500: #9a6700;
+  --warn-500: #855900;
   --info-50: #e8f0fc;
   --info-500: #2a62b8;
   /* data-viz categorical slots (validated reference palette, light) */
@@ -33,6 +34,12 @@
   --series-3: #1baf7a;
   --series-4: #eda100;
   --grid: #ece7dc;
+  --on-fill: #ffffff; /* text on solid pine/coral fills */
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 400ms;
   --shadow-card: 0 1px 2px rgb(26 25 22 / 0.04), 0 4px 16px -6px rgb(26 25 22 / 0.08);
   --shadow-pop: 0 12px 40px -8px rgb(26 25 22 / 0.22), 0 2px 6px rgb(26 25 22 / 0.08);
   color-scheme: light;
@@ -41,11 +48,11 @@
   :root:not([data-theme='light']) {
     --paper: #12110f; --surface: #1b1a17; --sunken: #232119; --line: #2e2c26; --line-strong: #444037;
     --ink: #f4f1ea; --ink-2: #c9c4b6; --ink-3: #a09a8b;
-    --pine-50: #15241f; --pine-100: #1b3028; --pine-200: #28463a; --pine-500: #5fae96; --pine-600: #7cc3ab; --pine-700: #9ad4bf; --pine-900: #d8efe6;
+    --pine-50: #15241f; --pine-100: #1b3028; --pine-200: #28463a; --pine-500: #5fae96; --pine-600: #7cc3ab; --pine-700: #9ad4bf; --pine-800: #b5e0cf; --pine-900: #d8efe6;
     --saffron-50: #2a2012; --saffron-500: #e5a043; --saffron-700: #f0bd75;
     --coral-50: #2e1714; --coral-500: #ef7b6e; --coral-700: #f5a89f;
     --ok-50: #14261c; --ok-500: #55c28a; --warn-50: #2b2209; --warn-500: #e0b040; --info-50: #131f33; --info-500: #7aa8ec;
-    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --grid: #2a2823;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --grid: #2a2823; --on-fill: #0c1a15;
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4); --shadow-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
@@ -53,11 +60,11 @@
 :root[data-theme='dark'] {
   --paper: #12110f; --surface: #1b1a17; --sunken: #232119; --line: #2e2c26; --line-strong: #444037;
   --ink: #f4f1ea; --ink-2: #c9c4b6; --ink-3: #a09a8b;
-  --pine-50: #15241f; --pine-100: #1b3028; --pine-200: #28463a; --pine-500: #5fae96; --pine-600: #7cc3ab; --pine-700: #9ad4bf; --pine-900: #d8efe6;
+  --pine-50: #15241f; --pine-100: #1b3028; --pine-200: #28463a; --pine-500: #5fae96; --pine-600: #7cc3ab; --pine-700: #9ad4bf; --pine-800: #b5e0cf; --pine-900: #d8efe6;
   --saffron-50: #2a2012; --saffron-500: #e5a043; --saffron-700: #f0bd75;
   --coral-50: #2e1714; --coral-500: #ef7b6e; --coral-700: #f5a89f;
   --ok-50: #14261c; --ok-500: #55c28a; --warn-50: #2b2209; --warn-500: #e0b040; --info-50: #131f33; --info-500: #7aa8ec;
-  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --grid: #2a2823;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --grid: #2a2823; --on-fill: #0c1a15;
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4); --shadow-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6);
   color-scheme: dark;
 }
@@ -79,6 +86,7 @@
   --color-pine-500: var(--pine-500);
   --color-pine-600: var(--pine-600);
   --color-pine-700: var(--pine-700);
+  --color-pine-800: var(--pine-800);
   --color-pine-900: var(--pine-900);
   --color-saffron-50: var(--saffron-50);
   --color-saffron-500: var(--saffron-500);
@@ -92,6 +100,7 @@
   --color-warn-500: var(--warn-500);
   --color-info-50: var(--info-50);
   --color-info-500: var(--info-500);
+  --color-on-fill: var(--on-fill);
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -115,3 +124,5 @@
 @keyframes orvia-slide-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes orvia-slide-left { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes orvia-shimmer { 100% { transform: translateX(100%); } }
+
+@media (forced-colors: active) { :focus-visible { outline: 2px solid Highlight; } }

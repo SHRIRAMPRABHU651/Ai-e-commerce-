@@ -149,7 +149,7 @@ export default function CheckoutPage() {
 
 const Section = ({ n, title, children }: { n: number; title: string; children: React.ReactNode }) => (
   <section className="rounded-xl border border-line bg-surface p-5 shadow-card sm:p-6" aria-labelledby={`s${n}`}>
-    <h2 id={`s${n}`} className="mb-4 flex items-center gap-3 text-lg font-bold"><span className="grid size-7 place-items-center rounded-full bg-pine-600 text-sm text-white">{n}</span>{title}</h2>
+    <h2 id={`s${n}`} className="mb-4 flex items-center gap-3 text-lg font-bold"><span className="grid size-7 place-items-center rounded-full bg-pine-600 text-sm text-on-fill">{n}</span>{title}</h2>
     {children}
   </section>
 );

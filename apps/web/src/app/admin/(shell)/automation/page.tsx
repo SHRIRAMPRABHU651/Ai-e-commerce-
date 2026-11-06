@@ -31,7 +31,7 @@ export default function AutomationPage() {
         </>
       )}
       {tab === 'queue' && (
-        <Panel title="AI decisions" action={<div className="flex gap-1">{['proposed', 'executed', 'auto_executed', 'rejected', 'failed'].map((s) => <button key={s} onClick={() => setDstatus(s)} aria-pressed={dstatus === s} className={`rounded-full px-3 py-1 text-xs font-bold ${dstatus === s ? 'bg-pine-600 text-white' : 'bg-sunken text-ink-3'}`}>{s.replace('_', ' ')}</button>)}</div>}>
+        <Panel title="AI decisions" action={<div className="flex gap-1">{['proposed', 'executed', 'auto_executed', 'rejected', 'failed'].map((s) => <button key={s} onClick={() => setDstatus(s)} aria-pressed={dstatus === s} className={`rounded-full px-3 py-1 text-xs font-bold ${dstatus === s ? 'bg-pine-600 text-on-fill' : 'bg-sunken text-ink-3'}`}>{s.replace('_', ' ')}</button>)}</div>}>
           {dec.data?.items.length === 0 && <p className="py-8 text-center text-sm text-ink-3">Nothing {dstatus.replace('_', ' ')}.</p>}
           <ul className="divide-y divide-line">{dec.data?.items.map((x) => (
             <li key={x._id} className="flex flex-col gap-3 py-4 first:pt-0 sm:flex-row sm:items-center sm:justify-between">

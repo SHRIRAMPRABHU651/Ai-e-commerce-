@@ -32,7 +32,7 @@ export default function CopilotPage() {
             {msgs.map((m, i) => (
               <div key={i} className={cn('flex gap-3', m.from === 'you' && 'flex-row-reverse')}>
                 <span className={cn('grid size-8 shrink-0 place-items-center rounded-full', m.from === 'you' ? 'bg-ink text-paper' : 'bg-pine-50 text-pine-700')}>{m.from === 'you' ? <UserIcon className="size-4" /> : <Bot className="size-4" />}</span>
-                <div className={cn('min-w-0 max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed', m.from === 'you' ? 'bg-pine-600 text-white' : 'bg-sunken')}>
+                <div className={cn('min-w-0 max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed', m.from === 'you' ? 'bg-pine-600 text-on-fill' : 'bg-sunken')}>
                   <p className="whitespace-pre-line">{m.text}</p>
                   {m.ans?.tables?.map((t) => (
                     <div key={t.title} className="mt-3 overflow-x-auto rounded-lg bg-surface"><p className="px-3 pt-2 text-xs font-bold text-ink-3">{t.title}</p><table className="w-full min-w-72 text-xs"><thead><tr>{t.columns.map((c) => <th key={c} className="px-3 py-1.5 text-left text-ink-3">{c}</th>)}</tr></thead><tbody>{t.rows.map((r, k) => <tr key={k} className="border-t border-line">{r.map((c, j) => <td key={j} className="px-3 py-1.5 tabular-nums">{c}</td>)}</tr>)}</tbody></table></div>

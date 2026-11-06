@@ -1,9 +1,9 @@
 'use client';
-import { TrendingUp, ShieldCheck, Activity, AlertTriangle, BarChart3, Bell, Bot, Boxes, Cpu, CreditCard, FileClock, Globe, Headset, LayoutDashboard, LogOut, Megaphone, Menu, Moon, MousePointerClick, Package, RotateCcw, Settings, ShoppingBag, Star, Sun, Tag, Truck, Users, Warehouse, Layers, Store, Handshake, Landmark, LifeBuoy, Network, Radio, UserRound } from 'lucide-react';
+import { TrendingUp, ShieldCheck, Activity, AlertTriangle, BarChart3, Bell, Bot, Boxes, Cpu, CreditCard, FileClock, Globe, Headset, LayoutDashboard, LogOut, Megaphone, Menu, MousePointerClick, Package, RotateCcw, Settings, ShoppingBag, Star, Tag, Truck, Users, Warehouse, Layers, Store, Handshake, Landmark, LifeBuoy, Network, Radio, UserRound } from 'lucide-react';
 import NextLink from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
-import { Drawer, IconButton, Skeleton, cn } from '@orvia/ui';
+import { Drawer, IconButton, Skeleton, ThemeToggle, cn } from '@orvia/ui';
 import { api } from '@/lib/api';
 import { Logo } from '../logo';
 import { AdminLinks, AdminProvider, useFetch } from './kit';
@@ -64,7 +64,7 @@ function Nav({ perms, onNavigate, badges }: { perms: string[]; onNavigate?: () =
             <ul className="space-y-0.5">{items.map((i) => {
               const active = i.href === '/admin' ? path === '/admin' : path.startsWith(i.href);
               const b = badges[i.href];
-              return <li key={i.href}><NextLink href={i.href} onClick={onNavigate} aria-current={active ? 'page' : undefined} className={cn('flex h-10 items-center gap-3 rounded-md px-3 text-sm font-semibold', active ? 'bg-pine-50 text-pine-700' : 'text-ink-2 hover:bg-sunken')}><i.icon className="size-[18px] shrink-0" />{i.label}{b ? <span className="ml-auto rounded-full bg-coral-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">{b}</span> : null}</NextLink></li>;
+              return <li key={i.href}><NextLink href={i.href} onClick={onNavigate} aria-current={active ? 'page' : undefined} className={cn('flex h-10 items-center gap-3 rounded-md px-3 text-sm font-semibold', active ? 'bg-pine-50 text-pine-700' : 'text-ink-2 hover:bg-sunken')}><i.icon className="size-[18px] shrink-0" />{i.label}{b ? <span className="ml-auto rounded-full bg-coral-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-on-fill">{b}</span> : null}</NextLink></li>;
             })}</ul>
           </div>
         );
@@ -78,14 +78,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [me, setMe] = React.useState<{ user: Staff; permissions: string[] } | null | undefined>(undefined);
   const [open, setOpen] = React.useState(false);
-  const [dark, setDark] = React.useState(false);
   React.useEffect(() => {
     api<{ user: Staff | null; permissions: string[] }>('/auth/me').then((r) => (r.user && r.user.role !== 'CUSTOMER' && r.user.role !== 'SUPPLIER' ? setMe({ user: r.user, permissions: r.permissions }) : (setMe(null), router.replace('/admin/login')))).catch(() => { setMe(null); router.replace('/admin/login'); });
-    try { const t = localStorage.getItem('orvia_theme'); if (t) { document.documentElement.dataset.theme = t; setDark(t === 'dark'); } } catch { /* ignore */ }
   }, [router]);
   const live = useFetch<{ live: { openExceptions: number } } | null>(me ? '/admin/exceptions?pageSize=1' : null, 60_000);
   const exCount = (live.data as unknown as { total?: number } | null)?.total ?? 0;
-  const toggle = () => { const n = dark ? 'light' : 'dark'; setDark(!dark); document.documentElement.dataset.theme = n; try { localStorage.setItem('orvia_theme', n); } catch { /* ignore */ } };
   if (me === undefined) return <div className="p-8"><Skeleton className="h-96" /></div>;
   if (me === null) return null;
   const ctx = { user: me.user, permissions: me.permissions, can: (p: string) => me.permissions.includes(p) };
@@ -105,7 +102,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <p className="text-[15px] font-bold lg:hidden">{title}</p>
               <div className="ml-auto flex items-center gap-1">
                 <span className="hidden items-center gap-1.5 rounded-full bg-sunken px-3 py-1.5 text-xs font-semibold text-ink-2 sm:flex"><Activity className="size-3.5 text-ok-500" />{process.env.NODE_ENV === 'production' ? 'Live' : 'Development'}</span>
-                <IconButton label={dark ? 'Light theme' : 'Dark theme'} onClick={toggle}>{dark ? <Sun className="size-5" /> : <Moon className="size-5" />}</IconButton>
+                <ThemeToggle />
                 <NextLink href="/admin/exceptions" aria-label="Exceptions" className="relative inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-sunken"><Bell className="size-5" />{exCount > 0 && <span className="absolute right-1.5 top-1.5 size-2.5 rounded-full bg-coral-500" />}</NextLink>
                 <div className="ml-1 hidden text-right sm:block"><p className="text-sm font-bold leading-tight">{me.user.name}</p><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">{me.user.role.replace('_', ' ')}</p></div>
                 <IconButton label="Sign out" onClick={async () => { await api('/auth/logout', { body: {} }); router.replace('/admin/login'); }}><LogOut className="size-5" /></IconButton>

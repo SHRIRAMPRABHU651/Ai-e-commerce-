@@ -1,7 +1,7 @@
 'use client';
 import { GitCompare } from 'lucide-react';
 import * as React from 'react';
-import { Badge, Button, Card, EmptyState, Link, ProductArt, Skeleton } from '@orvia/ui';
+import { Badge, Button, Card, EmptyState, Link, ProductArt, ProductCompare, Skeleton } from '@orvia/ui';
 import type { CompareResponse } from '@orvia/types';
 import { api } from '@/lib/api';
 import { useStore } from './providers';
@@ -43,30 +43,16 @@ export function ComparePage({ idsParam }: { idsParam?: string }) {
               </ul>
             )}
             {data.keyDifferences.length > 0 && <section className="mb-5 rounded-xl border border-line bg-surface p-4"><h2 className="text-sm font-bold">Key differences</h2><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-2">{data.keyDifferences.map((d) => <li key={d}>{d}</li>)}</ul></section>}
-            <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-              <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
-                <caption className="sr-only">Product comparison</caption>
-                <thead>
-                  <tr><th scope="col" className="w-40 p-3" />
-                    {data.products.map((p) => (
-                      <th key={p.id} scope="col" className="min-w-40 p-3 align-top">
-                        <div className="w-24"><ProductArt src={p.image ?? undefined} alt={p.title} /></div>
-                        <Link href={`/p/${p.slug}`} className="mt-2 block font-semibold hover:underline">{p.title}</Link>
-                        <div className="mt-2 flex flex-wrap gap-2"><TrackPriceButton productId={p.id} price={p.price} currency={data.currency} /></div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.rows.map((r) => (
-                    <tr key={r.key} className={r.differs ? 'bg-pine-50/50' : undefined}>
-                      <th scope="row" className="p-3 align-top font-semibold text-ink-2">{r.label}{r.differs && <span className="sr-only"> (differs)</span>}</th>
-                      {r.values.map((v, i) => <td key={i} className="p-3 align-top">{v ?? <span className="text-ink-3">Not listed</span>}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ProductCompare
+              columns={data.products.map((p) => ({ id: p.id, header: (
+                <>
+                  <div className="w-24"><ProductArt src={p.image ?? undefined} alt={p.title} /></div>
+                  <Link href={`/p/${p.slug}`} className="mt-2 block font-semibold hover:underline">{p.title}</Link>
+                  <div className="mt-2 flex flex-wrap gap-2"><TrackPriceButton productId={p.id} price={p.price} currency={data.currency} /></div>
+                </>
+              ) }))}
+              rows={data.rows}
+            />
             <p className="mt-3 text-xs text-ink-3">{data.note} All prices are in {data.currency}.</p>
             {user && <div className="mt-3"><Button variant="secondary" size="sm" onClick={() => void api<{ saved: boolean }>('/account/compare/remember', { body: { ids } }).then((r) => setRemembered(r.saved ? 'Saved to your memory.' : 'Not saved: your memory is switched off or full.')).catch((e: Error) => setRemembered(e.message))}>Save this comparison to my memory</Button>{remembered && <span role="status" className="ml-3 text-sm text-ink-3">{remembered}</span>}</div>}
           </>
