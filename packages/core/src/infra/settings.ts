@@ -38,6 +38,7 @@ export interface PricingSettings {
 export interface AutomationSettings {
   modes: Record<AutomationKey, AutomationMode>;
   /** Max value of a single automatically-approved refund (minor units, USD-equivalent). */
+  /** USD **minor units** (cents): 5000 = $50. Despite the name this is not whole dollars. */
   autoRefundLimitUsd: number;
 }
 

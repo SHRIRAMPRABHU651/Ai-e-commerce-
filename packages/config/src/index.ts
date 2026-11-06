@@ -242,7 +242,7 @@ export function integrationStatus(cfg: AppConfig): Record<string, { configured: 
     },
     email: { configured: !!cfg.EMAIL_PROVIDER_KEY, mode: cfg.NOTIFY_MODE },
     sms: { configured: !!cfg.TWILIO_ACCOUNT_SID && !!cfg.TWILIO_AUTH_TOKEN, mode: cfg.NOTIFY_MODE },
-    s3: { configured: !!cfg.S3_BUCKET && !!cfg.AWS_ACCESS_KEY_ID, mode: 'live' },
+    s3: { configured: !!(cfg.OBJECT_STORAGE_BUCKET ?? cfg.S3_BUCKET) && (cfg.OBJECT_STORAGE_PROVIDER === 's3'), mode: cfg.OBJECT_STORAGE_PROVIDER === 's3' ? 'live' : 'local' },
     redis: { configured: !!cfg.REDIS_URL, mode: cfg.REDIS_URL ? 'live' : 'memory-fallback' },
   };
 }

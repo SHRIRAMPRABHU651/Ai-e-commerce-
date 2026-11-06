@@ -13,7 +13,7 @@
 4. A `payment_verification` job (every 5 min) confirms stale unpaid orders directly with the provider, covering lost webhooks. Unpaid orders expire in housekeeping.
 5. Paid orders enter fulfilment per the `order_fulfillment` automation mode.
 
-Refunds: full/partial, idempotent, executed through the provider; refunds above the auto-approve limit (default $5,000 equivalent for admins; support/ops staff need approval for high-value refunds) become approval items. Returns follow a request → approve → refund flow within the country's return window.
+Refunds: full/partial, idempotent, executed through the provider; refunds above the auto-approve limit (default `autoRefundLimitUsd` = 5000 in **minor units, i.e. $50 equivalent**, compared after FX conversion to USD cents; ADMIN/SUPER_ADMIN bypass it, other staff need approval above it) become approval items. Returns follow a request → approve → refund flow within the country's return window.
 
 ## Going live
 1. Create Stripe/Razorpay accounts; set keys + webhook secrets as secrets; register `https://<domain>/api/v1/webhooks/payments/stripe|razorpay`.

@@ -13,7 +13,12 @@ RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 FROM deps AS build
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone
+# NEXT_PUBLIC_* values are inlined into the browser bundle at build time, so they must be supplied as build args.
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_META_PIXEL_ID
+ARG NEXT_PUBLIC_GA4_MEASUREMENT_ID
+ARG NEXT_PUBLIC_TIKTOK_PIXEL_ID
+ENV NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_META_PIXEL_ID=$NEXT_PUBLIC_META_PIXEL_ID NEXT_PUBLIC_GA4_MEASUREMENT_ID=$NEXT_PUBLIC_GA4_MEASUREMENT_ID NEXT_PUBLIC_TIKTOK_PIXEL_ID=$NEXT_PUBLIC_TIKTOK_PIXEL_ID
 RUN npm run build
 
 # Production dependencies only (the API/worker bundles keep third-party packages external)
