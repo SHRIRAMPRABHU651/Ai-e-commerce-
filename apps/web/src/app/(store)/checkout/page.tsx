@@ -1,4 +1,5 @@
 'use client';
+import { trackEvent } from '@/components/tracking';
 import { CreditCard, Lock, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import * as React from 'react';
@@ -27,7 +28,7 @@ export default function CheckoutPage() {
   const [placed, setPlaced] = React.useState<Placed | null>(null);
   const [payError, setPayError] = React.useState('');
   const key = React.useRef('');
-  React.useEffect(() => { key.current = sessionStorage.getItem('orvia_checkout_key') || uuid(); sessionStorage.setItem('orvia_checkout_key', key.current); track('checkout_start'); }, [track]);
+  React.useEffect(() => { key.current = sessionStorage.getItem('orvia_checkout_key') || uuid(); sessionStorage.setItem('orvia_checkout_key', key.current); track('checkout_start'); trackEvent({ name: 'begin_checkout' }); }, [track]);
   React.useEffect(() => { if (user && !f.email) setF((p) => ({ ...p, email: user.email, fullName: p.fullName || user.name })); }, [user, f.email]);
 
   // re-price when region / shipping method changes (tax + shipping)

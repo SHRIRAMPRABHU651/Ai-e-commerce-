@@ -1,6 +1,7 @@
 'use client';
 import * as React from 'react';
 import { ProductCard, ProductGrid, cn } from '@orvia/ui';
+import { trackEvent } from './tracking';
 import type { CardProduct } from '@orvia/ui';
 import { useStore } from './providers';
 import type { StoreProduct } from '@/lib/types';
@@ -70,6 +71,7 @@ export function TrackView({ productId }: { productId: string }) {
       localStorage.setItem('orvia_viewed', JSON.stringify([productId, ...cur].slice(0, 12)));
     } catch { /* ignore */ }
     track('product_view', { productId });
+    trackEvent({ name: 'view_item', productId });
   }, [productId, track]);
   return null;
 }

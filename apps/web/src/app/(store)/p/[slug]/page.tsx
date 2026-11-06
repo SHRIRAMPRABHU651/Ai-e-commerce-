@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Breadcrumb } from '@orvia/ui';
 import { Accordion, BuyBox, FrequentlyBought, Gallery, Reviews } from '@/components/pdp';
+import { ProductStructuredData } from '@/components/structured-data';
 import { ProductPassportPanel, PurchaseConfidencePanel } from '@/components/trust';
 import { ProductShelf, RecentlyViewed, TrackView } from '@/components/shelf';
 import { SITE_URL, resolveCountry, sget } from '@/lib/server';
@@ -27,19 +28,11 @@ export default async function ProductPageRoute({ params }: Props) {
   const d = await sget<ProductPage>(`/products/${slug}`, { country });
   if (!d) notFound();
   const p = d.product;
-  const ld = [
-    {
-      '@context': 'https://schema.org', '@type': 'Product', name: p.title, description: p.description, image: p.images.map((i) => new URL(i.url, SITE_URL).toString()), sku: p.id, brand: { '@type': 'Brand', name: p.brand },
-      ...(p.rating.count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: p.rating.avg, reviewCount: p.rating.count } } : {}),
-      offers: { '@type': 'Offer', url: `${SITE_URL}/p/${slug}`, priceCurrency: p.currency || undefined, price: p.price !== null ? (p.price / 100).toFixed(2) : undefined, availability: p.available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', itemCondition: 'https://schema.org/NewCondition' },
-    },
-    { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: d.breadcrumbs.map((b, i) => ({ '@type': 'ListItem', position: i + 1, name: b.label, item: `${SITE_URL}${b.href}` })) },
-  ];
   const specs = Object.entries(p.attributes).filter(([k]) => k !== 'Top category');
   return (
     <>
       <TrackView productId={p.id} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, '\\u003c') }} />
+      <ProductStructuredData product={{ id: p.id, slug, title: p.title, description: p.description, brand: p.brand, images: p.images, price: p.price, currency: p.currency, available: p.available, rating: p.rating }} breadcrumbs={d.breadcrumbs} />
       <div className="mx-auto max-w-7xl px-4 py-5 sm:py-8">
         <Breadcrumb items={d.breadcrumbs.map((b, i) => ({ label: b.label, href: i < d.breadcrumbs.length - 1 ? b.href : undefined }))} />
         <div className="mt-5 grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:gap-14">

@@ -1,4 +1,5 @@
 'use client';
+import { PurchasePixel } from './tracking';
 import { CheckCircle2, ExternalLink, Package } from 'lucide-react';
 import * as React from 'react';
 import { Button, Card, Field, Input, Link, OrderTimeline, ProductArt, StatusBadge, useToast, Skeleton, Modal, Select, Textarea } from '@orvia/ui';
@@ -52,6 +53,7 @@ export function OrderPage({ orderNumber, initialEmail, placed }: { orderNumber: 
   };
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:py-10">
+      {placed && order.status !== 'PENDING_PAYMENT' && <PurchasePixel orderId={order.id} value={(order.amounts.subtotal - order.amounts.discount) / 100} currency={order.currency} items={order.items.map((i) => ({ id: i.productId, quantity: i.quantity, price: i.unitPrice / 100 }))} />}
       {placed && order.status !== 'PENDING_PAYMENT' && (
         <div className="mb-6 flex items-start gap-3 rounded-xl bg-ok-50 p-5 text-ok-500" role="status"><CheckCircle2 className="mt-0.5 size-6 shrink-0" /><div><p className="text-lg font-bold">Thank you — your order is confirmed</p><p className="text-sm text-ink-2">We’ve emailed a confirmation to {order.email}. You’ll get tracking as soon as it ships.</p></div></div>
       )}

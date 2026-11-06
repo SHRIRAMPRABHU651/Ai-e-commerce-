@@ -1,4 +1,5 @@
 'use client';
+import { trackEvent } from './tracking';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as React from 'react';
@@ -69,6 +70,7 @@ function Inner({ meta, country, initialUser, children }: { meta: Meta; country: 
       const c = await api<CartView>(`/cart/items?country=${country}`, { body: { productId, variantSku, quantity } });
       setCart(c);
       track('add_to_cart', { productId });
+      trackEvent({ name: 'add_to_cart', productId });
       if (!opts?.silent) setCartOpen(true);
       return c;
     } catch (e) { toast.error((e as Error).message); return null; }
