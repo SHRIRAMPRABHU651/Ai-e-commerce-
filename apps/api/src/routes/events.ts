@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Cart, EventsCampaign, EventsExperiment, EventsSegment, EventsSession } from '@orvia/database';
 import {
   SEGMENT_PRESETS, assignExperiment, attributionReport, campaignClickRedirect, campaignResults, computeSegment, convertByEvent, convertExperiment, DomainError, exposeExperiment, experimentResults,
-  googleFeed, ingestBrowserEvent, integrationHealth, listOutbox, metaFeed, campaignProductPerformance, recordAttribution, recordClick, recordConsent, retryOutbox, startCampaign, testSendCampaign,
+  googleFeed, ingestBrowserEvent, integrationHealth, listOutbox, metaFeed, campaignProductPerformance, recordAttribution, recordClick, recordTrackingConsent, retryOutbox, startCampaign, testSendCampaign,
   unsubscribeEmail, verifyToken, audit, loadFeed,
 } from '@orvia/core';
 import type { Ctx } from '@orvia/core';
@@ -31,7 +31,7 @@ export function eventsRoutes(app: FastifyInstance, ctx: Ctx): void {
   });
   route(app, ctx, {
     method: 'POST', url: '/events/consent', summary: 'Record the visitor’s tracking consent choice for this session', tags: ['Storefront'], rateLimit: { max: 60, timeWindow: '1 minute' }, body: consentBodySchema,
-    handler: async ({ req, body, reply }) => { await recordConsent(ctx, body.sessionId, { analytics: body.analytics, marketing: body.marketing }, req.cookies[CART_COOKIE]); return reply.status(204).send(); },
+    handler: async ({ req, body, reply }) => { await recordTrackingConsent(ctx, body.sessionId, { analytics: body.analytics, marketing: body.marketing }, req.cookies[CART_COOKIE]); return reply.status(204).send(); },
   });
   route(app, ctx, {
     method: 'POST', url: '/events/attribution', summary: 'Store UTM / click-id attribution first-party (only for sessions that granted consent)', tags: ['Storefront'], rateLimit: { max: 60, timeWindow: '1 minute' }, body: attributionBodySchema,

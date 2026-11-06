@@ -1,14 +1,15 @@
 /** Segments, email campaigns, experiments, attribution/performance reports and feeds: the Mongo-backed side of the events workstream. */
-import { AdMetric, AnalyticsEvent, Cart, Job, Customer, EventsCampaign, EventsCampaignRecipient, EventsExperiment, EventsExperimentEvent, EventsSegment, EventsSession, EventsUnsubscribe, MeasuredCpa, Notification, Order, Product } from '@orvia/database';
+import { AdMetric, AnalyticsEvent, Cart, Job, Customer, EventsCampaign, EventsCampaignRecipient, EventsExperiment, EventsExperimentEvent, EventsSegment, EventsSession, EventsUnsubscribe, MeasuredCpa, Notification, Order, Product, User } from '@orvia/database';
 import { SELLABLE_STATES, convertMinor } from '@orvia/types';
 import type { CountryCode, Currency, SegmentRule } from '@orvia/types';
 import { audit } from '../../infra/audit';
 import { DomainError, notFound } from '../../infra/context';
 import type { Actor, Ctx } from '../../infra/context';
 import { notify } from '../notify';
+import { canContactUser } from '../customer360/service';
 import { PLATFORM_CHANNEL, classifyChannel, reportChannel } from './attributionRules';
 import type { Channel, ChannelRow } from './attributionRules';
-import { emailEligibility, maskEmail, planRecipients } from './campaignRules';
+import { emailEligibility, maskRecipientEmail, planRecipients } from './campaignRules';
 import { assessExperiment, assignVariant } from './experimentsMath';
 import { buildGoogleFeedXml, buildMetaFeedCsv, toFeedItem } from './feeds';
 import type { Exclusion, FeedItem } from './feeds';
@@ -61,10 +62,18 @@ export async function computeSegment(ctx: Ctx, rules: SegmentRule[]) {
   const now = ctx.now();
   const members = facts.filter((f) => evaluateSegment(rules, f, now));
   const consented = members.filter((m) => m.marketingConsent);
-  return { count: members.length, emailableCount: consented.length, sample: consented.slice(0, 5).map((m) => maskEmail(m.email)), truncated, members };
+  return { count: members.length, emailableCount: consented.length, sample: consented.slice(0, 5).map((m) => maskRecipientEmail(m.email)), truncated, members };
 }
 
 /* ------------------------------- campaigns ------------------------------- */
+/**
+ * Account holders must pass customer360's central decision (marketing consent + per-topic opt-in, fail closed).
+ * Guest customers have no account preferences, so their checkout opt-in (Customer.marketingConsent, already required) is the record.
+ */
+export async function accountAllowsPromotions(email: string): Promise<boolean> {
+  return (await User.exists({ email })) ? canContactUser({ email }, 'promotions', 'email') : true;
+}
+
 export async function unsubscribedSet(emails: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   for (const c of chunk(emails, 2000)) for (const u of await EventsUnsubscribe.find({ email: { $in: c } }).select('email').lean()) out.add(u.email);
@@ -94,6 +103,11 @@ export async function startCampaign(ctx: Ctx, id: string, actor: Actor) {
     const dayStart = new Date(Date.UTC(ctx.now().getUTCFullYear(), ctx.now().getUTCMonth(), ctx.now().getUTCDate()));
     const sentToday = await EventsCampaignRecipient.countDocuments({ createdAt: { $gte: dayStart }, status: { $ne: 'skipped' } });
     const plan = planRecipients(members.map((m) => ({ email: m.email, marketingConsent: m.marketingConsent })), { unsubscribed: unsub, recentlyEmailed: recent, maxRecipients: c.maxRecipients, dailyRemaining: Math.max(0, ctx.cfg.EVENTS_EMAIL_DAILY_LIMIT - sentToday) });
+    const allowed: string[] = [];
+    let blocked = 0;
+    for (const email of plan.recipients) { if (await accountAllowsPromotions(email)) allowed.push(email); else blocked++; }
+    plan.recipients = allowed;
+    plan.excluded.no_consent += blocked;
     c.plan = { eligible: plan.recipients.length, excludedNoConsent: plan.excluded.no_consent, excludedUnsubscribed: plan.excluded.unsubscribed, excludedFrequency: plan.excluded.frequency_cap, excludedCap: plan.excluded.campaign_cap + plan.excluded.daily_limit } as never;
     await c.save();
     if (plan.recipients.length) await EventsCampaignRecipient.insertMany(plan.recipients.map((email) => ({ campaignId: c._id, email, status: 'queued' })), { ordered: false }).catch((e: { code?: number }) => { if (e.code !== 11000 && !(e as { writeErrors?: unknown }).writeErrors) throw e; });
@@ -113,6 +127,7 @@ export async function sendCampaignEmail(ctx: Ctx, p: { campaignId: string; email
   if (!c || c.status === 'cancelled') return { sent: false, reason: 'cancelled' };
   const ok = emailEligibility({ email: p.email, marketingConsent: cust?.marketingConsent === true }, { unsubscribed: unsub ? new Set([p.email]) : new Set() });
   if (!ok.ok) { await EventsCampaignRecipient.updateOne({ campaignId: p.campaignId, email: p.email }, { $set: { status: 'skipped', skipReason: ok.reason } }); return { sent: false, reason: ok.reason }; }
+  if (!(await accountAllowsPromotions(p.email))) { await EventsCampaignRecipient.updateOne({ campaignId: p.campaignId, email: p.email }, { $set: { status: 'skipped', skipReason: 'no_consent' } }); return { sent: false, reason: 'no_consent' }; }
   const id = await notify(ctx, { template: 'marketing_campaign', to: p.email, data: campaignData(ctx, c, p.email, cust?.name ?? undefined), dedupeKey: `camp:${p.campaignId}:${p.email}` });
   await EventsCampaignRecipient.updateOne({ campaignId: p.campaignId, email: p.email }, { $set: { ...(id ? { notificationId: id } : {}), status: 'sent' } });
   return { sent: true };

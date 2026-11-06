@@ -1,6 +1,6 @@
 /** Email campaign recipient selection (pure). The one hard rule: nobody without recorded marketing consent is ever emailed. */
 
-export interface Candidate {
+export interface EmailCandidate {
   email: string;
   marketingConsent: boolean;
 }
@@ -10,7 +10,7 @@ export type ExclusionReason = 'invalid_email' | 'no_consent' | 'unsubscribed' | 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Consent + suppression check applied BOTH when planning and again immediately before each message is queued. */
-export function emailEligibility(c: Candidate, o: { unsubscribed: ReadonlySet<string>; recentlyEmailed?: ReadonlySet<string> }): { ok: true } | { ok: false; reason: ExclusionReason } {
+export function emailEligibility(c: EmailCandidate, o: { unsubscribed: ReadonlySet<string>; recentlyEmailed?: ReadonlySet<string> }): { ok: true } | { ok: false; reason: ExclusionReason } {
   const email = c.email.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) return { ok: false, reason: 'invalid_email' };
   if (c.marketingConsent !== true) return { ok: false, reason: 'no_consent' };
@@ -25,7 +25,7 @@ export interface RecipientPlan {
 }
 
 /** Applies consent, unsubscribe list, per-recipient frequency cap, then the campaign cap and the global daily limit (in that order). */
-export function planRecipients(cands: Candidate[], o: { unsubscribed: ReadonlySet<string>; recentlyEmailed: ReadonlySet<string>; maxRecipients: number; dailyRemaining: number }): RecipientPlan {
+export function planRecipients(cands: EmailCandidate[], o: { unsubscribed: ReadonlySet<string>; recentlyEmailed: ReadonlySet<string>; maxRecipients: number; dailyRemaining: number }): RecipientPlan {
   const excluded: Record<ExclusionReason, number> = { invalid_email: 0, no_consent: 0, unsubscribed: 0, frequency_cap: 0, campaign_cap: 0, daily_limit: 0 };
   const seen = new Set<string>();
   const ok: string[] = [];
@@ -44,7 +44,7 @@ export function planRecipients(cands: Candidate[], o: { unsubscribed: ReadonlySe
   return { recipients: afterCampaignCap.slice(0, allowed), excluded };
 }
 
-export const maskEmail = (e: string): string => {
+export const maskRecipientEmail = (e: string): string => {
   const [l = '', d = ''] = e.split('@');
   return `${l.slice(0, 1)}${'*'.repeat(Math.max(1, Math.min(5, l.length - 1)))}@${d}`;
 };

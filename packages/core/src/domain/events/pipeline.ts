@@ -250,7 +250,7 @@ export async function ingestBrowserEvent(ctx: Ctx, b: { eventId: string; name: M
 }
 
 /* ------------------------------ sessions: consent + attribution ------------------------------ */
-export async function recordConsent(ctx: Ctx, sessionId: string, c: { analytics: boolean; marketing: boolean }, cartToken?: string) {
+export async function recordTrackingConsent(ctx: Ctx, sessionId: string, c: { analytics: boolean; marketing: boolean }, cartToken?: string) {
   await EventsSession.updateOne({ sessionId }, { $set: { consent: { ...c, at: ctx.now() }, lastSeenAt: ctx.now(), ...(cartToken ? { cartToken } : {}) }, ...(c.marketing ? {} : { $unset: { client: 1 } }) }, { upsert: true });
 }
 
