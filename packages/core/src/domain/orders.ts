@@ -186,7 +186,28 @@ export async function settlePayment(ctx: Ctx, order: InstanceType<typeof Order>,
     { $set: { 'payment.status': 'succeeded', 'payment.paidAt': ctx.now(), 'payment.fee': fee, 'costs.paymentFee': fee, status: 'PAID' }, $push: { timeline: { status: 'PAID', at: ctx.now(), note: 'payment confirmed by provider', actor: 'webhook' } } },
     { new: true },
   );
-  if (!marked) return 'duplicate';
+  if (!marked) {
+    // Money arrived for an order we had already cancelled (e.g. auto-expired unpaid order). Never swallow it silently:
+    // record the capture so the refund path works, and hand a human a refund task.
+    if (order.status === 'CANCELLED' && ['pending', 'failed'].includes(order.payment?.status ?? '')) {
+      const late = await Order.findOneAndUpdate(
+        { _id: order._id, status: 'CANCELLED', 'payment.status': { $in: ['pending', 'failed'] } },
+        { $set: { 'payment.status': 'succeeded', 'payment.paidAt': ctx.now() }, $push: { timeline: { status: 'CANCELLED', at: ctx.now(), note: 'payment captured after cancellation: refund required', actor: 'webhook' } } },
+        { new: true },
+      );
+      if (late) {
+        pay.status = 'succeeded';
+        await pay.save();
+        await raiseException(ctx, {
+          kind: 'PAYMENT_FAILURE', priority: 'high', orderId: String(order._id), customerEmail: order.email,
+          issue: `Payment of ${expected} ${order.currency} was captured after the order was cancelled`,
+          aiRecommendation: 'Refund the customer in full unless they want the order reinstated.', suggestedAction: 'Refund the customer', actionCode: 'refund_order', dedupeKey: `latepay:${order._id}`,
+        });
+        return 'processed';
+      }
+    }
+    return 'duplicate';
+  }
   pay.status = 'succeeded';
   await pay.save();
   await onPaid(ctx, marked);
