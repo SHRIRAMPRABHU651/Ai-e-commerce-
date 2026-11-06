@@ -395,7 +395,7 @@ export function adminOpsRoutes(app: FastifyInstance, ctx: Ctx): void {
   // ------------------------------------------------------------------ users
   route(app, ctx, { method: 'GET', url: '/admin/users', summary: 'Staff users + roles matrix', tags: ['Admin'], auth: A, permission: 'users:manage', handler: async () => ({ users: await User.find({ role: { $ne: 'CUSTOMER' } }).select('email name role disabled lastLoginAt emailVerified').limit(100).lean(), roles: ROLES.map((r) => ({ name: r, permissions: ROLE_PERMISSIONS[r] })), stored: await RoleModel.find({}).limit(20).lean() }) });
   route(app, ctx, {
-    method: 'POST', url: '/admin/users', summary: 'Create a staff user', tags: ['Admin'], auth: A, permission: 'users:manage', body: z.object({ email: emailSchema, name: z.string().min(1).max(80), password: passwordSchema, role: z.enum(ROLES).refine((r) => r !== 'CUSTOMER') }),
+    method: 'POST', url: '/admin/users', summary: 'Create a staff user', tags: ['Admin'], auth: A, permission: 'users:manage', body: z.object({ email: emailSchema, name: z.string().min(1).max(80), password: passwordSchema, role: z.enum(ROLES).refine((r) => r !== 'CUSTOMER' && r !== 'SUPPLIER', 'Supplier users are created through the supplier network onboarding') }),
     handler: async ({ req, body, reply }) => reply.status(201).send(await createStaffUser(ctx, body, req.actor)),
   });
   route(app, ctx, {

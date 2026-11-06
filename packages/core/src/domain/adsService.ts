@@ -130,7 +130,7 @@ export async function startProductTests(ctx: Ctx, platform: AdPlatform = 'meta',
     if (await Campaign.exists({ productId: p._id, country: m.country, status: { $in: ['draft', 'active', 'paused', 'pending_launch'] } })) continue;
     if ((p.opportunity?.finalScore ?? 0) < 70) continue;
     const plan = await createTestPlan(ctx, String(p._id), m.country as CountryCode, platform, aiActor('MarketingAgent'));
-    const out = await proposeOrExecute(ctx, { automationKey: 'ad_optimization', agent: 'MarketingAgent', kind: 'launch_campaign', resource: 'campaign', resourceId: plan.campaignId, summary: `Launch ${platform} test for "${p.title}" in ${m.country} (${plan.creatives} creatives)`, payload: { campaignId: plan.campaignId }, confidence: 0.7, dedupeKey: `launch:${plan.campaignId}` });
+    const out = await proposeOrExecute(ctx, { automationKey: 'ad_optimization', agent: 'MarketingAgent', kind: 'launch_campaign', resource: 'campaign', resourceId: plan.campaignId, summary: `Launch ${platform} test for "${p.title}" in ${m.country} (${plan.creatives} creatives)`, payload: { campaignId: plan.campaignId }, confidence: 0.7, requireHuman: true, dedupeKey: `launch:${plan.campaignId}` });
     if (out.status === 'executed' || out.status === 'proposed') started++;
   }
   return { started };
