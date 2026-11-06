@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, BellRing, GitCompare, Search, Sparkles } from 'lucide-react';
 import { Button, Link, SectionHeader, Rating, ProductArt, PriceDisplay, Badge } from '@orvia/ui';
 import { RecentlyViewed, ProductShelf, TrackPage } from '@/components/shelf';
 import { TrustStrip } from '@/components/chrome';
@@ -29,10 +29,14 @@ export default async function Home() {
             <Badge tone="saffron" className="mb-5"><Sparkles className="size-3.5" /> {flash ? `${Math.round(flash.percent * 100)}% off today — applied automatically` : 'New this week'}</Badge>
             <h1 className="font-display text-[40px] font-semibold leading-[1.05] tracking-tight text-pine-900 sm:text-6xl">Everyday things,<br />made a little better.</h1>
             <p className="mt-5 max-w-lg text-base text-ink-2 sm:text-lg">Hand-picked goods for pets, kids, style and your desk — shipped from the warehouse closest to you, with tracking on every order and {meta.countries.find((c) => c.code === country)?.returnWindowDays}-day returns.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" href="/c/trending">Shop trending <ArrowRight className="size-4" /></Button>
-              <Button size="lg" variant="secondary" href="/search?sort=newest">New arrivals</Button>
-            </div>
+            <form action="/find" method="get" role="search" aria-label="ORVIA Find" className="mt-8 max-w-xl">
+              <label htmlFor="home-find" className="mb-2 block text-sm font-semibold text-ink-2">Tell us what you need, in your own words</label>
+              <div className="flex flex-col gap-2 rounded-xl border border-line-strong bg-surface p-2 shadow-card focus-within:border-pine-500 sm:flex-row">
+                <div className="flex min-h-11 flex-1 items-center gap-2 px-2"><Search className="size-5 shrink-0 text-ink-3" aria-hidden /><input id="home-find" name="q" type="search" maxLength={300} autoComplete="off" placeholder="e.g. a quiet chew toy for a puppy under $15" className="h-11 w-full bg-transparent text-[15px] text-ink placeholder:text-ink-3 focus:outline-none" /></div>
+                <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-pine-600 px-5 text-[15px] font-semibold text-on-fill hover:bg-pine-700"><Sparkles className="size-4" aria-hidden />Find it</button>
+              </div>
+              <p className="mt-3 flex flex-wrap items-center gap-x-4 text-sm text-ink-3">Or browse: <Link href="/c/trending" className="inline-flex min-h-11 items-center font-semibold text-pine-700 hover:underline">Trending</Link><Link href="/search?sort=newest" className="inline-flex min-h-11 items-center font-semibold text-pine-700 hover:underline">New arrivals</Link></p>
+            </form>
             {welcome && <p className="mt-6 text-sm text-ink-2">New here? Use code <span className="rounded-md bg-surface px-2 py-1 font-mono text-[13px] font-bold text-pine-700 ring-1 ring-line-strong">{welcome.code}</span> for {Math.round(welcome.percent * 100)}% off your first order.</p>}
           </div>
           <div className="relative mx-auto grid w-full max-w-lg grid-cols-6 grid-rows-6 gap-3 sm:gap-4" style={{ aspectRatio: '1 / 0.92' }}>
@@ -48,8 +52,7 @@ export default async function Home() {
 
       {/* Category discovery */}
       <section className="mx-auto max-w-7xl px-4 pt-12" aria-labelledby="cats">
-        <SectionHeader title="Shop by category" />
-        <h2 id="cats" className="sr-only">Categories</h2>
+        <SectionHeader id="cats" title="Shop by category" />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {home.categories.map((c) => (
             <Link key={c.slug} href={`/c/${c.slug}`} className={`group relative flex min-h-44 flex-col justify-end overflow-hidden rounded-xl p-4 transition-transform hover:-translate-y-0.5 sm:min-h-64 sm:p-5 ${c.image ? 'bg-ink text-white' : (TILE_STYLE[c.slug] ?? 'bg-sunken')}`}>
@@ -68,8 +71,7 @@ export default async function Home() {
 
       {!!needs?.needs.length && (
         <section className="mx-auto max-w-7xl px-4 pt-14" aria-labelledby="needs">
-          <SectionHeader title="Shop by need" subtitle="Start from what you want to get done" />
-          <h2 id="needs" className="sr-only">Shop by need</h2>
+          <SectionHeader id="needs" title="Shop by need" subtitle="Start from what you want to get done" />
           <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-4">
             {needs.needs.map((n) => (
               <li key={n.slug} className="w-44 shrink-0 sm:w-auto">
@@ -82,6 +84,19 @@ export default async function Home() {
           </ul>
         </section>
       )}
+
+      <section className="mx-auto max-w-7xl px-4 pt-14" aria-labelledby="smart">
+        <SectionHeader id="smart" title="Shop with confidence" subtitle="Tools that work for you, using only the information we actually hold" />
+        <ul className="grid gap-3 md:grid-cols-3 md:gap-4">
+          {[
+            { href: '/find', icon: Sparkles, t: 'ORVIA Find', d: 'Describe what you want and a budget; we match products and say what we could not confirm.' },
+            { href: '/account/price-guard', icon: BellRing, t: 'Price Guard', d: 'Track a price and get alerted when it drops. History is shown only from prices we recorded.' },
+            { href: '/compare', icon: GitCompare, t: 'Compare', d: 'Put 2 to 4 products side by side, with delivered price and the differences that matter.' },
+          ].map((x) => (
+            <li key={x.href}><Link href={x.href} className="group flex h-full gap-4 rounded-xl border border-line bg-surface p-5 transition-colors hover:border-pine-500"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-pine-50 text-pine-700"><x.icon className="size-5" aria-hidden /></span><span><span className="flex items-center gap-1 font-bold">{x.t}<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden /></span><span className="mt-1 block text-sm text-ink-3">{x.d}</span></span></Link></li>
+          ))}
+        </ul>
+      </section>
 
       <section className="mx-auto max-w-7xl px-4 pt-14"><SectionHeader title="Trending now" subtitle={`What shoppers in ${meta.countries.find((c) => c.code === country)?.name} are adding to cart`} href="/c/trending" /><ProductShelf products={home.trending} /></section>
 
@@ -105,7 +120,7 @@ export default async function Home() {
       {(flash || welcome) && (
         <section className="mx-auto max-w-7xl px-4 pt-14" aria-label="Offers">
           <div className="grid gap-3 sm:grid-cols-2">
-            {flash && <div className="rounded-xl bg-pine-900 p-6 text-pine-100"><p className="text-xs font-bold uppercase tracking-widest text-saffron-500">Limited time</p><p className="mt-2 font-display text-3xl font-semibold text-white">{flash.name}</p><p className="mt-1 text-sm">{Math.round(flash.percent * 100)}% off sitewide, applied at checkout — no code needed.</p></div>}
+            {flash && <div className="rounded-xl bg-pine-900 p-6 text-pine-100"><p className="text-xs font-bold uppercase tracking-widest">Limited time</p><p className="mt-2 font-display text-3xl font-semibold">{flash.name}</p><p className="mt-1 text-sm">{Math.round(flash.percent * 100)}% off sitewide, applied at checkout — no code needed.</p></div>}
             {welcome && <div className="rounded-xl bg-saffron-50 p-6 text-saffron-700"><p className="text-xs font-bold uppercase tracking-widest">First order</p><p className="mt-2 font-display text-3xl font-semibold text-ink">Take {Math.round(welcome.percent * 100)}% off</p><p className="mt-1 text-sm">Use code <b className="font-mono">{welcome.code}</b> at checkout.</p></div>}
           </div>
         </section>

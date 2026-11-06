@@ -2,7 +2,7 @@
 import NextLink from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
-import { Badge, Button, Card, EmptyState, Field, Input, Select, Skeleton, Textarea, ToastProvider, cn } from '@orvia/ui';
+import { ThemeToggle, Badge, Button, Card, EmptyState, Field, Input, Select, Skeleton, Textarea, ToastProvider, cn } from '@orvia/ui';
 import { ErrorBox, Loading, useAction, useFetch, when } from '@/components/admin/kit';
 import { api } from '@/lib/api';
 
@@ -22,8 +22,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
       <div className="min-h-dvh bg-paper">
-        <header className="border-b border-line bg-surface"><div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3"><b className="text-lg">Orvia Supplier Portal</b><span className="ml-auto text-sm text-ink-3">{name}</span><Button size="sm" variant="secondary" onClick={async () => { await api('/auth/logout', { body: {} }); router.replace('/supplier/login'); }}>Sign out</Button></div>
-          <nav aria-label="Portal" className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 pb-2">{NAV.map(([h, l]) => <NextLink key={h} href={h} aria-current={path === h ? 'page' : undefined} className={cn('whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold', path === h ? 'bg-pine-50 text-pine-700' : 'text-ink-2 hover:bg-sunken')}>{l}</NextLink>)}</nav></header>
+        <header className="border-b border-line bg-surface"><div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3"><b className="text-lg">Orvia Supplier Portal</b><span className="ml-auto text-sm text-ink-3">{name}</span><ThemeToggle /><Button size="sm" variant="secondary" onClick={async () => { await api('/auth/logout', { body: {} }); router.replace('/supplier/login'); }}>Sign out</Button></div>
+          <nav aria-label="Portal" className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 pb-2">{NAV.map(([h, l]) => <NextLink key={h} href={h} aria-current={path === h ? 'page' : undefined} className={cn('inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-3 text-sm font-semibold', path === h ? 'bg-pine-50 text-pine-700' : 'text-ink-2 hover:bg-sunken')}>{l}</NextLink>)}</nav></header>
         <main id="main" className="mx-auto max-w-6xl px-4 py-6">{children}</main>
       </div>
     </ToastProvider>

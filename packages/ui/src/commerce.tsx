@@ -102,10 +102,10 @@ export const ProductGridSkeleton = ({ n = 8 }: { n?: number }) => (
 );
 
 /* Section header used on the homepage. */
-export const SectionHeader = ({ title, subtitle, href, hrefLabel = 'See all' }: { title: string; subtitle?: string; href?: string; hrefLabel?: string }) => (
+export const SectionHeader = ({ title, subtitle, href, hrefLabel = 'See all', id }: { title: string; subtitle?: string; href?: string; hrefLabel?: string; id?: string }) => (
   <div className="mb-5 flex items-end justify-between gap-4">
     <div>
-      <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h2>
+      <h2 id={id} className="font-display text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h2>
       {subtitle && <p className="mt-1 text-sm text-ink-3">{subtitle}</p>}
     </div>
     {href && <Link href={href} className="shrink-0 text-sm font-semibold text-pine-700 hover:underline">{hrefLabel} →</Link>}
@@ -242,7 +242,7 @@ export function OrderTimeline({ status, timestamps }: { status: string; timestam
         const active = i === cur;
         return (
           <li key={s.key} className="relative flex gap-3.5">
-            <span className={cn('relative z-10 mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border-2', done ? 'border-pine-600 bg-pine-600 text-white' : 'border-line-strong bg-surface text-transparent')}>{done ? <Check className="size-3.5" strokeWidth={3} /> : <Circle className="size-2" />}</span>
+            <span className={cn('relative z-10 mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border-2', done ? 'border-pine-600 bg-pine-600 text-on-fill' : 'border-line-strong bg-surface text-transparent')}>{done ? <Check className="size-3.5" strokeWidth={3} /> : <Circle className="size-2" />}</span>
             <div className="min-w-0 pb-1">
               <p className={cn('text-sm font-bold', done ? 'text-ink' : 'text-ink-3')}>{s.label}{active && done && status !== 'DELIVERED' && <span className="ml-2 rounded-full bg-pine-50 px-2 py-0.5 text-xs text-pine-700">Current</span>}</p>
               <p className="text-sm text-ink-3">{timestamps?.[s.key] ? new Date(timestamps[s.key]!).toLocaleString() : s.desc}</p>
@@ -307,7 +307,7 @@ export function AutomationCard({ a, onMode, canEdit }: { a: { key: string; name:
       </div>
       <div role="radiogroup" aria-label={`${a.name} mode`} className="mt-4 grid grid-cols-3 gap-1 rounded-md bg-sunken p-1">
         {['OFF', 'ASSISTED', 'AUTOMATIC'].map((m) => (
-          <button key={m} role="radio" aria-checked={a.mode === m} disabled={!canEdit} onClick={() => a.mode !== m && onMode(m)} className={cn('h-9 rounded-md text-xs font-bold transition-colors disabled:cursor-not-allowed', a.mode === m ? (m === 'AUTOMATIC' ? 'bg-pine-600 text-white shadow-sm' : m === 'ASSISTED' ? 'bg-surface text-saffron-700 shadow-sm' : 'bg-surface text-ink shadow-sm') : 'text-ink-3 hover:text-ink')}>{m[0] + m.slice(1).toLowerCase()}</button>
+          <button key={m} role="radio" aria-checked={a.mode === m} disabled={!canEdit} onClick={() => a.mode !== m && onMode(m)} className={cn('h-9 rounded-md text-xs font-bold transition-colors disabled:cursor-not-allowed', a.mode === m ? (m === 'AUTOMATIC' ? 'bg-pine-600 text-on-fill shadow-sm' : m === 'ASSISTED' ? 'bg-surface text-saffron-700 shadow-sm' : 'bg-surface text-ink shadow-sm') : 'text-ink-3 hover:text-ink')}>{m[0] + m.slice(1).toLowerCase()}</button>
         ))}
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">

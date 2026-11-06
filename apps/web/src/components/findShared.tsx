@@ -53,7 +53,7 @@ export function CompareTray() {
         <span className="text-sm font-semibold">{ids.length} selected <span className="font-normal text-ink-3">(2 to 4)</span></span>
         <span className="flex items-center gap-2">
           <button type="button" onClick={clear} className="text-sm text-ink-3 underline">Clear</button>
-          {ids.length >= 2 ? <Link href={`/compare?ids=${ids.join(',')}`} className="inline-flex h-9 items-center rounded-full bg-pine-700 px-4 text-sm font-semibold text-white">Compare</Link> : <span className="text-xs text-ink-3">Pick one more</span>}
+          {ids.length >= 2 ? <Link href={`/compare?ids=${ids.join(',')}`} className="inline-flex h-9 items-center rounded-full bg-pine-700 px-4 text-sm font-semibold text-on-fill">Compare</Link> : <span className="text-xs text-ink-3">Pick one more</span>}
         </span>
       </div>
     </div>

@@ -59,7 +59,7 @@ export default function ProductDetail() {
           <Panel title="Compliance"><StatusBadge status={p.compliance.status} />{p.compliance.flags.length > 0 && <p className="mt-2 text-sm text-ink-2">{p.compliance.flags.join(', ')}</p>}</Panel>
         </div>
         <div className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center gap-2">{d.comparisons.map((c) => <button key={c.country} onClick={() => setCountry(c.country)} aria-pressed={(cmp?.country ?? country) === c.country} className={`h-9 rounded-full px-4 text-sm font-bold ${(cmp?.country ?? country) === c.country ? 'bg-pine-600 text-white' : 'bg-sunken text-ink-2'}`}>{c.country}</button>)}</div>
+          <div className="flex flex-wrap items-center gap-2">{d.comparisons.map((c) => <button key={c.country} onClick={() => setCountry(c.country)} aria-pressed={(cmp?.country ?? country) === c.country} className={`h-9 rounded-full px-4 text-sm font-bold ${(cmp?.country ?? country) === c.country ? 'bg-pine-600 text-on-fill' : 'bg-sunken text-ink-2'}`}>{c.country}</button>)}</div>
           {market && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {[['Selling price', cur(market.price, market.currency)], ['Typical elsewhere', market.compareAtPrice ? cur(market.compareAtPrice, market.currency) : '—'], ['Landed cost', cur(market.landedCost, market.currency)], ['Expected margin', pctf(market.expectedMargin)]].map(([k, v]) => <Card key={k} className="p-4"><p className="text-xs font-semibold text-ink-3">{k}</p><p className="mt-1 text-xl font-bold tabular-nums">{v}</p></Card>)}
           </div>}
