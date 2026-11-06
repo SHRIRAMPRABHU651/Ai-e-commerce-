@@ -26,7 +26,7 @@ export class NoopSemanticIndex implements SemanticIndex {
   readonly name = 'none';
   readonly kind = 'none' as const;
   build(): void {}
-  query(): Map<string, number> {
+  query(_text?: string, _limit?: number): Map<string, number> {
     return new Map();
   }
 }

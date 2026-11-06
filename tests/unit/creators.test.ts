@@ -57,8 +57,8 @@ describe('commission math', () => {
     expect(computeCommission(base, R, { orders90d: 120 }).commission).toBe(Math.round(9000 * 0.06)); // Partner tier +1%
   });
   it('enforces minimum order, order cap and contribution share', () => {
-    expect(computeCommission({ ...base, subtotal: 1500, discount: 0, lines: [{ category: 'x', gross: 1500 }], total: 1500, tax: 0, shipping: 0 }, { ...R, minOrderNet: { USD: 2000 } }, { orders90d: 0 }).reasons).toContain('below_minimum_order');
-    const capped = computeCommission(base, { ...R, defaultRate: 0.5, maxPerOrder: { USD: 1000 } }, { orders90d: 0 });
+    expect(computeCommission({ ...base, subtotal: 1500, discount: 0, lines: [{ category: 'x', gross: 1500 }], total: 1500, tax: 0, shipping: 0 }, { ...R, minOrderNet: { USD: 2000, CAD: 2000, INR: 2000 } }, { orders90d: 0 }).reasons).toContain('below_minimum_order');
+    const capped = computeCommission(base, { ...R, defaultRate: 0.5, maxPerOrder: { USD: 1000, CAD: 1000, INR: 1000 } }, { orders90d: 0 });
     expect(capped.commission).toBe(1000);
     expect(capped.capped).toContain('max_per_order');
     const thin = computeCommission({ ...base, knownCosts: 9000 }, { ...R, defaultRate: 0.2 }, { orders90d: 0 });
@@ -67,7 +67,7 @@ describe('commission math', () => {
     expect(computeCommission(base, R, { orders90d: 0 }).commission).toBeGreaterThan(0);
   });
   it('never pays more than half the net base', () => {
-    const r = computeCommission({ ...base, knownCosts: null }, { ...R, defaultRate: 0.5, maxPerOrder: { USD: 0 } }, { orders90d: 0, rateOverride: 0.5 });
+    const r = computeCommission({ ...base, knownCosts: null }, { ...R, defaultRate: 0.5, maxPerOrder: { USD: 0, CAD: 0, INR: 0 } }, { orders90d: 0, rateOverride: 0.5 });
     expect(r.commission).toBeLessThanOrEqual(4500);
   });
 });

@@ -162,7 +162,7 @@ describe('trend engine on collected evidence', () => {
     const p = await Product.findById(prod._id).lean();
     expect((p!.intel as { source: string }).source).toBe('market-index');
     expect((p!.intel as { competitorPrices: Record<string, number[]> }).competitorPrices['US']!.length).toBe(3);
-    expect(p!.stats.trendScore).toBe(h!.trendScore);
+    expect(p!.stats?.trendScore).toBe(h!.trendScore);
     // …and import-time intelligence resolves from the index, never from the mock table
     const intel = await marketIntelFor(ctx, 'whatever-id', 'Slow Feeder Dog Bowl Blue 500ml');
     expect(intel).toMatchObject({ source: 'market-index', status: 'TRENDING' });
