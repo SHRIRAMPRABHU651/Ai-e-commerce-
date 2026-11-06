@@ -1,5 +1,7 @@
 # Deployment
 
+> Current deployment guide for the full ORVIA build (architecture, env groups, schedules, webhooks, backups, rollout checklist): [ORVIA_DEPLOYMENT.md](ORVIA_DEPLOYMENT.md).
+
 Three stateless containers (`api`, `worker`, `web`) from `infra/docker/Dockerfile` (`--target api|worker|web`), plus MongoDB (Atlas recommended) and optional Redis.
 
 > Terraform in `infra/terraform` was **written but not applied or `terraform validate`d in this repo's build environment** (no Terraform binary available). CI runs `terraform validate` + `fmt -check`; run `terraform plan` in a scratch account first.
