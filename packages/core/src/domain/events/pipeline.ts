@@ -11,6 +11,7 @@ import type { ConsentInputs } from './eventModel';
 import { OUTBOX_LOCK_MS, decideAfterFailure, isExpiredForProvider } from './outboxPolicy';
 import { buildEventProviders } from './providers';
 import type { MarketingEventProvider } from './providers';
+import { convertByEvent } from './marketingService';
 
 const providerCache = new WeakMap<Ctx, MarketingEventProvider[]>();
 export function eventProviders(ctx: Ctx): MarketingEventProvider[] {
@@ -166,6 +167,7 @@ export async function generatePurchaseEvents(ctx: Ctx, limit = 200): Promise<Gen
     add(g, await enqueueMarketingEvent(ctx, withClient(buildCanonicalEvent({ ...base, name: 'purchase', businessKey: String(o._id) })), consent, { source: `order:${o._id}`, sessionId: s?.sessionId }));
     const earlier = await Order.exists({ email: o.email, _id: { $ne: o._id }, 'payment.status': { $in: PAID }, 'payment.paidAt': { $lt: paidAt }, isDemo: { $ne: true } });
     if (earlier) add(g, await enqueueMarketingEvent(ctx, withClient(buildCanonicalEvent({ ...base, name: 'repeat_purchase', businessKey: String(o._id) })), consent, { source: `order:${o._id}`, sessionId: s?.sessionId }));
+    if (s?.sessionId) await convertByEvent(s.sessionId, 'purchase').catch(() => undefined); // experiment conversion (idempotent)
     await advance(key, paidAt, String(o._id));
   }
   return g;

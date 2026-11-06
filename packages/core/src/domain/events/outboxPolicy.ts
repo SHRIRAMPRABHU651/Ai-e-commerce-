@@ -7,7 +7,7 @@ const CAP_MS = 6 * 3_600_000;
 const HOUR = 3_600_000;
 
 /** Delay before attempt number `attempt + 1`, where `attempt` failures have happened (1-based): 30s, 1m, 2m, … capped at 6h, ±25% jitter. */
-export function retryDelayMs(failedAttempts: number, rand = 0.5): number {
+export function eventRetryDelayMs(failedAttempts: number, rand = 0.5): number {
   const raw = Math.min(CAP_MS, BASE_MS * 2 ** Math.max(0, failedAttempts - 1));
   return Math.round(raw * (0.75 + 0.5 * rand));
 }
@@ -17,7 +17,7 @@ export type FailureDecision = { status: 'pending'; nextAttemptAt: Date } | { sta
 /** After a failed delivery: retry with backoff while the error is retryable and attempts remain, otherwise dead-letter. */
 export function decideAfterFailure(o: { failedAttempts: number; retryable: boolean; now: Date; rand?: number; maxAttempts?: number }): FailureDecision {
   if (!o.retryable || o.failedAttempts >= (o.maxAttempts ?? OUTBOX_MAX_ATTEMPTS)) return { status: 'dead' };
-  return { status: 'pending', nextAttemptAt: new Date(o.now.getTime() + retryDelayMs(o.failedAttempts, o.rand)) };
+  return { status: 'pending', nextAttemptAt: new Date(o.now.getTime() + eventRetryDelayMs(o.failedAttempts, o.rand)) };
 }
 
 /** Platforms reject events older than this; sending them would only burn retries. */

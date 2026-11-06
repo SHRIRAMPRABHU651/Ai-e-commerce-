@@ -122,6 +122,7 @@ export type TemplateName =
   | 'abandoned_cart_3'
   | 'review_request'
   | 'referral_reward'
+  | 'marketing_campaign'
   | 'custom';
 
 export interface TemplateData {
@@ -140,6 +141,9 @@ export interface TemplateData {
   benefits?: string;
   subject?: string;
   message?: string;
+  ctaLabel?: string;
+  /** Marketing emails: signed one-click unsubscribe link, rendered as a footer. */
+  unsubscribeUrl?: string;
 }
 
 const hi = (d: TemplateData) => `Hi ${d.name?.split(' ')[0] || 'there'},`;
@@ -156,6 +160,16 @@ const shell = (title: string, lines: string[], cta?: { label: string; url: strin
 });
 
 export function renderTemplate(name: TemplateName, d: TemplateData): { subject: string; body: string; html: string } {
+  const r = renderTemplateBase(name, d);
+  if (!d.unsubscribeUrl) return r;
+  return {
+    subject: r.subject,
+    body: `${r.body}\n\n--\nYou are receiving this because you opted in to Orvia marketing emails. Unsubscribe: ${d.unsubscribeUrl}`,
+    html: r.html.replace(/<\/div>\s*$/, `<p style="font-size:12px;color:#6b6b63;line-height:1.5;margin-top:24px">You are receiving this because you opted in to Orvia marketing emails. <a href="${safeUrl(d.unsubscribeUrl)}">Unsubscribe</a></p></div>`),
+  };
+}
+
+function renderTemplateBase(name: TemplateName, d: TemplateData): { subject: string; body: string; html: string } {
   const mk = (subject: string, lines: string[], cta?: { label: string; url: string }) => ({
     subject,
     body: [...lines, cta ? `${cta.label}: ${cta.url}` : ''].filter(Boolean).join('\n\n'),
@@ -188,6 +202,8 @@ export function renderTemplate(name: TemplateName, d: TemplateData): { subject: 
       return mk(`Why customers pick ${d.productTitle ?? 'this'}`, [hi(d), d.benefits ?? 'Easy returns and tracked delivery on every order.'], { label: 'Return to cart', url: d.url ?? '' });
     case 'abandoned_cart_3':
       return mk(`Here’s ${d.discount ?? 'a little discount'} on your cart`, [hi(d), `Use code ${d.code} at checkout. It expires soon.`], { label: 'Use my discount', url: d.url ?? '' });
+    case 'marketing_campaign':
+      return mk(d.subject ?? 'News from Orvia', [hi(d), ...(d.message ?? '').split(/\n{2,}/).filter(Boolean)], d.url ? { label: d.ctaLabel ?? 'Take a look', url: d.url } : undefined);
     case 'custom':
       return mk(d.subject ?? 'A message from Orvia', [hi(d), d.message ?? ''], d.url ? { label: 'View order', url: d.url } : undefined);
     case 'referral_reward':
