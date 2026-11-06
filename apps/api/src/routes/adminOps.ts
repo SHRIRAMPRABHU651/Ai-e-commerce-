@@ -317,10 +317,16 @@ export function adminOpsRoutes(app: FastifyInstance, ctx: Ctx): void {
   route(app, ctx, {
     method: 'POST', url: '/admin/exceptions/:id/action', summary: 'Execute the suggested action or resolve/dismiss', tags: ['Admin'], auth: A, permission: 'exceptions:write',
     body: z.object({ action: z.enum(['retry_supplier_order', 'approve_fulfillment', 'cancel_order', 'refund_order', 'approve_refund', 'resolve', 'dismiss']), note: z.string().max(300).default('') }),
-    handler: async ({ req, body }) => {
+    handler: async ({ req, body, user }) => {
       const ex = await ExceptionModel.findById(idOf(req));
       if (!ex) throw notFound('Exception');
       const orderId = ex.orderId ? String(ex.orderId) : undefined;
+      // The exception queue must not be a side door around refund permissions.
+      const needPerm = body.action === 'refund_order' ? 'refunds:write' : body.action === 'approve_refund' ? 'refunds:approve' : null;
+      if (needPerm && !(ROLE_PERMISSIONS[user.role] as readonly string[]).includes(needPerm)) {
+        ctx.log.warn({ channel: 'security', user: user.id, permission: needPerm, url: req.url }, 'permission denied');
+        throw new DomainError('You do not have permission to do this', 'FORBIDDEN', 403);
+      }
       const need = () => { if (!orderId) throw new DomainError('This exception has no order', 'BAD_ACTION', 422); return orderId; };
       switch (body.action) {
         case 'retry_supplier_order': await retrySupplierOrder(ctx, need(), req.actor); break;

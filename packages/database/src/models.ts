@@ -382,6 +382,7 @@ orderSchema.index({ country: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ 'payment.intentId': 1 });
 orderSchema.index({ createdAt: -1 });
+orderSchema.index({ 'items.productId': 1 }); // frequently-bought-together / product page lookups
 export const Order = defineModel('Order', orderSchema, 'orders');
 
 const orderItemSchema = new Schema({
@@ -452,6 +453,7 @@ const shipmentSchema = new Schema({
 // One ACTIVE supplier order per order line. FAILED/CANCELLED rows are history, so failover and change-supplier can place a replacement.
 shipmentSchema.index({ orderId: 1, lineKey: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['PENDING_CREATE', 'CREATED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'RETURNED'] } } });
 shipmentSchema.index({ status: 1, lastTrackedAt: 1 });
+shipmentSchema.index({ orderId: 1 }); // the unique index above is partial and cannot serve plain orderId lookups
 export const Shipment = defineModel('Shipment', shipmentSchema, 'shipments');
 
 /* ----------------------------- customer-ish ----------------------------- */

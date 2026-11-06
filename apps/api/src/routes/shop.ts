@@ -29,8 +29,13 @@ async function orderView(ctx: Ctx, o: InstanceType<typeof Order>) {
   };
 }
 
+/**
+ * Ownership: the order's user id, OR the order email when the signed-in account has *verified* that email. An unverified
+ * registration must not claim another person's guest orders just by typing their address. A guest may also present
+ * order number + email (rate limited), which is the documented guest-lookup contract.
+ */
 const owns = (req: FastifyRequest, o: { userId?: unknown; email: string }, email?: string) =>
-  (req.user && (String(o.userId) === req.user.id || o.email === req.user.email)) || (!!email && o.email.toLowerCase() === email.toLowerCase());
+  (req.user && (String(o.userId) === req.user.id || (req.user.emailVerified && o.email === req.user.email))) || (!!email && o.email.toLowerCase() === email.toLowerCase());
 
 export function shopRoutes(app: FastifyInstance, ctx: Ctx): void {
   const issued = new WeakMap<FastifyRequest, string>();
@@ -122,7 +127,7 @@ export function shopRoutes(app: FastifyInstance, ctx: Ctx): void {
   route(app, ctx, {
     method: 'GET', url: '/account/orders', summary: 'My orders', tags: ['Account'], auth: 'user', query: paginationSchema,
     handler: async ({ user, query }) => {
-      const q = { $or: [{ userId: user.id }, { email: user.email }] };
+      const q = user.emailVerified ? { $or: [{ userId: user.id }, { email: user.email }] } : { userId: user.id };
       const [items, total] = await Promise.all([Order.find(q).sort({ createdAt: -1 }).skip((query.page - 1) * query.pageSize).limit(query.pageSize).select('orderNumber status amounts currency country items createdAt payment.status').lean(), Order.countDocuments(q)]);
       return { items: items.map((o) => ({ orderNumber: o.orderNumber, status: o.status, total: o.amounts?.total, currency: o.currency, country: o.country, createdAt: (o as unknown as { createdAt: Date }).createdAt, itemCount: o.items.length, firstItem: o.items[0] ? { title: o.items[0].title, image: o.items[0].image } : null, paymentStatus: o.payment?.status })), total, page: query.page, pageSize: query.pageSize };
     },
