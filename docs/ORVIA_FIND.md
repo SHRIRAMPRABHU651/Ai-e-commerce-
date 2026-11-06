@@ -75,7 +75,7 @@ Mongo-backed integration tests (`tests/integration/find.test.ts`) could not be e
 
 ## Integration points for other pages
 
-Components are exported for the lead to wire (this workstream does not edit `pdp.tsx` or `account.tsx`):
+Components were wired at merge time: `TrackPriceButton` and `CompareToggle` in `pdp.tsx`, `BetterOfferNotice` / `PriceHistoryPanel` / `CompareTray` on the product page route, and the account nav links Price Guard and Saved searches. The list below documents what each component is for:
 
 - `TrackPriceButton`, `PriceHistoryPanel`, `BetterOfferNotice` from `@/components/findPriceGuard`, `CompareToggle`, `CompareTray` from `@/components/findShared`.
 - Product page: render `<TrackPriceButton productId price currency />`, `<PriceHistoryPanel productId />`, `<BetterOfferNotice productId />`, `<CompareToggle productId />`; for an unavailable product call `GET /api/v1/find/alternatives/:id`.
