@@ -5,6 +5,8 @@ import * as React from 'react';
 import { Badge, Button, Card, Field, Input, Link, PriceDisplay, ProductArt, QuantityStepper, Rating, Textarea, cn, useToast } from '@orvia/ui';
 import { api } from '@/lib/api';
 import { money } from '@/lib/api';
+import { CompareToggle } from './findShared';
+import { TrackPriceButton } from './findPriceGuard';
 import { ShareButton } from './growth';
 import { useStore } from './providers';
 import type { ProductPage } from '@/lib/types';
@@ -84,6 +86,7 @@ export function BuyBox({ data }: { data: ProductPage }) {
         <ShareButton path={`/p/${p.slug}`} title={p.title} />
       </div>
       <Button size="lg" variant="accent" block className="mt-3 hidden sm:inline-flex" disabled={!p.available} loading={busy === 'buy'} onClick={() => void doAdd(true)}>Buy now</Button>
+      <div className="mt-3 flex flex-wrap items-center gap-2"><TrackPriceButton productId={p.id} price={p.price} currency={p.currency} /><CompareToggle productId={p.id} /></div>
 
       {/* mobile sticky bar sits above the tab bar */}
       <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-surface/95 p-3 backdrop-blur sm:hidden">

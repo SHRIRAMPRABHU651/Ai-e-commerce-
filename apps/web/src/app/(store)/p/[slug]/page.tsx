@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Breadcrumb } from '@orvia/ui';
 import { Accordion, BuyBox, FrequentlyBought, Gallery, Reviews } from '@/components/pdp';
+import { BetterOfferNotice, PriceHistoryPanel } from '@/components/findPriceGuard';
+import { CompareTray } from '@/components/findShared';
 import { ProductStructuredData } from '@/components/structured-data';
 import { ProductPassportPanel, PurchaseConfidencePanel } from '@/components/trust';
 import { ProductShelf, RecentlyViewed, TrackView } from '@/components/shelf';
@@ -39,7 +41,7 @@ export default async function ProductPageRoute({ params }: Props) {
           <Gallery images={p.images} title={p.title} />
           <BuyBox data={d} />
         </div>
-        <div className="mt-10"><PurchaseConfidencePanel slug={p.slug} country={country} /></div>
+        <div className="mt-10 space-y-4"><BetterOfferNotice productId={p.id} /><PurchaseConfidencePanel slug={p.slug} country={country} /><PriceHistoryPanel productId={p.id} /></div>
         <div className="mx-auto mt-14 grid max-w-7xl gap-10 lg:grid-cols-[1.4fr_1fr]">
           <Accordion items={[
             { id: 'desc', title: 'Description', body: <><p>{p.description}</p>{p.bullets.filter((b) => !p.description.includes(b)).length > 0 && <ul className="mt-4 list-disc space-y-1.5 pl-5">{p.bullets.filter((b) => !p.description.includes(b)).map((b) => <li key={b}>{b}</li>)}</ul>}</> },
@@ -54,6 +56,7 @@ export default async function ProductPageRoute({ params }: Props) {
         <div className="mt-16"><Reviews data={d} /></div>
         {d.similar.length > 0 && <section className="mt-16"><h2 className="mb-5 font-display text-2xl font-semibold tracking-tight">You may also like</h2><ProductShelf products={d.similar} /></section>}
       </div>
+      <CompareTray />
       <RecentlyViewed excludeId={p.id} />
       <div className="h-20 sm:hidden" />
     </>
