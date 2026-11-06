@@ -2,6 +2,7 @@
  * Delivery Rescue planning (IO): gathers live facts for a case, calls the pure option generator and the pure
  * authorization policy, and freezes the result on the case. Nothing here moves money or places orders.
  */
+import { liveFxTable } from '../finance/fxService';
 import { Order, Product, ProductVariant, RescueCase, Shipment, Supplier, SupplierProduct, SupplierOffer } from '@orvia/database';
 import { convertMinor, formatMoney } from '@orvia/types';
 import type { Currency, RescuePolicy } from '@orvia/types';
@@ -44,7 +45,7 @@ export async function computePlan(ctx: Ctx, caseDoc: InstanceType<typeof RescueC
   if (!order) throw new Error('order missing');
   const item = order.items.find((i) => i.lineKey === caseDoc.lineKey);
   if (!item) throw new Error('order line missing');
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const toU = toUsd(fx);
   const country = order.country as 'US' | 'CA' | 'IN';
   const ships = await Shipment.find({ orderId: order._id, lineKey: item.lineKey }).lean();

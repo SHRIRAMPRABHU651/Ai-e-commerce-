@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { liveFxTable } from './finance/fxService';
 import { AdMetric, AnalyticsEvent, Campaign, Customer, ExceptionModel, Inventory, Order, Payment, Product, Shipment, Supplier, SupplierOffer } from '@orvia/database';
 import { summarizeFinancials } from '@orvia/analytics';
 import type { FinancialSummary } from '@orvia/analytics';
@@ -97,7 +98,7 @@ export interface FinancialReport extends FinancialSummary {
 
 /** All figures in USD minor units. Profit tiers are computed ONLY on fulfilled orders (known costs). */
 export async function financials(ctx: Ctx, range: Range): Promise<FinancialReport> {
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const conv = usd(fx);
   const rows = await orderAgg(range, { currency: '$currency' });
   const sum = (k: keyof OrderAggRow) => rows.reduce((a, r) => a + conv(r[k] as number, r._id.currency), 0);
@@ -135,7 +136,7 @@ export async function financials(ctx: Ctx, range: Range): Promise<FinancialRepor
 }
 
 export async function timeseries(ctx: Ctx, range: Range) {
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const conv = usd(fx);
   const rows = await orderAgg(range, { currency: '$currency', day: { $dateToString: { format: '%Y-%m-%d', date: '$payment.paidAt' } } });
   const ad = await AdMetric.aggregate<{ _id: string; spend: number; revenue: number }>([
@@ -160,7 +161,7 @@ export async function timeseries(ctx: Ctx, range: Range) {
 }
 
 export async function countryAnalytics(ctx: Ctx, range: Range) {
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const conv = usd(fx);
   const rows = await orderAgg(range, { currency: '$currency', country: '$country' });
   const ads = await AdMetric.aggregate<{ _id: string; spend: number; revenue: number }>([
@@ -196,7 +197,7 @@ export async function countryAnalytics(ctx: Ctx, range: Range) {
 }
 
 export async function productPerformance(ctx: Ctx, range: Range, limit = 20) {
-  const fx = (await ctx.settings.get('ops')).fx;
+  const fx = await liveFxTable(ctx);
   const conv = usd(fx);
   const rows = await Order.aggregate<{ _id: { productId: mongoose.Types.ObjectId; currency: string }; units: number; revenue: number; cost: number }>([
     { $match: { ...PAID, 'payment.paidAt': { $gte: range.from, $lte: range.to }, 'fulfillment.state': { $in: ['placed', 'partial'] } } },
