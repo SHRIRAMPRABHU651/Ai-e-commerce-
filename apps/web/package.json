@@ -15,15 +15,15 @@
     "@orvia/analytics": "*",
     "@orvia/types": "*",
     "@orvia/ui": "*",
-    "@stripe/stripe-js": "^10.0.0",
-    "lucide-react": "^1.52.0",
-    "next": "^16.3.8",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "@stripe/stripe-js": "^10.2.1",
+    "lucide-react": "^1.68.0",
+    "next": "^16.4.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.4",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "tailwindcss": "^4.3.3"
